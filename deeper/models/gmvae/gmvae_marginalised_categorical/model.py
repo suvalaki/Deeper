@@ -6,7 +6,7 @@ tfk = tf.keras
 
 Model = tfk.Model
 
-tf.enable_eager_execution()
+#tf.enable_eager_execution()
 
 import numpy as np
 
@@ -33,7 +33,7 @@ class Encoder(Model):
                 )
             )
             self.embeddings_bn.append(
-                tf.layers.BatchNormalization()
+                tfk.layers.BatchNormalization(axis=-1)
             )
 
         self.latent = tfk.layers.Dense(
@@ -44,9 +44,10 @@ class Encoder(Model):
             bias_initializer=tfk.initializers.Zeros()
         )
 
+    @tf.function#(autograph=False)
     def call(self, inputs, training=False):
         """Define the computational flow"""
-        x = inputs
+        x = tf.cast(inputs, tf.float64)
         for em, bn in zip(self.embeddings, self.embeddings_bn):
             x = em(x)
             x = bn(x, training=training)
@@ -61,9 +62,10 @@ class SoftmaxEncoder(Model):
         self.embedding_dimensions = embedding_dimensions
 
         self.logits = Encoder(self.latent_dim, self.embedding_dimensions)
-            
+
+    @tf.function#(autograph=False)
     def call(self, inputs, training=False):
-        x = inputs
+        x = tf.cast(inputs, tf.float64)
         logits = self.logits(x)
         prob = tf.nn.softmax(logits)
         return logits, prob
@@ -82,9 +84,9 @@ class NormalEncoder(Model):
                 t[0], tf.exp(t[1])),
             convert_to_tensor_fn=lambda s: s.sample(1))
         
-            
+    @tf.function     
     def call(self, inputs, training=False):
-        x = inputs
+        x = tf.cast(inputs, tf.float64)
         mu = self.mu(x, training)
         logvar = self.logvar(x, training)
         dist = self.sample((mu, logvar))
@@ -110,9 +112,10 @@ class NormalDecoder(Model):
                 t[0], tf.exp(t[1])),
             convert_to_tensor_fn=lambda s: s.sample())
         
-            
+
+    @tf.function#(autograph=False)   
     def call(self, inputs, outputs, training=False, var=None):
-        x = inputs
+        x = tf.cast(inputs, tf.float64)
         mu = self.mu.call(x, training)
         #logvar = self.logvar(x, training)
         if var is not None:
@@ -144,8 +147,9 @@ class SigmoidDecoder(Model):
             make_distribution_fn=lambda t: tfd.Bernoulli(logits=t),
             convert_to_tensor_fn=lambda s: s.sample())
         
+    @tf.function#(autograph=False)
     def call(self, inputs, outputs, training=False):
-        x = inputs
+        x = tf.cast(inputs, tf.float64)
         logit = self.mu.call(x, training)
         #logvar = self.logvar(x, training)
         #dist = self.sample(tf.cast(outputs, tf.float64),)
@@ -227,12 +231,14 @@ class Gmvae(Model):
             ]
         
 
-        self.optimizer = tf.train.AdamOptimizer(self.learning_rate)
+        self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
 
     @staticmethod
+    @tf.function#(autograph=False)
     def mc_stack_mean(x):
         return tf.identity(tf.stack(x, 0) / len(x))
         
+    @tf.function#(autograph=False)
     def call(self, inputs, training=False):
         x = inputs
                 
@@ -275,6 +281,7 @@ class Gmvae(Model):
                         name="y_one_hot".format(i),
                     ),
                 )
+                y = tf.cast(y, tf.float64)
 
                 xy = tf.concat([x,y], axis=-1)
                 (
@@ -315,7 +322,8 @@ class Gmvae(Model):
             mc_pz_g_y__sample, mc_pz_g_y__logprob, mc_pz_g_y__prob,
             mc_px_g_zy__sample, mc_px_g_zy__logprob, mc_px_g_zy__prob
         )
-            
+
+    @tf.function        
     def entropy_fn(self, inputs, training=False):
         (
             py, qy_g_x,
@@ -340,34 +348,38 @@ class Gmvae(Model):
         
         #y_entropy
         y_entropy = tf.reduce_sum(tf.cast(qy_g_x, tf.float64) * (
-            tf.log(tf.cast(py,tf.float64)) - tf.log(tf.cast(qy_g_x, tf.float64))), axis=-1)
+            tf.math.log(tf.cast(py,tf.float64)) - tf.math.log(tf.cast(qy_g_x, tf.float64))), axis=-1)
         
         #elbo = recon + z_entropy + y_entropy
         return recon, z_entropy, y_entropy
 
+    @tf.function#(autograph=False)
     def elbo(self, inputs, training=False):
         recon, z_entropy, y_entropy = self.entropy_fn(inputs, training)
         return recon + z_entropy + y_entropy
 
+    @tf.function#(autograph=False)
     def loss_fn(self,inputs, training=False):
         return - self.elbo(inputs, training)
 
-    #@tf.function
+    @tf.function#(autograph=False)
     def train_step(self, x):
         with tf.GradientTape() as tape:
             loss = self.loss_fn(x, training=True)
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        with tf.control_dependencies(update_ops):
-            gradients = tape.gradient(loss, self.trainable_variables)
-            # Clipping
-            gradients = [
-                None if gradient is None 
-                else tf.clip_by_value(gradient,-1e-0,1e0)
-                for gradient in gradients
-            ]
-            self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+        # Update ops for batch normalization
+        #update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        #with tf.control_dependencies(update_ops):
+        gradients = tape.gradient(loss, self.trainable_variables)
+        # Clipping
+        gradients = [
+            None if gradient is None 
+            else tf.clip_by_value(gradient,-1e-0,1e0)
+            for gradient in gradients
+        ]
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
 
-
+    @tf.function#(autograph=False)
     def predict(self, x, training=False):
         qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
         return qy_g_x__prob
+

@@ -15,7 +15,7 @@ def chain_call(func,x, num):
     if type(result[0]) == tuple:
         result_pivot = [ np.concatenate([y[i] for y in result], -1) for i in range(num_dats) ]
     else:
-        result_pivot=np.concatenate(result, -1)
+        result_pivot=np.concatenate(result)
     return result_pivot
 
 
@@ -25,3 +25,32 @@ def purity_score(y_true, y_pred):
     contingency_matrix = metrics.cluster.contingency_matrix(y_true, y_pred)
     # return purity
     return np.sum(np.amax(contingency_matrix, axis=0)) / np.sum(contingency_matrix) 
+
+
+def dataset_wrapper(
+    X,
+    SHUFFLE_BUFFER_SIZE=None, 
+    BATCH_SIZE=None
+):
+    dataaset = tf.data.Dataset.from_tensor_slices(X)
+    if SHUFFLE_BUFFER_SIZE is not None:
+        dataaset.shuffle(SHUFFLE_BUFFER_SIZE)
+    if BATCH_SIZE is not None:
+        dataaset = dataaset.batch(BATCH_SIZE)
+
+
+
+def numpy_tf_dataset(
+    X_train, 
+    y_train, 
+    X_test, 
+    y_test, 
+    SHUFFLE_BUFFER_SIZE=None, 
+    BATCH_SIZE=None
+    ):
+    train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
+    test_dataset = tf.data.Dataset.from_tensor_slices((X_test, y_test))
+
+
+
+    return train_dataset, test_dataset
