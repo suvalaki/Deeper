@@ -1,3 +1,4 @@
+import tensorflow as tf
 import numpy as np
 from sklearn import metrics
 
@@ -17,6 +18,20 @@ def chain_call(func,x, num):
     else:
         result_pivot=np.concatenate(result)
     return result_pivot
+
+@tf.function
+def chain_call_dataset(func, dataset):
+    
+    result = []
+    for x in dataset:
+        result.append(func(x))
+
+    if type(result[0]) == tuple:
+        result_pivot = [ np.concatenate([y[i] for y in result], -1) for i in range(num_dats) ]
+    else:
+        result_pivot=np.concatenate(result)
+    return result_pivot
+
 
 
 

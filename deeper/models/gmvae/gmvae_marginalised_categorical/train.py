@@ -1,35 +1,30 @@
 import tensorflow as tf
 import numpy as np
-from tqdm import tqdm
+from tqdm import tqdm, tqdm_notebook
 from sklearn.metrics import adjusted_mutual_info_score
 from .utils import chain_call, purity_score
 
 
 def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1):
     
-    """
-    # Setup datasets
-    dataset_train = (
-        tf.data.Dataset.from_tensor_slices((X_train, y_train))
-        .repeat()
-        .shuffle()
-        .batch(num)
-    )
-    dataset_test = (
-        tf.data.Dataset.from_tensor_slices((X_test, y_test))
-        .repeat()
-        .batch(num)
-    )
-    """
-
     print('{:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}'.format(
         'epoch','loss','likelih','z-prior','y-prior', 
         'trAMI', 'teAMI', 'trPUR', 'tePUR'))
 
     for i in tqdm(range(epochs), position=0):
+
+        # Setup datasets
+        dataset_train = (
+            tf.data.Dataset.from_tensor_slices((X_train))
+            .shuffle(X_train.shape[0])
+            .batch(num)
+        )
+        
+
         for j in tqdm(range(iter), position=1):
             idx_train = np.random.choice(X_train.shape[0],num)
-            model.train_step(X_train[idx_train])
+            #model.train_step(X_train[idx_train])
+            model.train_step(dataset_train)
         
         if i%verbose==0:
             #Evaluate training metrics

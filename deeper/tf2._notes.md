@@ -25,3 +25,6 @@ data during training. This reduces the time that the model is bottlenecked
 by the cpu. Feeding the data using python results in us processing the 
 input data with a single thread; meaning the gpu remains idle while that
 processing is taking place. 
+
+Datasets in eager mode DO NOT require initialization. Instead they support
+itteration with the 

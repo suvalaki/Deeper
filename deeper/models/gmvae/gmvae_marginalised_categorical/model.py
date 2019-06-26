@@ -363,20 +363,22 @@ class Gmvae(Model):
         return - self.elbo(inputs, training)
 
     @tf.function#(autograph=False)
-    def train_step(self, x):
-        with tf.GradientTape() as tape:
-            loss = self.loss_fn(x, training=True)
-        # Update ops for batch normalization
-        #update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        #with tf.control_dependencies(update_ops):
-        gradients = tape.gradient(loss, self.trainable_variables)
-        # Clipping
-        gradients = [
-            None if gradient is None 
-            else tf.clip_by_value(gradient,-1e-0,1e0)
-            for gradient in gradients
-        ]
-        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+    def train_step(self, dataset):
+        for x in dataset:
+            # Tensorflow dataset is iterable in eager mode
+            with tf.GradientTape() as tape:
+                loss = self.loss_fn(x, training=True)
+            # Update ops for batch normalization
+            #update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            #with tf.control_dependencies(update_ops):
+            gradients = tape.gradient(loss, self.trainable_variables)
+            # Clipping
+            gradients = [
+                None if gradient is None 
+                else tf.clip_by_value(gradient,-1e-0,1e0)
+                for gradient in gradients
+            ]
+            self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
 
     @tf.function#(autograph=False)
     def predict(self, x, training=False):
