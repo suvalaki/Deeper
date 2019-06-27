@@ -15,16 +15,18 @@ def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1)
 
         # Setup datasets
         dataset_train = (
-            tf.data.Dataset.from_tensor_slices((X_train))
+            tf.data.Dataset.from_tensor_slices(X_train)
             .shuffle(X_train.shape[0])
             .batch(num)
         )
         
 
-        for j in tqdm(range(iter), position=1):
-            idx_train = np.random.choice(X_train.shape[0],num)
-            #model.train_step(X_train[idx_train])
-            model.train_step(dataset_train)
+        #for j in tqdm(range(iter), position=1):
+        #idx_train = np.random.choice(X_train.shape[0],num)
+        #model.train_step(X_train[idx_train])
+        #with tf.device('/gpu:0'):
+        for x in tqdm(dataset_train, position=1):
+            model.train_step(x)
         
         if i%verbose==0:
             #Evaluate training metrics
