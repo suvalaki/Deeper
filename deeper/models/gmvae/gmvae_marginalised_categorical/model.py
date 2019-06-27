@@ -1,5 +1,7 @@
 import tensorflow as tf 
 import tensorflow_probability as tfp 
+from tensorflow.python.eager import context
+import numpy as np
 
 tfd = tfp.distributions
 tfk = tf.keras
@@ -66,7 +68,8 @@ class SoftmaxEncoder(Model):
     @tf.function#(autograph=False)
     def call(self, inputs, training=False):
         x = tf.cast(inputs, tf.float64)
-        logits = self.logits(x)
+        logits = tf.clip_by_value(self.logits(x), np.log(0.01), 
+            np.log(0.99))
         prob = tf.nn.softmax(logits)
         return logits, prob
 
@@ -95,7 +98,7 @@ class NormalEncoder(Model):
         # Metrics for loss
         logprob = dist.log_prob(sample)
         prob = dist.prob(sample)
-        
+            
         return sample, logprob, prob
 
 
@@ -167,13 +170,79 @@ class SigmoidDecoder(Model):
 
 
         logprob = - tf.cast(tf.reduce_sum(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=logit, labels=outputs[None,:,:]),
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=tf.nn.tanh(logit), labels=outputs[None,:,:]),
             #outputs[None,:,:] * tf.log(tf.nn.sigmoid(logit)),
             -1), tf.float64)
 
         prob = tf.exp(logprob)
 
         return logit[None,:,:], logprob, prob
+
+
+class MarginalAutoEncoder(Model):
+
+    def __init__(
+        self,
+        input_dimension,  
+        embedding_dimensions,
+        latent_dim,
+        kind="binary"
+    ):
+        Model.__init__(self)
+        self.in_dim = input_dimension
+        self.la_dim = latent_dim
+        self.em_dim = embedding_dimensions
+        self.kind=kind
+        self.graphs_qz_g_xy = NormalEncoder(self.la_dim, self.em_dim) 
+        self.graphs_pz_g_y = NormalDecoder(self.la_dim, [int(self.la_dim//2)]) 
+        if self.kind == 'binary':
+            self.graphs_px_g_zy = SigmoidDecoder(self.in_dim, self.em_dim[::-1]) 
+        else:
+            self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1]) 
+
+    @tf.function#
+    def call(self, x, y, training=False):
+
+        xy = tf.concat([x,y], axis=-1)
+        (
+            qz_g_xy__sample, 
+            qz_g_xy__logprob, 
+            qz_g_xy__prob
+        ) = self.graphs_qz_g_xy.call(xy, training)
+        (
+            pz_g_y__sample, 
+            pz_g_y__logprob, 
+            pz_g_y__prob
+        ) = self.graphs_pz_g_y.call(y, qz_g_xy__sample, training, var=True)
+        (
+            px_g_zy__sample, 
+            px_g_zy__logprob, 
+            px_g_zy__prob
+        ) = self.graphs_px_g_zy.call(qz_g_xy__sample, x, training)
+
+        return (
+            qz_g_xy__sample, qz_g_xy__logprob, qz_g_xy__prob,
+            pz_g_y__sample, pz_g_y__logprob, pz_g_y__prob,
+            px_g_zy__sample, px_g_zy__logprob, px_g_zy__prob
+        )
+
+    @tf.function
+    def sample(self, samples, x, y, training=False):
+        with tf.device('/gpu:0'):
+            result = [self.call(x,y,training) for j in range(samples)]
+            result_pivot = list(zip(*result))
+        return result_pivot
+
+    @staticmethod
+    def mc_stack_mean(x):
+        return tf.identity(tf.stack(x, 0) / len(x))
+
+    @tf.function
+    def monte_carlo_estimate(self, samples, x, y, training=False):
+        return [ 
+            self.mc_stack_mean(z) 
+            for z in self.sample(samples, x, y, training=False)
+        ]
 
 
 
@@ -209,55 +278,26 @@ class Gmvae(Model):
         self.learning_rate = learning_rate
 
         # instantiate all variables in the graph
-
         self.graph_qy_g_x = SoftmaxEncoder(self.k, self.em_dim)
-        self.graphs_qz_g_xy = [
-            NormalEncoder(self.la_dim, self.em_dim) 
+        self.marginal_autoencoder = [
+            MarginalAutoEncoder(
+                self.in_dim, 
+                self.em_dim, 
+                self.la_dim,
+                self.kind
+            )
             for i in range(self.k)
         ]
-        self.graphs_pz_g_y = [
-            NormalDecoder(self.la_dim, [int(self.la_dim//2)]) 
-            for i in range(self.k)
-        ]
-        if self.kind == 'binary':
-            self.graphs_px_g_zy = [
-                SigmoidDecoder(self.in_dim, self.em_dim[::-1]) 
-                for i in range(self.k)
-            ]
-        else:
-            self.graphs_px_g_zy = [
-                NormalDecoder(self.in_dim, self.em_dim[::-1]) 
-                for i in range(self.k)
-            ]
         
-
         self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
 
-    @staticmethod
-    @tf.function#(autograph=False)
-    def mc_stack_mean(x):
-        return tf.identity(tf.stack(x, 0) / len(x))
-        
-    @tf.function#(autograph=False)
     def call(self, inputs, training=False):
+
         x = inputs
-                
         y_ = tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0)
         py = tf.fill(tf.shape(y_), 1 / self.k, name="prob")
                 
         qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
-        
-        qz_g_xy__sample = [[None]*self.mc_sam for i in range(self.k)]
-        qz_g_xy__logprob = [[None]*self.mc_sam for i in range(self.k)]
-        qz_g_xy__prob = [[None]*self.mc_sam for i in range(self.k)]
-        
-        pz_g_y__sample = [[None]*self.mc_sam for i in range(self.k)]
-        pz_g_y__logprob = [[None]*self.mc_sam for i in range(self.k)]
-        pz_g_y__prob = [[None]*self.mc_sam for i in range(self.k)]
-        
-        px_g_zy__sample = [[None]*self.mc_sam for i in range(self.k)]
-        px_g_zy__logprob = [[None]*self.mc_sam for i in range(self.k)]
-        px_g_zy__prob = [[None]*self.mc_sam for i in range(self.k)]
         
         mc_qz_g_xy__sample = [None] * self.k
         mc_qz_g_xy__logprob = [None] * self.k
@@ -270,58 +310,33 @@ class Gmvae(Model):
         mc_px_g_zy__sample = [None] * self.k
         mc_px_g_zy__logprob = [None] * self.k
         mc_px_g_zy__prob = [None] * self.k
-        
+
         for i in range(self.k):
-            for j in range(self.mc_sam):
-                y = tf.add(
-                    y_,
-                    tf.constant(
-                        np.eye(self.k)[i],
-                        dtype=tf.float32,
-                        name="y_one_hot".format(i),
-                    ),
-                )
-                y = tf.cast(y, tf.float64)
+            y = tf.add(
+                y_,
+                tf.constant(
+                    np.eye(self.k)[i],
+                    dtype=tf.float32,
+                    name="y_one_hot".format(i),
+                ),
+            )
 
-                xy = tf.concat([x,y], axis=-1)
-                (
-                    qz_g_xy__sample[i][j], 
-                    qz_g_xy__logprob[i][j], 
-                    qz_g_xy__prob[i][j]
-                 ) = self.graphs_qz_g_xy[i].call(xy, training)
-                (
-                    pz_g_y__sample[i][j], 
-                    pz_g_y__logprob[i][j], 
-                    pz_g_y__prob[i][j] 
-                ) = self.graphs_pz_g_y[i].call(y, qz_g_xy__sample[i][j], training, var=True)
+            y = tf.cast(y, tf.float64)
 
-                (
-                    px_g_zy__sample[i][j], 
-                    px_g_zy__logprob[i][j], 
-                    px_g_zy__prob[i][j]
-                ) = self.graphs_px_g_zy[i].call(
-                    qz_g_xy__sample[i][j], inputs, training)
-
-            # Monte Carlo
-            mc_qz_g_xy__sample[i] = self.mc_stack_mean(qz_g_xy__sample[i])
-            #import pdb; pdb.set_trace()
-            mc_qz_g_xy__logprob[i] = self.mc_stack_mean(qz_g_xy__logprob[i])
-            mc_qz_g_xy__prob[i] = self.mc_stack_mean(qz_g_xy__prob[i])
-
-            mc_pz_g_y__sample[i] = self.mc_stack_mean(pz_g_y__sample[i])
-            mc_pz_g_y__logprob[i] = self.mc_stack_mean(pz_g_y__logprob[i])
-            mc_pz_g_y__prob[i] = self.mc_stack_mean(pz_g_y__prob[i])
-
-            mc_px_g_zy__sample[i] = self.mc_stack_mean(px_g_zy__sample[i])
-            mc_px_g_zy__logprob[i] = self.mc_stack_mean(px_g_zy__logprob[i])
-            mc_px_g_zy__prob[i] = self.mc_stack_mean(px_g_zy__prob[i])
+            (
+                mc_qz_g_xy__sample[i], mc_qz_g_xy__logprob[i], mc_qz_g_xy__prob[i],
+                mc_pz_g_y__sample[i], mc_pz_g_y__logprob[i], mc_pz_g_y__prob[i],
+                mc_px_g_zy__sample[i], mc_px_g_zy__logprob[i], mc_px_g_zy__prob[i]
+            ) = self.marginal_autoencoder[i].monte_carlo_estimate(
+                self.mc_sam, x, y, training)
 
         return (
             py, qy_g_x__prob,
-            mc_qz_g_xy__sample, mc_qz_g_xy__logprob, mc_qz_g_xy__prob, 
+            mc_qz_g_xy__sample, mc_qz_g_xy__logprob, mc_qz_g_xy__prob,
             mc_pz_g_y__sample, mc_pz_g_y__logprob, mc_pz_g_y__prob,
             mc_px_g_zy__sample, mc_px_g_zy__logprob, mc_px_g_zy__prob
         )
+
 
     @tf.function        
     def entropy_fn(self, inputs, training=False):
@@ -363,24 +378,30 @@ class Gmvae(Model):
         return - self.elbo(inputs, training)
 
     @tf.function#(autograph=False)
-    def train_step(self, dataset):
-        for x in dataset:
+    def train_step(self, x):
+        #for x in dataset:
             # Tensorflow dataset is iterable in eager mode
+        with tf.device('/gpu:0'):
             with tf.GradientTape() as tape:
-                loss = self.loss_fn(x, training=True)
+                loss = tf.reduce_mean(self.loss_fn(x, training=True))
             # Update ops for batch normalization
             #update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             #with tf.control_dependencies(update_ops):
-            gradients = tape.gradient(loss, self.trainable_variables)
+
+        with tf.device('/gpu:0'):
+            gradients = tape.gradient(loss, self.trainable_weights)
             # Clipping
-            gradients = [
+            """gradients = [
                 None if gradient is None 
                 else tf.clip_by_value(gradient,-1e-0,1e0)
                 for gradient in gradients
-            ]
-            self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+            ]"""
+        with tf.device('/gpu:0'):
+            self.optimizer.apply_gradients(zip(gradients, self.trainable_weights))
 
-    @tf.function#(autograph=False)
+
+
+    #@tf.function#(autograph=False)
     def predict(self, x, training=False):
         qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
         return qy_g_x__prob
