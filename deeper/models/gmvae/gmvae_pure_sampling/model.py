@@ -227,6 +227,7 @@ class Gmvae():
         self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
 
     @staticmethod
+    @tf.function
     def mc_stack_mean(x):
         return tf.identity(tf.stack(x, 0) / len(x))
         
@@ -369,7 +370,7 @@ class Gmvae():
         ]
         self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
 
-
+    @tf.function
     def predict(self, x, training=False):
         qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
         return qy_g_x__prob

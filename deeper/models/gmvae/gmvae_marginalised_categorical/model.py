@@ -200,7 +200,7 @@ class MarginalAutoEncoder(Model):
         else:
             self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1]) 
 
-    @tf.function#
+    #@tf.function#
     def call(self, x, y, training=False):
 
         xy = tf.concat([x,y], axis=-1)
@@ -226,7 +226,7 @@ class MarginalAutoEncoder(Model):
             px_g_zy__sample, px_g_zy__logprob, px_g_zy__prob
         )
 
-    @tf.function
+    #@tf.function
     def sample(self, samples, x, y, training=False):
         with tf.device('/gpu:0'):
             result = [self.call(x,y,training) for j in range(samples)]
@@ -237,7 +237,7 @@ class MarginalAutoEncoder(Model):
     def mc_stack_mean(x):
         return tf.identity(tf.stack(x, 0) / len(x))
 
-    @tf.function
+    #@tf.function
     def monte_carlo_estimate(self, samples, x, y, training=False):
         return [ 
             self.mc_stack_mean(z) 
@@ -338,7 +338,7 @@ class Gmvae(Model):
         )
 
 
-    @tf.function        
+    #@tf.function        
     def entropy_fn(self, inputs, training=False):
         (
             py, qy_g_x,
@@ -368,16 +368,16 @@ class Gmvae(Model):
         #elbo = recon + z_entropy + y_entropy
         return recon, z_entropy, y_entropy
 
-    @tf.function#(autograph=False)
+    #@tf.function#(autograph=False)
     def elbo(self, inputs, training=False):
         recon, z_entropy, y_entropy = self.entropy_fn(inputs, training)
         return recon + z_entropy + y_entropy
 
-    @tf.function#(autograph=False)
+    #@tf.function#(autograph=False)
     def loss_fn(self,inputs, training=False):
         return - self.elbo(inputs, training)
 
-    @tf.function#(autograph=False)
+    #@tf.function#(autograph=False)
     def train_step(self, x):
         #for x in dataset:
             # Tensorflow dataset is iterable in eager mode
