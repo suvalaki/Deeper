@@ -12,7 +12,17 @@ print('tensorflow gpu available {}'.format(tf.test.is_gpu_available()))
 logfolder = Path('./logs/test_model/')
 #if logpathis_dir():
     
-
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+  try:
+    # Currently, memory growth needs to be the same across GPUs
+    for gpu in gpus:
+      tf.config.experimental.set_memory_growth(gpu, True)
+    logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+  except RuntimeError as e:
+    # Memory growth must be set before GPUs have been initialized
+    print(e)
 
 #%% Load MNIST and make it binary encoded
 mnist = tf.keras.datasets.mnist
@@ -26,24 +36,27 @@ X_test = (X_test > 0.5).astype(float)
 #%% Instantiate the model
 from importlib import reload
 model = reload(model)
-with tf.device('/gpu:0'):
-    m1 = model.Gmvae(
-        components=len(set(y_train)),
-        input_dimension=X_train.shape[1],
-        embedding_dimensions=[512,512],
-        latent_dimensions=256,
-        kind="binary",
-        monte_carlo_samples=10,
-        learning_rate=0.01
-    )
+
+m1 = model.Gmvae(
+    components=len(set(y_train)),
+    input_dimension=X_train.shape[1],
+    embedding_dimensions=[512,512],
+    latent_dimensions=256,
+    kind="binary",
+    monte_carlo_samples=1,
+    learning_rate=0.00001
+)
 
 from deeper.models.gmvae.gmvae_marginalised_categorical.train import train
 #with tf.device('/gpu:0'):
-train(m1, X_train, y_train, X_test, y_test, 100, 10, 1)
+train(m1, X_train, y_train, X_test, y_test, 20, 30, 1)
+#train(m1, X_train[0:1000], y_train[0:1000], X_test[0:1000], y_test[0:1000], 100, 10, 1)
 
 #m1.compile(loss=m1.loss_fn, optimizer=m1.optimizer)
 
 #m1.fit(X_train, 10)
+
+
 
 #%% Initialize the Graph by running th training op once
 idx_train = np.random.choice(X_train.shape[0], 100)
@@ -54,6 +67,10 @@ z_ent = np.array(z_ent).mean()
 y_ent = np.array(y_ent).mean()
 
 print('recon: {}\nz_ent: {}\ny_ent: {}'.format(recon,z_ent,y_ent))
+
+
+
+m1.graph_qy_g_x(X_train[idx_train], training)
 
 #%% Train the model
 from deeper.models.gmvae.gmvae_marginalised_categorical.train import train
