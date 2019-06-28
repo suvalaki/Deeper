@@ -135,7 +135,7 @@ class NormalDecoder(Model):
         # Metrics for loss
         #import pdb; pdb.set_trace()
         logprob = tf.compat.v2.clip_by_value(dist.log_prob(tf.cast(mu[:,:],tf.float64)), np.log(0.01),np.log(0.99), 'logprob')
-        prob = tf.xp(logprob)
+        prob = tf.exp(logprob)
         
         return mu[None,:,:], logprob, prob
 
