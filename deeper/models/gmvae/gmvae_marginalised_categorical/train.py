@@ -26,7 +26,7 @@ def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1)
         
         for x in dataset_train:
             model.train_step(x)
-            t2.update()
+            t2.update(1)
         t2.close()
         
         if i%verbose==0:
@@ -65,7 +65,7 @@ def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1)
                     purity_train, purity_test))
 
             
-        t1.update()
+        t1.update(1)
     t1.close()
             
     
