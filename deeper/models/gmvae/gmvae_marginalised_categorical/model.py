@@ -41,7 +41,7 @@ class Encoder(Model):
         self.latent = tfk.layers.Dense(
             units=self.latent_dim,
             activation=None,
-            use_bias=False,
+            use_bias=True,
             kernel_initializer=tfk.initializers.he_normal(seed=None),
             bias_initializer=tfk.initializers.Zeros()
         )
