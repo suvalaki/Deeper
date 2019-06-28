@@ -174,7 +174,7 @@ class SigmoidDecoder(Model):
             )
 
 
-        logprob = - tf.cast(tf.reduce_sum(
+        logprob = - tf.cast(tf.reduce_mean(
             tf.nn.sigmoid_cross_entropy_with_logits(logits=tf.nn.tanh(logit), labels=outputs[None,:,:]),
             #outputs[None,:,:] * tf.log(tf.nn.sigmoid(logit)),
             -1), tf.float64)
