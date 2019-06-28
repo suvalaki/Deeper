@@ -26,6 +26,8 @@ def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1)
         
         for x in dataset_train:
             model.train_step(x)
+            t2.update()
+        t2.close()
         
         if i%verbose==0:
             #Evaluate training metrics
@@ -62,7 +64,8 @@ def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1)
                     ami_tr, ami_te,
                     purity_train, purity_test))
 
-            t2.update()
+            
         t1.update()
+    t1.close()
             
     
