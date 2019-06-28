@@ -83,7 +83,7 @@ class NormalEncoder(Model):
         self.mu = Encoder(self.latent_dim, self.embedding_dimensions)
         self.logvar = Encoder(self.latent_dim, self.embedding_dimensions) 
         self.sample = tfp.layers.DistributionLambda(
-            make_distribution_fn=lambda t: tfd.MultivariateNormalDiag(
+            make_distribution_fn=lambda t: tfd.Normal(
                 t[0], tf.exp(t[1])),
             convert_to_tensor_fn=lambda s: s.sample(1))
         
@@ -96,7 +96,8 @@ class NormalEncoder(Model):
         sample = dist.sample(1)
         
         # Metrics for loss
-        logprob = tf.compat.v2.clip_by_value(dist.log_prob(sample), np.log(0.01), np.log(0.99))
+        logprobs = tf.compat.v2.clip_by_value(dist.log_prob(sample), np.log(0.01), np.log(0.99))
+        logprob = tf.reduce_sum(logprobs, axis=-1)
         prob = dist.prob(sample)
             
         return sample, logprob, prob
