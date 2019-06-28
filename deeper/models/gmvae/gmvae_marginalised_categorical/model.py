@@ -56,7 +56,7 @@ class Encoder(Model):
             x = bn(x, training=training)
             x = tf.nn.tanh(x)
         x = self.latent(x)
-        x = self.bn(x, training=training)
+        x = self.latent_bn(x, training=training)
         x = tf.nn.tanh(x)
         return x
 
