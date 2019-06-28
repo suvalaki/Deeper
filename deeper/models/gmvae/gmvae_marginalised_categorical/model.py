@@ -468,7 +468,7 @@ class Gmvae(Model):
             # with tf.control_dependencies(update_ops):
 
         with tf.device("/gpu:0"):
-            gradients = tape.gradient(loss, self.trainable_weights)
+            gradients = tape.gradient(loss, self.trainable_variables)
             # Clipping
             gradients = [
                 None
@@ -480,7 +480,7 @@ class Gmvae(Model):
             ]
         with tf.device("/gpu:0"):
             self.optimizer.apply_gradients(
-                zip(gradients, self.trainable_weights)
+                zip(gradients, self.trainable_variables)
             )
 
     def pretrain_step(self, x):
@@ -494,7 +494,7 @@ class Gmvae(Model):
             # with tf.control_dependencies(update_ops):
 
         with tf.device("/gpu:0"):
-            gradients = tape.gradient(loss, self.trainable_weights)
+            gradients = tape.gradient(loss, self.trainable_variables)
             # Clipping
             gradients = [
                 None
@@ -506,7 +506,7 @@ class Gmvae(Model):
             ]
         with tf.device("/gpu:0"):
             self.optimizer.apply_gradients(
-                zip(gradients, self.trainable_weights)
+                zip(gradients, self.trainable_variables)
             )
 
     # @tf.function#(autograph=False)
