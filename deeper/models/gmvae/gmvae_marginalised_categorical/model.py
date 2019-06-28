@@ -53,10 +53,10 @@ class Encoder(Model):
         x = tf.cast(inputs, tf.float64)
         for em, bn in zip(self.embeddings, self.embeddings_bn):
             x = em(x)
-            #x = bn(x, training=training)
+            x = bn(x, training=training)
             x = tf.nn.tanh(x)
         x = self.latent(x)
-        #x = self.bn(x, training=training)
+        x = self.bn(x, training=training)
         x = tf.nn.tanh(x)
         return x
 
