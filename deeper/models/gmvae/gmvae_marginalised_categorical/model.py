@@ -28,8 +28,8 @@ class Encoder(Model):
             self.embeddings.append(
                 tfk.layers.Dense(
                     units=em, 
-                    activation=tf.nn.tanh,
-                    use_bias=False,
+                    activation=None,
+                    use_bias=True,
                     kernel_initializer=tfk.initializers.he_normal(seed=None),
                     bias_initializer=tfk.initializers.Zeros()
                 )
@@ -53,6 +53,7 @@ class Encoder(Model):
         for em, bn in zip(self.embeddings, self.embeddings_bn):
             x = em(x)
             x = bn(x, training=training)
+            x = tf.nn.tanh(x)
         x = self.latent(x)
         return x
 
