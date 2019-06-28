@@ -41,8 +41,16 @@ def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1)
             idx_tr = chain_call(model.predict, X_train, num).argmax(1)
             idx_te = chain_call(model.predict, X_test, num).argmax(1)
         
-            ami_tr = adjusted_mutual_info_score(y_train, idx_tr)
-            ami_te = adjusted_mutual_info_score(y_test, idx_te)
+            ami_tr = adjusted_mutual_info_score(
+                y_train, 
+                idx_tr, 
+                average_method='arithmetic'
+            )
+            ami_te = adjusted_mutual_info_score(
+                y_test, 
+                idx_te, 
+                average_method='arithmetic'
+            )
             
             purity_train = purity_score(y_train, idx_tr)
             purity_test = purity_score(y_test, idx_te)
