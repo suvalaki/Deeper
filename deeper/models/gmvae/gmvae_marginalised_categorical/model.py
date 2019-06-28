@@ -391,11 +391,11 @@ class Gmvae(Model):
         with tf.device('/gpu:0'):
             gradients = tape.gradient(loss, self.trainable_weights)
             # Clipping
-            """gradients = [
+            gradients = [
                 None if gradient is None 
-                else tf.clip_by_value(gradient,-1e-0,1e0)
+                else tf.clip_by_value(gradient,-1e-1,1e-1)
                 for gradient in gradients
-            ]"""
+            ]
         with tf.device('/gpu:0'):
             self.optimizer.apply_gradients(zip(gradients, self.trainable_weights))
 
