@@ -96,7 +96,7 @@ class NormalEncoder(Model):
         sample = dist.sample(1)
         
         # Metrics for loss
-        logprob = dist.log_prob(sample)
+        logprob = tf.compat.v2.clip_by_value(dist.log_prob(sample), np.log(0.01), np.log(0.99))
         prob = dist.prob(sample)
             
         return sample, logprob, prob
@@ -135,7 +135,7 @@ class NormalDecoder(Model):
         # Metrics for loss
         #import pdb; pdb.set_trace()
         logprob = tf.compat.v2.clip_by_value(dist.log_prob(tf.cast(mu[:,:],tf.float64)), np.log(0.01),np.log(0.99), 'logprob')
-        prob = dist.prob(tf.cast(mu[:,:],tf.float64))
+        prob = tf.xp(logprob)
         
         return mu[None,:,:], logprob, prob
 
