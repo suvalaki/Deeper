@@ -131,7 +131,7 @@ class NormalDecoder(Model):
             logvar = tf.fill(tf.shape(outputs), tf.cast(1.,tf.float64)) + 1e-5
         dist = self.sample(
             (
-                tf.cast(x, tf.float64),
+                tf.cast(mu, tf.float64),
                 logvar
             )
         )
@@ -176,7 +176,7 @@ class SigmoidDecoder(Model):
 
         dist = self.sample(
             (
-                tf.cast(x, tf.float64)
+                tf.cast(logit, tf.float64)
             )
         )
 
