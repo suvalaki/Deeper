@@ -52,8 +52,8 @@ class Encoder(Model):
             x = bn(x, training=training)
             x = tf.nn.tanh(x)
         x = self.latent(x)
-        # x = self.latent_bn(x, training=training)
-        # x = tf.nn.tanh(x)
+        x = self.latent_bn(x, training=training)
+        x = tf.nn.tanh(x)
         return x
 
 
@@ -163,13 +163,7 @@ class SigmoidDecoder(Model):
     def call(self, inputs, outputs, training=False):
         x = tf.cast(inputs, tf.float64)
         logit = self.mu.call(x, training)
-        # logvar = self.logvar(x, training)
-        # dist = self.sample(tf.cast(outputs, tf.float64),)
-        # sample = dist.sample(1)
-        # Metrics for loss
-        # import pdb; pdb.set_trace()
-        # logprob = dist.log_prob(tf.cast(mu[:,:],tf.float64))
-        # prob = dist.prob(tf.cast(mu[:,:],tf.float64))
+
         eps = 0.01
         if eps > 0.0:
             max_val = np.log(1.0 - eps) - np.log(eps)
@@ -178,7 +172,6 @@ class SigmoidDecoder(Model):
             )
 
         dist = self.sample((tf.cast(logit, tf.float64)))
-
         logprobs = tf.compat.v2.clip_by_value(
             dist.log_prob(tf.cast(outputs, tf.float64)),
             np.log(0.001),
