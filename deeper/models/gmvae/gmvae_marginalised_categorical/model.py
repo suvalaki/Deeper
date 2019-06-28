@@ -180,7 +180,7 @@ class SigmoidDecoder(Model):
             )
         )
 
-        logprobs = tf.compat.v2.clip_by_value(dist.log_prob(tf.cast(mu[:,:],tf.float64)), np.log(0.001),np.log(0.999), 'logprob')
+        logprobs = tf.compat.v2.clip_by_value(dist.log_prob(tf.cast(logit[:,:],tf.float64)), np.log(0.001),np.log(0.999), 'logprob')
         logprob = tf.reduce_sum(logprobs, axis=-1)
         prob = tf.exp(logprob)
 
