@@ -55,7 +55,7 @@ def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1)
             purity_train = purity_score(y_train, idx_tr)
             purity_test = purity_score(y_test, idx_te)
 
-            print('{:10d} {:10.5f} {:10.5f} {:10.5f} {:10.5f} '
+            tqdm.write('{:10d} {:10.5f} {:10.5f} {:10.5f} {:10.5f} '
                          '{:10.5f} {:10.5f} '
                          '{:10.5f} {:10.5f}'.format(
                     i, 
