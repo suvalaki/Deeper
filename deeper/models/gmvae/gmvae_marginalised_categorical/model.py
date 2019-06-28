@@ -49,7 +49,7 @@ class Encoder(Model):
         x = tf.cast(inputs, tf.float64)
         for em, bn in zip(self.embeddings, self.embeddings_bn):
             x = em(x)
-            x = bn(x, training=training)
+            #x = bn(x, training=training)
             x = tf.nn.relu(x)
         x = self.latent(x)
         #x = self.latent_bn(x, training=training)
