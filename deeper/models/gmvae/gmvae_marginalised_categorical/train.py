@@ -1,17 +1,21 @@
 import tensorflow as tf
 import numpy as np
-from tqdm import tqdm, tqdm_notebook
+from tqdm.autonotebook import tqdm
 from sklearn.metrics import adjusted_mutual_info_score
 from .utils import chain_call, purity_score
 
 
 def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1):
     
-    print('{:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}'.format(
+
+    t1 = tqdm(total=epochs, position=0)
+    tqdm.write('{:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}'.format(
         'epoch','loss','likelih','z-prior','y-prior', 
         'trAMI', 'teAMI', 'trPUR', 'tePUR'))
 
-    for i in tqdm_notebook(range(epochs), position=0):
+    for i in range(epochs):
+
+        t2 = tqdm(total=int(X_train.shape[0]//num), position=1, leave=False)
 
         # Setup datasets
         dataset_train = (
@@ -20,12 +24,7 @@ def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1)
             .batch(num)
         )
         
-
-        #for j in tqdm(range(iter), position=1):
-        #idx_train = np.random.choice(X_train.shape[0],num)
-        #model.train_step(X_train[idx_train])
-        #with tf.device('/gpu:0'):
-        for x in tqdm_notebook(dataset_train, position=1):
+        for x in dataset_train:
             model.train_step(x)
         
         if i%verbose==0:
@@ -62,5 +61,8 @@ def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1)
                     loss, recon, z_ent, y_ent,
                     ami_tr, ami_te,
                     purity_train, purity_test))
+
+            t2.update()
+        t1.update()
             
     
