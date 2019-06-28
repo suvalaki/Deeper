@@ -11,7 +11,7 @@ def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1)
         'epoch','loss','likelih','z-prior','y-prior', 
         'trAMI', 'teAMI', 'trPUR', 'tePUR'))
 
-    for i in tqdm(range(epochs), position=0):
+    for i in tqdm_notebook(range(epochs), position=0):
 
         # Setup datasets
         dataset_train = (
@@ -25,7 +25,7 @@ def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1)
         #idx_train = np.random.choice(X_train.shape[0],num)
         #model.train_step(X_train[idx_train])
         #with tf.device('/gpu:0'):
-        for x in tqdm(dataset_train, position=1):
+        for x in tqdm_notebook(dataset_train, position=1):
             model.train_step(x)
         
         if i%verbose==0:
