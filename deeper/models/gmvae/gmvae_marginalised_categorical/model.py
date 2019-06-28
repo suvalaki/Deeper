@@ -38,6 +38,7 @@ class Encoder(Model):
                 tfk.layers.BatchNormalization(axis=-1)
             )
 
+        self.latent_bn = tfk.layers.BatchNormalization(axis=-1)
         self.latent = tfk.layers.Dense(
             units=self.latent_dim,
             activation=None,
@@ -55,6 +56,8 @@ class Encoder(Model):
             #x = bn(x, training=training)
             x = tf.nn.tanh(x)
         x = self.latent(x)
+        #x = self.bn(x, training=training)
+        x = tf.nn.tanh(x)
         return x
 
 
