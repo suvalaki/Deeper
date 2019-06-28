@@ -73,7 +73,7 @@ class SoftmaxEncoder(Model):
     def call(self, inputs, training=False):
         x = tf.cast(inputs, tf.float64)
         logits = self.logits(x, training)
-        prob = tf.compat.v2.clip_by_value(tf.nn.softmax(logits), 0.01,0.99, 'clipped')
+        prob = tf.compat.v2.clip_by_value(tf.nn.softmax(logits), 0.001,0.999, 'clipped')
         return logits, prob
 
 
@@ -99,7 +99,7 @@ class NormalEncoder(Model):
         sample = dist.sample(1)
         
         # Metrics for loss
-        logprobs = tf.compat.v2.clip_by_value(dist.log_prob(sample), np.log(0.01), np.log(0.99))
+        logprobs = tf.compat.v2.clip_by_value(dist.log_prob(sample), np.log(0.001), np.log(0.999))
         logprob = tf.reduce_sum(logprobs, axis=-1)
         prob = dist.prob(sample)
             
@@ -138,7 +138,7 @@ class NormalDecoder(Model):
         #sample = dist.sample(1)
         # Metrics for loss
         #import pdb; pdb.set_trace()
-        logprobs = tf.compat.v2.clip_by_value(dist.log_prob(tf.cast(mu[:,:],tf.float64)), np.log(0.01),np.log(0.99), 'logprob')
+        logprobs = tf.compat.v2.clip_by_value(dist.log_prob(tf.cast(mu[:,:],tf.float64)), np.log(0.001),np.log(0.999), 'logprob')
         logprob = tf.reduce_sum(logprobs, axis=-1)
         prob = tf.exp(logprob)
         
