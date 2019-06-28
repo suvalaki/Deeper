@@ -111,7 +111,7 @@ class NormalDecoder(Model):
         self.mu = Encoder(self.latent_dim, self.embedding_dimensions)
         self.logvar = Encoder(self.latent_dim, self.embedding_dimensions) 
         self.sample = tfp.layers.DistributionLambda(
-            make_distribution_fn=lambda t: tfd.MultivariateNormalDiag(
+            make_distribution_fn=lambda t: tfd.Normal(
                 t[0], tf.exp(t[1])),
             convert_to_tensor_fn=lambda s: s.sample())
         
@@ -134,7 +134,8 @@ class NormalDecoder(Model):
         #sample = dist.sample(1)
         # Metrics for loss
         #import pdb; pdb.set_trace()
-        logprob = tf.compat.v2.clip_by_value(dist.log_prob(tf.cast(mu[:,:],tf.float64)), np.log(0.01),np.log(0.99), 'logprob')
+        logprobs = tf.compat.v2.clip_by_value(dist.log_prob(tf.cast(mu[:,:],tf.float64)), np.log(0.01),np.log(0.99), 'logprob')
+        logprob = tf.reduce_sum(logprobs, axis=-1)
         prob = tf.exp(logprob)
         
         return mu[None,:,:], logprob, prob
