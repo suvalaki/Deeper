@@ -72,8 +72,8 @@ class SoftmaxEncoder(Model):
     @tf.function#(autograph=False)
     def call(self, inputs, training=False):
         x = tf.cast(inputs, tf.float64)
-        logits = self.logits(x)
-        prob = tf.compat.v2.clip_by_value(tf.nn.softmax(logits), 0.025,0.975, 'clipped')
+        logits = self.logits(x, training)
+        prob = tf.compat.v2.clip_by_value(tf.nn.softmax(logits), 0.01,0.99, 'clipped')
         return logits, prob
 
 
@@ -264,6 +264,7 @@ class Gmvae(Model):
         beta=0.01,
         lmbda=0.5,
         learning_rate=0.01,
+        gradient_clip=1.0
     ):
 
         #instatiate
@@ -279,6 +280,7 @@ class Gmvae(Model):
         self.epochs = 0
         self.beta = beta
         self.lmbda = lmbda
+        self.gradient_clip = gradient_clip
 
         self.learning_rate = learning_rate
 
@@ -398,7 +400,7 @@ class Gmvae(Model):
             # Clipping
             gradients = [
                 None if gradient is None 
-                else tf.clip_by_value(gradient,-1e-1,1e-1)
+                else tf.clip_by_value(gradient,-self.gradient_clip,self.gradient_clip)
                 for gradient in gradients
             ]
         with tf.device('/gpu:0'):
