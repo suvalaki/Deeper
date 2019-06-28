@@ -125,9 +125,13 @@ class NormalDecoder(Model):
         mu = self.mu.call(x, training)
         # logvar = self.logvar(x, training)
         if var is not None:
-            logvar = tf.exp(tf.cast(self.logvar(x, training), tf.float64)) + 1e-5
+            logvar = (
+                tf.exp(tf.cast(self.logvar(x, training), tf.float64)) + 1e-5
+            )
         else:
-            logvar = tf.fill(tf.shape(outputs), tf.cast(1.0, tf.float64)) + 1e-5
+            logvar = (
+                tf.fill(tf.shape(outputs), tf.cast(1.0, tf.float64)) + 1e-5
+            )
         dist = self.sample((tf.cast(mu, tf.float64), logvar))
         # sample = dist.sample(1)
         # Metrics for loss
@@ -169,7 +173,9 @@ class SigmoidDecoder(Model):
         eps = 0.01
         if eps > 0.0:
             max_val = np.log(1.0 - eps) - np.log(eps)
-            logit = tf.compat.v2.clip_by_value(logit, -max_val, max_val, "clipped")
+            logit = tf.compat.v2.clip_by_value(
+                logit, -max_val, max_val, "clipped"
+            )
 
         dist = self.sample((tf.cast(logit, tf.float64)))
 
@@ -195,9 +201,13 @@ class MarginalAutoEncoder(Model):
         self.em_dim = embedding_dimensions
         self.kind = kind
         self.graphs_qz_g_xy = NormalEncoder(self.la_dim, self.em_dim)
-        self.graphs_pz_g_y = NormalDecoder(self.la_dim, [int(self.la_dim // 2)])
+        self.graphs_pz_g_y = NormalDecoder(
+            self.la_dim, [int(self.la_dim // 2)]
+        )
         if self.kind == "binary":
-            self.graphs_px_g_zy = SigmoidDecoder(self.in_dim, self.em_dim[::-1])
+            self.graphs_px_g_zy = SigmoidDecoder(
+                self.in_dim, self.em_dim[::-1]
+            )
         else:
             self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1])
 
@@ -205,15 +215,21 @@ class MarginalAutoEncoder(Model):
     def call(self, x, y, training=False):
 
         xy = tf.concat([x, y], axis=-1)
-        (qz_g_xy__sample, qz_g_xy__logprob, qz_g_xy__prob) = self.graphs_qz_g_xy.call(
-            xy, training
-        )
-        (pz_g_y__sample, pz_g_y__logprob, pz_g_y__prob) = self.graphs_pz_g_y.call(
-            y, qz_g_xy__sample, training, var=True
-        )
-        (px_g_zy__sample, px_g_zy__logprob, px_g_zy__prob) = self.graphs_px_g_zy.call(
-            qz_g_xy__sample, x, training
-        )
+        (
+            qz_g_xy__sample,
+            qz_g_xy__logprob,
+            qz_g_xy__prob,
+        ) = self.graphs_qz_g_xy.call(xy, training)
+        (
+            pz_g_y__sample,
+            pz_g_y__logprob,
+            pz_g_y__prob,
+        ) = self.graphs_pz_g_y.call(y, qz_g_xy__sample, training, var=True)
+        (
+            px_g_zy__sample,
+            px_g_zy__logprob,
+            px_g_zy__prob,
+        ) = self.graphs_px_g_zy.call(qz_g_xy__sample, x, training)
 
         return (
             qz_g_xy__sample,
@@ -241,7 +257,8 @@ class MarginalAutoEncoder(Model):
     # @tf.function
     def monte_carlo_estimate(self, samples, x, y, training=False):
         return [
-            self.mc_stack_mean(z) for z in self.sample(samples, x, y, training=False)
+            self.mc_stack_mean(z)
+            for z in self.sample(samples, x, y, training=False)
         ]
 
 
@@ -280,7 +297,9 @@ class Gmvae(Model):
         # instantiate all variables in the graph
         self.graph_qy_g_x = SoftmaxEncoder(self.k, self.em_dim)
         self.marginal_autoencoder = [
-            MarginalAutoEncoder(self.in_dim, self.em_dim, self.la_dim, self.kind)
+            MarginalAutoEncoder(
+                self.in_dim, self.em_dim, self.la_dim, self.kind
+            )
             for i in range(self.k)
         ]
 
@@ -310,7 +329,9 @@ class Gmvae(Model):
             y = tf.add(
                 y_,
                 tf.constant(
-                    np.eye(self.k)[i], dtype=tf.float32, name="y_one_hot_{}".format(i)
+                    np.eye(self.k)[i],
+                    dtype=tf.float32,
+                    name="y_one_hot_{}".format(i),
                 ),
                 name="hot_at_{}".format(i),
             )
@@ -459,11 +480,15 @@ class Gmvae(Model):
             gradients = [
                 None
                 if gradient is None
-                else tf.clip_by_value(gradient, -self.gradient_clip, self.gradient_clip)
+                else tf.clip_by_value(
+                    gradient, -self.gradient_clip, self.gradient_clip
+                )
                 for gradient in gradients
             ]
         with tf.device("/gpu:0"):
-            self.optimizer.apply_gradients(zip(gradients, self.trainable_weights))
+            self.optimizer.apply_gradients(
+                zip(gradients, self.trainable_weights)
+            )
 
     def pretrain_step(self, x):
         # for x in dataset:
@@ -481,11 +506,15 @@ class Gmvae(Model):
             gradients = [
                 None
                 if gradient is None
-                else tf.clip_by_value(gradient, -self.gradient_clip, self.gradient_clip)
+                else tf.clip_by_value(
+                    gradient, -self.gradient_clip, self.gradient_clip
+                )
                 for gradient in gradients
             ]
         with tf.device("/gpu:0"):
-            self.optimizer.apply_gradients(zip(gradients, self.trainable_weights))
+            self.optimizer.apply_gradients(
+                zip(gradients, self.trainable_weights)
+            )
 
     # @tf.function#(autograph=False)
     def predict(self, x, training=False):

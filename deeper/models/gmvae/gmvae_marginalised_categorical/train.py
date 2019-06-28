@@ -5,7 +5,9 @@ from sklearn.metrics import adjusted_mutual_info_score
 from .utils import chain_call, purity_score
 
 
-def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1):
+def train(
+    model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1
+):
 
     t1 = tqdm(total=epochs, position=0)
     tqdm.write(

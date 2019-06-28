@@ -80,7 +80,17 @@ from deeper.models.gmvae.gmvae_marginalised_categorical.train import train
 
 # with tf.device('/gpu:0'):
 if False:
-    train(m1, X_train, y_train, X_test, y_test, num=10, epochs=10, iter=1, verbose=1)
+    train(
+        m1,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        num=10,
+        epochs=10,
+        iter=1,
+        verbose=1,
+    )
 
 #%% check gpu on training cycle
 num = 10

@@ -213,10 +213,14 @@ class Gmvae:
 
         self.graph_qy_g_x = GumbleSoftmaxEncoder(self.k, self.em_dim)
         self.graphs_qz_g_xy = NormalEncoder(self.la_dim, self.em_dim)
-        self.graphs_pz_g_y = NormalDecoder(self.la_dim, [int(self.la_dim // 2)])
+        self.graphs_pz_g_y = NormalDecoder(
+            self.la_dim, [int(self.la_dim // 2)]
+        )
 
         if self.kind == "binary":
-            self.graphs_px_g_zy = SigmoidDecoder(self.in_dim, self.em_dim[::-1])
+            self.graphs_px_g_zy = SigmoidDecoder(
+                self.in_dim, self.em_dim[::-1]
+            )
         else:
             self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1])
 
@@ -264,7 +268,9 @@ class Gmvae:
             y = tf.add(
                 y_,
                 tf.constant(
-                    np.eye(self.k), dtype=tf.float32, name="y_one_hot".format(i)
+                    np.eye(self.k),
+                    dtype=tf.float32,
+                    name="y_one_hot".format(i),
                 ),
             )
             y = tf.cast(y, tf.float64)
@@ -279,7 +285,9 @@ class Gmvae:
                 pz_g_y__sample[j],
                 pz_g_y__logprob[j],
                 pz_g_y__prob[j],
-            ) = self.graphs_pz_g_y.call(y, qz_g_xy__sample[j], training, var=True)
+            ) = self.graphs_pz_g_y.call(
+                y, qz_g_xy__sample[j], training, var=True
+            )
 
             (
                 px_g_zy__sample[j],
@@ -384,10 +392,14 @@ class Gmvae:
         gradients = tape.gradient(loss, self.trainable_variables)
         # Clipping
         gradients = [
-            None if gradient is None else tf.clip_by_value(gradient, -1e-0, 1e0)
+            None
+            if gradient is None
+            else tf.clip_by_value(gradient, -1e-0, 1e0)
             for gradient in gradients
         ]
-        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+        self.optimizer.apply_gradients(
+            zip(gradients, self.trainable_variables)
+        )
 
     @tf.function
     def predict(self, x, training=False):
@@ -396,7 +408,9 @@ class Gmvae:
 
 
 @tf.function
-def train(model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=10):
+def train(
+    model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=10
+):
 
     print(
         "{:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}".format(
