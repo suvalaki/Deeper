@@ -131,14 +131,14 @@ class NormalDecoder(Model):
             logvar = tf.fill(tf.shape(outputs), tf.cast(1.,tf.float64)) + 1e-5
         dist = self.sample(
             (
-                tf.cast(outputs, tf.float64),
+                tf.cast(x, tf.float64),
                 logvar
             )
         )
         #sample = dist.sample(1)
         # Metrics for loss
         #import pdb; pdb.set_trace()
-        logprobs = tf.compat.v2.clip_by_value(dist.log_prob(tf.cast(mu[:,:],tf.float64)), np.log(0.001),np.log(0.999), 'logprob')
+        logprobs = tf.compat.v2.clip_by_value(dist.log_prob(tf.cast(outputs,tf.float64)), np.log(0.001),np.log(0.999), 'logprob')
         logprob = tf.reduce_sum(logprobs, axis=-1)
         prob = tf.exp(logprob)
         
@@ -176,11 +176,11 @@ class SigmoidDecoder(Model):
 
         dist = self.sample(
             (
-                tf.cast(outputs, tf.float64)
+                tf.cast(x, tf.float64)
             )
         )
 
-        logprobs = tf.compat.v2.clip_by_value(dist.log_prob(tf.cast(logit[:,:],tf.float64)), np.log(0.001),np.log(0.999), 'logprob')
+        logprobs = tf.compat.v2.clip_by_value(dist.log_prob(tf.cast(outputs,tf.float64)), np.log(0.001),np.log(0.999), 'logprob')
         logprob = tf.reduce_sum(logprobs, axis=-1)
         prob = tf.exp(logprob)
 
@@ -387,6 +387,35 @@ class Gmvae(Model):
     def loss_fn(self,inputs, training=False):
         return - self.elbo(inputs, training)
 
+
+    def even_mixture_loss(self, inputs, training=False):
+        (
+            py, qy_g_x,
+            mc_qz_g_xy__sample, 
+            mc_qz_g_xy__logprob, 
+            mc_qz_g_xy__prob, 
+            mc_pz_g_y__sample, 
+            mc_pz_g_y__logprob, 
+            mc_pz_g_y__prob,
+            mc_px_g_zy__sample, 
+            mc_px_g_zy__logprob, 
+            mc_px_g_zy__prob
+        ) = self.call(inputs, training=training)
+        
+        #reconstruction
+        recon = tf.add_n([ tf.cast(py[:,i],tf.float64) 
+            * tf.cast(mc_px_g_zy__logprob[i],tf.float64) 
+            for i in range(self.k) ])
+        
+        #z_entropy
+        z_entropy = tf.add_n([ tf.cast(py[:,i], tf.float64) * (
+            tf.cast(mc_pz_g_y__logprob[i], tf.float64) 
+            - tf.cast(mc_qz_g_xy__logprob[i], tf.float64)) 
+            for i in range(self.k) ])
+        
+        return - ( recon + z_entropy )
+
+
     #@tf.function#(autograph=False)
     def train_step(self, x):
         #for x in dataset:
@@ -408,6 +437,30 @@ class Gmvae(Model):
             ]
         with tf.device('/gpu:0'):
             self.optimizer.apply_gradients(zip(gradients, self.trainable_weights))
+
+
+    def pretrain_step(self, x):
+        #for x in dataset:
+            # Tensorflow dataset is iterable in eager mode
+        with tf.device('/gpu:0'):
+            with tf.GradientTape() as tape:
+                loss = tf.reduce_mean(self.even_mixture_loss(x, training=True))
+            # Update ops for batch normalization
+            #update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            #with tf.control_dependencies(update_ops):
+
+        with tf.device('/gpu:0'):
+            gradients = tape.gradient(loss, self.trainable_weights)
+            # Clipping
+            gradients = [
+                None if gradient is None 
+                else tf.clip_by_value(gradient,-self.gradient_clip,self.gradient_clip)
+                for gradient in gradients
+            ]
+        with tf.device('/gpu:0'):
+            self.optimizer.apply_gradients(zip(gradients, self.trainable_weights))
+
+
 
 
 
