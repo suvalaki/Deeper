@@ -1,7 +1,9 @@
 import tensorflow as tf
 
+
 def f(x, y):
-  return tf.reduce_mean(tf.multiply(x ** 2, 3) + y)
+    return tf.reduce_mean(tf.multiply(x ** 2, 3) + y)
+
 
 g = tf.function(f)
 
@@ -16,7 +18,8 @@ assert f(x, y).numpy() == g(x, y).numpy()
 # graph.
 @tf.function
 def h():
-  return f(x, y)
+    return f(x, y)
+
 
 assert (h().numpy() == f(x, y).numpy()).all()
 
@@ -26,18 +29,20 @@ assert (h().numpy() == f(x, y).numpy()).all()
 # `return`.
 @tf.function
 def g(x):
-  if tf.reduce_sum(x) > 0:
-    return x * x
-  else:
-    return -x // 2
+    if tf.reduce_sum(x) > 0:
+        return x * x
+    else:
+        return -x // 2
 
 
 c = tf.Variable(0)
 
+
 @tf.function
 def f(x):
-  c.assign_add(1)
-  return x + tf.compat.v1.to_float(c)
+    c.assign_add(1)
+    return x + tf.compat.v1.to_float(c)
+
 
 assert c == 0.0
 assert f(1.0) == 2.0
@@ -47,13 +52,14 @@ assert int(c) == 2
 
 
 class Dense(object):
-  def __init__(self):
-    self.W = tf.Variable(tf.compat.v1.glorot_uniform_initializer()((10, 10)))
-    self.b = tf.Variable(tf.zeros(10))
+    def __init__(self):
+        self.W = tf.Variable(tf.compat.v1.glorot_uniform_initializer()((10, 10)))
+        self.b = tf.Variable(tf.zeros(10))
 
-  @tf.function
-  def compute(self, x):
-    return tf.matmul(x, self.W) + self.b
+    @tf.function
+    def compute(self, x):
+        return tf.matmul(x, self.W) + self.b
+
 
 d1 = Dense()
 d2 = Dense()
@@ -64,24 +70,25 @@ assert not (d1.compute(x).numpy() == d2.compute(x).numpy()).all()
 
 # KERAS EXAMPLE
 
-class MyModel(tf.keras.Model):
-  def __init__(self, keep_probability=0.2):
-    tf.keras.Model.__init__(self)
-    self.dense1 = tf.keras.layers.Dense(4)
-    self.dense2 = tf.keras.layers.Dense(5)
-    self.keep_probability = keep_probability
 
-  @tf.function
-  def call(self, inputs, training=True):
-    y = self.dense2(self.dense1(inputs))
-    if training:
-      return tf.nn.dropout(y, self.keep_probability)
-    else:
-      return y
+class MyModel(tf.keras.Model):
+    def __init__(self, keep_probability=0.2):
+        tf.keras.Model.__init__(self)
+        self.dense1 = tf.keras.layers.Dense(4)
+        self.dense2 = tf.keras.layers.Dense(5)
+        self.keep_probability = keep_probability
+
+    @tf.function
+    def call(self, inputs, training=True):
+        y = self.dense2(self.dense1(inputs))
+        if training:
+            return tf.nn.dropout(y, self.keep_probability)
+        else:
+            return y
 
 
 x = tf.random.uniform((100000, 1000))
 
 model = MyModel()
 model(x, training=True)  # executes a graph, with dropout
-model(x, training=False) # executes a graph, without dropout
+model(x, training=False)  # executes a graph, without dropout
