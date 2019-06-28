@@ -69,9 +69,8 @@ class SoftmaxEncoder(Model):
     @tf.function#(autograph=False)
     def call(self, inputs, training=False):
         x = tf.cast(inputs, tf.float64)
-        logits = tf.clip_by_value(self.logits(x), np.log(0.01), 
-            np.log(0.99))
-        prob = tf.nn.softmax(logits)
+        logits = self.logits(x)
+        prob = tf.nn.clip_by_value(tf.nn.softmax(logits), 0.025,0.975)
         return logits, prob
 
 
@@ -82,7 +81,7 @@ class NormalEncoder(Model):
         self.embedding_dimensions = embedding_dimensions
 
         self.mu = Encoder(self.latent_dim, self.embedding_dimensions)
-        self.logvar = Encoder(self.latent_dim, self.embedding_dimensions)
+        self.logvar = Encoder(self.latent_dim, self.embedding_dimensions) 
         self.sample = tfp.layers.DistributionLambda(
             make_distribution_fn=lambda t: tfd.MultivariateNormalDiag(
                 t[0], tf.exp(t[1])),
@@ -92,7 +91,7 @@ class NormalEncoder(Model):
     def call(self, inputs, training=False):
         x = tf.cast(inputs, tf.float64)
         mu = self.mu(x, training)
-        logvar = self.logvar(x, training)
+        logvar = self.logvar(x, training) + 1e-5
         dist = self.sample((mu, logvar))
         sample = dist.sample(1)
         
@@ -110,7 +109,7 @@ class NormalDecoder(Model):
         self.embedding_dimensions = embedding_dimensions
 
         self.mu = Encoder(self.latent_dim, self.embedding_dimensions)
-        self.logvar = Encoder(self.latent_dim, self.embedding_dimensions)
+        self.logvar = Encoder(self.latent_dim, self.embedding_dimensions) 
         self.sample = tfp.layers.DistributionLambda(
             make_distribution_fn=lambda t: tfd.MultivariateNormalDiag(
                 t[0], tf.exp(t[1])),
@@ -123,9 +122,9 @@ class NormalDecoder(Model):
         mu = self.mu.call(x, training)
         #logvar = self.logvar(x, training)
         if var is not None:
-            logvar = tf.exp(tf.cast(self.logvar(x, training), tf.float64))
+            logvar = tf.exp(tf.cast(self.logvar(x, training), tf.float64)) + 1e-5
         else:
-            logvar = tf.fill(tf.shape(outputs), tf.cast(1.,tf.float64))
+            logvar = tf.fill(tf.shape(outputs), tf.cast(1.,tf.float64)) + 1e-5
         dist = self.sample(
             (
                 tf.cast(outputs, tf.float64),
