@@ -23,7 +23,7 @@ class Encoder(Model):
         # embeddings
         self.embeddings = []
         self.embeddings_bn = []
-        for em in self.em_dim:
+        for i,em in enumerate(self.em_dim):
             self.embeddings.append(
                 tfk.layers.Dense(
                     units=em,
@@ -31,17 +31,20 @@ class Encoder(Model):
                     use_bias=True,
                     kernel_initializer=tfk.initializers.he_normal(seed=None),
                     bias_initializer=tfk.initializers.Zeros(),
+                    name='embedding_{}'.format(i)
                 )
             )
-            self.embeddings_bn.append(tfk.layers.BatchNormalization(axis=-1))
+            self.embeddings_bn.append(
+                tfk.layers.BatchNormalization(axis=-1, name='embed_bn_{}'.format(i)))
 
-        self.latent_bn = tfk.layers.BatchNormalization(axis=-1)
+        self.latent_bn = tfk.layers.BatchNormalization(axis=-1, name='latent_bn')
         self.latent = tfk.layers.Dense(
             units=self.latent_dim,
             activation=None,
             use_bias=True,
             kernel_initializer=tfk.initializers.he_normal(seed=None),
             bias_initializer=tfk.initializers.Zeros(),
+            name='latent'
         )
 
     @tf.function  # (autograph=False)
@@ -195,13 +198,14 @@ class MarginalAutoEncoder(Model):
         self.la_dim = latent_dim
         self.em_dim = embedding_dimensions
         self.kind = kind
-        self.graphs_qz_g_xy = NormalEncoder(self.la_dim, self.em_dim)
+        self.graphs_qz_g_xy = NormalEncoder(self.la_dim, self.em_dim, name='encoder_qz_xy')
         self.graphs_pz_g_y = NormalDecoder(
-            self.la_dim, [int(self.la_dim // 2)]
+            self.la_dim, [int(self.la_dim // 2), name='decoder_pz_g_y']
         )
         if self.kind == "binary":
             self.graphs_px_g_zy = SigmoidDecoder(
-                self.in_dim, self.em_dim[::-1]
+                self.in_dim, self.em_dim[::-1],
+                name='encoder_px_g_xy'
             )
         else:
             self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1])
