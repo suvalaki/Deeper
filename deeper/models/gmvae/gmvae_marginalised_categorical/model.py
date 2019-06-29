@@ -23,29 +23,30 @@ class Encoder(Model):
         # embeddings
         self.embeddings = []
         self.embeddings_bn = []
+        
         for i,em in enumerate(self.em_dim):
-            self.embeddings.append(
-                tfk.layers.Dense(
-                    units=em,
-                    activation=None,
-                    use_bias=True,
-                    kernel_initializer=tfk.initializers.he_normal(seed=None),
-                    bias_initializer=tfk.initializers.Zeros(),
-                    name='embedding_{}'.format(i)
+            with tf.name_scope('embedding_{}'.format(i))
+                self.embeddings.append(
+                    tfk.layers.Dense(
+                        units=em,
+                        activation=None,
+                        use_bias=True,
+                        kernel_initializer=tfk.initializers.he_normal(seed=None),
+                        bias_initializer=tfk.initializers.Zeros(),
+                        name='embedding_{}'.format
+                    )
                 )
-            )
-            self.embeddings_bn.append(
-                tfk.layers.BatchNormalization(axis=-1, name='embed_bn_{}'.format(i)))
+                self.embeddings_bn.append(tfk.layers.BatchNormalization(axis=-1))
 
-        self.latent_bn = tfk.layers.BatchNormalization(axis=-1, name='latent_bn')
-        self.latent = tfk.layers.Dense(
-            units=self.latent_dim,
-            activation=None,
-            use_bias=True,
-            kernel_initializer=tfk.initializers.he_normal(seed=None),
-            bias_initializer=tfk.initializers.Zeros(),
-            name='latent'
-        )
+        with tf.name_scope('latent'.format(i))
+            self.latent_bn = tfk.layers.BatchNormalization(axis=-1)
+            self.latent = tfk.layers.Dense(
+                units=self.latent_dim,
+                activation=None,
+                use_bias=True,
+                kernel_initializer=tfk.initializers.he_normal(seed=None),
+                bias_initializer=tfk.initializers.Zeros(),
+            )
 
     @tf.function  # (autograph=False)
     def call(self, inputs, training=False):
@@ -198,17 +199,20 @@ class MarginalAutoEncoder(Model):
         self.la_dim = latent_dim
         self.em_dim = embedding_dimensions
         self.kind = kind
-        self.graphs_qz_g_xy = NormalEncoder(self.la_dim, self.em_dim, name='encoder_qz_xy')
-        self.graphs_pz_g_y = NormalDecoder(
-            self.la_dim, [int(self.la_dim // 2), name='decoder_pz_g_y']
-        )
-        if self.kind == "binary":
-            self.graphs_px_g_zy = SigmoidDecoder(
-                self.in_dim, self.em_dim[::-1],
-                name='encoder_px_g_xy'
+
+        with tf.name_scope('graph_qz_g_xy'):
+            self.graphs_qz_g_xy = NormalEncoder(self.la_dim, self.em_dim)
+        with tf.name_scope('graph_pz_g_y'):
+            self.graphs_pz_g_y = NormalDecoder(
+                self.la_dim, [int(self.la_dim // 2)]
             )
-        else:
-            self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1])
+        with tf.name_scope('graph_px_g_y'):
+            if self.kind == "binary":
+                self.graphs_px_g_zy = SigmoidDecoder(
+                    self.in_dim, self.em_dim[::-1]
+                )
+            else:
+                self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1])
 
     # @tf.function#
     def call(self, x, y, training=False):
@@ -310,7 +314,8 @@ class Gmvae(Model):
         y_ = tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0)
         py = tf.fill(tf.shape(y_), 1 / self.k, name="prob")
 
-        qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
+        with tf.name_scope('graph_qy'):
+            qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
 
         mc_qz_g_xy__sample = [None] * self.k
         mc_qz_g_xy__logprob = [None] * self.k
@@ -325,31 +330,32 @@ class Gmvae(Model):
         mc_px_g_zy__prob = [None] * self.k
 
         for i in range(self.k):
-            y = tf.add(
-                y_,
-                tf.constant(
-                    np.eye(self.k)[i],
-                    dtype=tf.float32,
-                    name="y_one_hot_{}".format(i),
-                ),
-                name="hot_at_{}".format(i),
-            )
+            with tf.name_scope('mixture_{}'.format(i)):
+                y = tf.add(
+                    y_,
+                    tf.constant(
+                        np.eye(self.k)[i],
+                        dtype=tf.float32,
+                        name="y_one_hot_{}".format(i),
+                    ),
+                    name="hot_at_{}".format(i),
+                )
 
-            y = tf.cast(y, tf.float64)
+                y = tf.cast(y, tf.float64)
 
-            (
-                mc_qz_g_xy__sample[i],
-                mc_qz_g_xy__logprob[i],
-                mc_qz_g_xy__prob[i],
-                mc_pz_g_y__sample[i],
-                mc_pz_g_y__logprob[i],
-                mc_pz_g_y__prob[i],
-                mc_px_g_zy__sample[i],
-                mc_px_g_zy__logprob[i],
-                mc_px_g_zy__prob[i],
-            ) = self.marginal_autoencoder[i].monte_carlo_estimate(
-                self.mc_sam, x, y, training
-            )
+                (
+                    mc_qz_g_xy__sample[i],
+                    mc_qz_g_xy__logprob[i],
+                    mc_qz_g_xy__prob[i],
+                    mc_pz_g_y__sample[i],
+                    mc_pz_g_y__logprob[i],
+                    mc_pz_g_y__prob[i],
+                    mc_px_g_zy__sample[i],
+                    mc_px_g_zy__logprob[i],
+                    mc_px_g_zy__prob[i],
+                ) = self.marginal_autoencoder[i].monte_carlo_estimate(
+                    self.mc_sam, x, y, training
+                )
 
         return (
             py,
