@@ -490,6 +490,7 @@ class Gmvae(Model):
 
             with writer.as_default():
                 for gradient, variable in zip(gradients, self.trainable_variables):
+                    tf.summary.experimental.set_step()
                     stp = tf.summary.experimental.get_step()
                     tf.summary.histogram("gradients/" + variable.name, tf.nn.l2_normalize(gradient), step=stp)
                     tf.summary.histogram("variables/" + variable.name, tf.nn.l2_normalize(variable), step=stp)
