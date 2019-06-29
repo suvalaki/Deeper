@@ -482,8 +482,8 @@ class Gmvae(Model):
             ]
 
             for gradient, variable in zip(gradients, self.trainable_variables):
-                tf.summary.histogram("gradients/" + variable.name, l2_norm(gradient))
-                tf.summary.histogram("variables/" + variable.name, l2_norm(variable))
+                tf.summary.histogram("gradients/" + variable.name, tf.nn.l2_normalize(gradient))
+                tf.summary.histogram("variables/" + variable.name, tf.nn.l2_normalize(variable))
 
         with tf.device("/gpu:0"):
             self.optimizer.apply_gradients(
