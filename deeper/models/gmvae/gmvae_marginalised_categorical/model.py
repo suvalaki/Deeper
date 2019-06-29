@@ -464,7 +464,7 @@ class Gmvae(Model):
         current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
 
-        train_summary_writer = tf.summary.FileWriter(train_log_dir)
+        train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
 
         # for x in dataset:
