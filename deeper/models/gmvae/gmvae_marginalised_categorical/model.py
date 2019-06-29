@@ -476,11 +476,6 @@ class Gmvae(Model):
 
         writer = tf.summary.create_file_writer(train_log_dir)
 
-        global steps
-
-        if steps is None:
-            steps = 0
-
 
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
@@ -504,7 +499,8 @@ class Gmvae(Model):
             ]
 
             with writer.as_default():
-                for gradient, variable in zip(gradients, self.trainable_variables):
+                for gradient, variable in zip(gradients,S self.trainable_variables):
+                    global steps
                     steps+=1
                     tf.summary.experimental.set_step(steps)
                     stp = tf.summary.experimental.get_step()
