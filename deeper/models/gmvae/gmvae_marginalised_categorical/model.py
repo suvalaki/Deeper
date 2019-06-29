@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow.python.eager import context
 import numpy as np
+from datetime import datetime
 
 tfd = tfp.distributions
 tfk = tf.keras
@@ -458,7 +459,7 @@ class Gmvae(Model):
         return -(recon + z_entropy)
 
     # @tf.function#(autograph=False)
-    def train_step(self, x):
+    def train_step(self, x, tenorboard=True):
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
         with tf.device("/gpu:0"):
@@ -479,6 +480,11 @@ class Gmvae(Model):
                 )
                 for gradient in gradients
             ]
+
+            for gradient, variable in gradients:
+                tf.summary.histogram("gradients/" + variable.name, l2_norm(gradient))
+                tf.summary.histogram("variables/" + variable.name, l2_norm(variable))
+
         with tf.device("/gpu:0"):
             self.optimizer.apply_gradients(
                 zip(gradients, self.trainable_variables)
@@ -487,6 +493,12 @@ class Gmvae(Model):
     def pretrain_step(self, x):
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
+
+        current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
+
+        train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
                 loss = tf.reduce_mean(self.even_mixture_loss(x, training=True))
