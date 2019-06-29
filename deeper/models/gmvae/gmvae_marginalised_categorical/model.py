@@ -481,7 +481,7 @@ class Gmvae(Model):
                 for gradient in gradients
             ]
 
-            for gradient, variable in gradients:
+            for gradient, variable in zip(gradients, self.trainable_variables):
                 tf.summary.histogram("gradients/" + variable.name, l2_norm(gradient))
                 tf.summary.histogram("variables/" + variable.name, l2_norm(variable))
 
