@@ -102,7 +102,7 @@ class NormalEncoder(Model):
         mu = self.mu(x, training)
         mu = self.bn_mu(mu, training)
         logvar = self.logvar(x, training) + 1e-5
-        logvar = self.bn_logvar(logvar, traning)
+        logvar = self.bn_logvar(logvar, training)
         dist = self.sample((mu, logvar))
         sample = dist.sample(1)
 
