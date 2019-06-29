@@ -87,9 +87,10 @@ class NormalEncoder(Model):
         Model.__init__(self)
         self.latent_dim = latent_dim
         self.embedding_dimensions = embedding_dimensions
-
+        self.bn_mu = tfk.layers.BatchNormalization(axis=-1)
         self.mu = Encoder(self.latent_dim, self.embedding_dimensions)
         self.logvar = Encoder(self.latent_dim, self.embedding_dimensions)
+        self.bn_logvar = tfk.layers.BatchNormalization(axis=-1)
         self.sample = tfp.layers.DistributionLambda(
             make_distribution_fn=lambda t: tfd.Normal(t[0], tf.exp(t[1])),
             convert_to_tensor_fn=lambda s: s.sample(1),
@@ -99,7 +100,9 @@ class NormalEncoder(Model):
     def call(self, inputs, training=False):
         x = tf.cast(inputs, tf.float64)
         mu = self.mu(x, training)
+        mu = self.bn(mu, training)
         logvar = self.logvar(x, training) + 1e-5
+        logvar = self.bn_logvar(logvar, traning)
         dist = self.sample((mu, logvar))
         sample = dist.sample(1)
 
