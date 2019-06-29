@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow.python.eager import context
 import numpy as np
-from datetime import datetime
+import datetime
 
 tfd = tfp.distributions
 tfk = tf.keras
