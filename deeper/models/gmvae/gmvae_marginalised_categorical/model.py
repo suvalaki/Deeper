@@ -470,12 +470,13 @@ class Gmvae(Model):
         return -(recon + z_entropy)
 
     # @tf.function#(autograph=False)
-    def train_step(self, x, tenorboard=True):
+    def train_step(self, x, tenorboard=False):
 
-        current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        train_log_dir = 'logs/gradient_tape/train'
+        if tenorboard:
+            current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            train_log_dir = 'logs/gradient_tape/train'
 
-        writer = tf.summary.create_file_writer(train_log_dir)
+            writer = tf.summary.create_file_writer(train_log_dir)
 
 
         # for x in dataset:
@@ -499,15 +500,16 @@ class Gmvae(Model):
                 for gradient in gradients
             ]
 
-            with writer.as_default():
-                for gradient, variable in zip(gradients, self.trainable_variables):
-                    global steps
-                    steps = steps + 1
-                    tf.summary.experimental.set_step(steps)
-                    stp = tf.summary.experimental.get_step()
-                    tf.summary.histogram("gradients/" + variable.name, tf.nn.l2_normalize(gradient), step=stp)
-                    tf.summary.histogram("variables/" + variable.name, tf.nn.l2_normalize(variable), step=stp)
-                writer.flush()
+            if tenorboard:
+                with writer.as_default():
+                    for gradient, variable in zip(gradients, self.trainable_variables):
+                        global steps
+                        steps = steps + 1
+                        tf.summary.experimental.set_step(steps)
+                        stp = tf.summary.experimental.get_step()
+                        tf.summary.histogram("gradients/" + variable.name, tf.nn.l2_normalize(gradient), step=stp)
+                        tf.summary.histogram("variables/" + variable.name, tf.nn.l2_normalize(variable), step=stp)
+                    writer.flush()
 
         with tf.device("/gpu:0"):
             self.optimizer.apply_gradients(
