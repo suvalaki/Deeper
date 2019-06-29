@@ -472,7 +472,7 @@ class Gmvae(Model):
     def train_step(self, x, tenorboard=True):
 
         current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
+        train_log_dir = 'logs/gradient_tape/train'
 
         writer = tf.summary.create_file_writer(train_log_dir)
 
