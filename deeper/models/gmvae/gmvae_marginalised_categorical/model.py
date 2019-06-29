@@ -33,7 +33,7 @@ class Encoder(Model):
                         use_bias=True,
                         kernel_initializer=tfk.initializers.he_normal(seed=None),
                         bias_initializer=tfk.initializers.Zeros(),
-                        name='embedding_{}'.format
+                        name='layer'
                     )
                 )
                 self.embeddings_bn.append(tfk.layers.BatchNormalization(axis=-1))
