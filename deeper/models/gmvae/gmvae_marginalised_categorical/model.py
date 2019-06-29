@@ -464,7 +464,7 @@ class Gmvae(Model):
         current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
 
-        train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+        train_summary_writer = tf.summary.FileWriter(train_log_dir)
 
 
         # for x in dataset:
@@ -492,6 +492,9 @@ class Gmvae(Model):
                 tf.summary.histogram("gradients/" + variable.name, tf.nn.l2_normalize(gradient))
                 tf.summary.histogram("variables/" + variable.name, tf.nn.l2_normalize(variable))
 
+            summaries = tf.summary.merge_all()
+            train_log_dir.add_summary(summaries)
+
         with tf.device("/gpu:0"):
             self.optimizer.apply_gradients(
                 zip(gradients, self.trainable_variables)
@@ -504,7 +507,7 @@ class Gmvae(Model):
         current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
 
-        train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+        train_summary_writer = tf.summary.FileWriter(train_log_dir)
 
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
