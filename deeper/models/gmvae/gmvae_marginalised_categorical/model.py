@@ -56,8 +56,8 @@ class Encoder(Model):
         for em, bn in zip(self.embeddings, self.embeddings_bn):
             x = em(x)
             #
-            x = tf.nn.tanh(x)
-            x = bn(x, training=training)
+            x = tf.nn.elu(x)
+            #x = bn(x, training=training)
         x = self.latent(x)
         #x = self.latent_bn(x, training=training)
         #x = tf.nn.tanh(x)
