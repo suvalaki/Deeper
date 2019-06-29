@@ -100,7 +100,7 @@ class NormalEncoder(Model):
     def call(self, inputs, training=False):
         x = tf.cast(inputs, tf.float64)
         mu = self.mu(x, training)
-        mu = self.bn(mu, training)
+        mu = self.bn_mu(mu, training)
         logvar = self.logvar(x, training) + 1e-5
         logvar = self.bn_logvar(logvar, traning)
         dist = self.sample((mu, logvar))
