@@ -13,6 +13,7 @@ Model = tfk.Model
 
 import numpy as np
 
+steps = 0
 
 class Encoder(Model):
     def __init__(self, latent_dim, embedding_dimensions):
