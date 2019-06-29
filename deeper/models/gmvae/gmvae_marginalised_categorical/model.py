@@ -460,6 +460,13 @@ class Gmvae(Model):
 
     # @tf.function#(autograph=False)
     def train_step(self, x, tenorboard=True):
+
+        current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
+
+        train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+
+
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
         with tf.device("/gpu:0"):
