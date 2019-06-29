@@ -499,7 +499,7 @@ class Gmvae(Model):
             ]
 
             with writer.as_default():
-                for gradient, variable in zip(gradients,S self.trainable_variables):
+                for gradient, variable in zip(gradients, self.trainable_variables):
                     global steps
                     steps+=1
                     tf.summary.experimental.set_step(steps)
