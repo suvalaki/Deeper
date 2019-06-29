@@ -25,7 +25,7 @@ class Encoder(Model):
         self.embeddings_bn = []
         
         for i,em in enumerate(self.em_dim):
-            with tf.name_scope('embedding_{}'.format(i))
+            with tf.name_scope('embedding_{}'.format(i)):
                 self.embeddings.append(
                     tfk.layers.Dense(
                         units=em,
@@ -38,7 +38,7 @@ class Encoder(Model):
                 )
                 self.embeddings_bn.append(tfk.layers.BatchNormalization(axis=-1))
 
-        with tf.name_scope('latent'.format(i))
+        with tf.name_scope('latent'.format(i)):
             self.latent_bn = tfk.layers.BatchNormalization(axis=-1)
             self.latent = tfk.layers.Dense(
                 units=self.latent_dim,
