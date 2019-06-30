@@ -208,7 +208,7 @@ class MarginalAutoEncoder(Model):
             self.graphs_qz_g_xy = NormalEncoder(self.la_dim, self.em_dim)
         with tf.name_scope('graph_pz_g_y'):
             self.graphs_pz_g_y = NormalDecoder(
-                self.la_dim, [int(self.la_dim // 2)]
+                self.la_dim, []
             )
         with tf.name_scope('graph_px_g_y'):
             if self.kind == "binary":
