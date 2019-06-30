@@ -486,7 +486,7 @@ class Gmvae(Model):
         # Tensorflow dataset is iterable in eager mode
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
-                loss = tf.reduce_mean(self.loss_fn(x, training=True))
+                loss = (self.loss_fn(x, training=True))
             # Update ops for batch normalization
             # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             # with tf.control_dependencies(update_ops):
