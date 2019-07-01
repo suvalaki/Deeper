@@ -32,8 +32,8 @@ class Encoder(Model):
                         units=em,
                         activation=None,
                         use_bias=True,
-                        kernel_initializer=tfk.initializers.he_normal(seed=None),
-                        bias_initializer=tfk.initializers.Zeros(),
+                        kernel_initializer=tf.initializers.glorot_normal(seed=None),
+                        bias_initializer=tf.initializers.glorot_normal(seed=None),
                         name='layer'
                     )
                 )
@@ -45,22 +45,22 @@ class Encoder(Model):
                 units=self.latent_dim,
                 activation=None,
                 use_bias=True,
-                kernel_initializer=tfk.initializers.he_normal(seed=None),
-                bias_initializer=tfk.initializers.Zeros(),
+                kernel_initializer=tf.initializers.glorot_normal(seed=None),
+                bias_initializer=tf.initializers.glorot_normal(seed=None),
             )
 
     @tf.function  # (autograph=False)
     def call(self, inputs, training=False):
         """Define the computational flow"""
-        x = tf.cast(inputs, tf.float64)
+        x = tf.cast(inputs, tf.float32)
         for em, bn in zip(self.embeddings, self.embeddings_bn):
             x = em(x)
-            #
-            x = tf.nn.tanh(x)
+            x = tf.nn.relu(x)
             x = bn(x, training=training)
+            
         x = self.latent(x)
-        x = tf.nn.tanh(x)
         #x = self.latent_bn(x, training=training)
+        #x = tf.nn.tanh(x)
         return x
 
 
@@ -74,12 +74,18 @@ class SoftmaxEncoder(Model):
 
     @tf.function  # (autograph=False)
     def call(self, inputs, training=False):
-        x = tf.cast(inputs, tf.float64)
-        logits = self.logits(x, training)
-        prob = tf.compat.v2.clip_by_value(
-            tf.nn.softmax(logits), 0.001, 0.999, "clipped"
+        x = tf.cast(inputs, tf.float32)
+        eps = 0.01
+        maxval = np.log(1.0 - eps) - np.log(eps)
+        logits = tf.compat.v2.clip_by_value(
+            self.logits(x, training), -maxval, maxval, "clipped"
         )
+        #prob =  tf.nn.softmax(logits)
+        prob = tf.nn.softmax(logits)
         return logits, prob
+
+
+
 
 
 class NormalEncoder(Model):
@@ -98,22 +104,32 @@ class NormalEncoder(Model):
 
     @tf.function
     def call(self, inputs, training=False):
-        x = tf.cast(inputs, tf.float64)
+        x = tf.cast(inputs, tf.float32)
         mu = self.mu(x, training)
-        mu = self.bn_mu(mu, training)
+        #mu = self.bn_mu(mu, training)
         logvar = self.logvar(x, training) + 1e-5
-        logvar = self.bn_logvar(logvar, training)
-        dist = self.sample((mu, logvar))
-        sample = dist.sample(1)
+        #logvar = self.bn_logvar(logvar, training)
+        #dist = self.sample((mu, logvar))
+        
+        # reparmeterisation trick
+        r_norm = tf.random.normal( tf.shape(mu), mean=0., stddev=1.)
+        sample = mu + r_norm * tf.math.sqrt(tf.exp(logvar))
 
         # Metrics for loss
-        logprobs = tf.compat.v2.clip_by_value(
-            dist.log_prob(sample), np.log(0.001), np.log(0.999)
-        )
-        logprob = tf.reduce_sum(logprobs, axis=-1)
-        prob = dist.prob(sample)
+        logprob = self.log_normal(sample, mu, tf.exp(logvar))
+        prob = tf.exp(logprob)
 
         return sample, logprob, prob
+
+      
+    @staticmethod
+    def log_normal(x, mu, var, eps=0.0, axis=-1):
+        if eps > 0.0:
+            var = tf.add(var, eps, name='clipped_var')
+        return -0.5 * tf.reduce_sum(
+            tf.math.log(2 * np.pi) + tf.math.log(var) + tf.square(x - mu) / var, axis)
+
+
 
 
 class NormalDecoder(Model):
@@ -131,31 +147,32 @@ class NormalDecoder(Model):
 
     @tf.function  # (autograph=False)
     def call(self, inputs, outputs, training=False, var=None):
-        x = tf.cast(inputs, tf.float64)
+        x = tf.cast(inputs, tf.float32)
         mu = self.mu.call(x, training)
         # logvar = self.logvar(x, training)
         if var is not None:
             logvar = (
-                tf.exp(tf.cast(self.logvar(x, training), tf.float64)) + 1e-5
+                tf.exp(tf.cast(self.logvar(x, training), tf.float32)) + 1e-5
             )
         else:
             logvar = (
-                tf.fill(tf.shape(outputs), tf.cast(1.0, tf.float64)) + 1e-5
+                tf.fill(tf.shape(outputs), tf.cast(1.0, tf.float32)) + 1e-5
             )
-        dist = self.sample((tf.cast(mu, tf.float64), logvar))
-        # sample = dist.sample(1)
+
         # Metrics for loss
-        # import pdb; pdb.set_trace()
-        logprobs = tf.compat.v2.clip_by_value(
-            dist.log_prob(tf.cast(outputs, tf.float64)),
-            np.log(0.001),
-            np.log(0.999),
-            "logprob",
-        )
-        logprob = tf.reduce_sum(logprobs, axis=-1)
+        logprob = self.log_normal(mu, outputs, tf.exp(logvar))
         prob = tf.exp(logprob)
 
-        return mu[None, :, :], logprob, prob
+        return 0, logprob, prob
+
+      
+    @staticmethod
+    def log_normal(x, mu, var, eps=0.0, axis=-1):
+        if eps > 0.0:
+            var = tf.add(var, eps, name='clipped_var')
+        return -0.5 * tf.reduce_sum(
+            tf.math.log(2 * np.pi) + tf.math.log(var) + tf.square(x - mu) / var, axis)
+
 
 
 class SigmoidDecoder(Model):
@@ -171,7 +188,7 @@ class SigmoidDecoder(Model):
 
     @tf.function  # (autograph=False)
     def call(self, inputs, outputs, training=False):
-        x = tf.cast(inputs, tf.float64)
+        x = tf.cast(inputs, tf.float32)
         logit = self.mu.call(x, training)
 
         eps = 0.01
@@ -181,18 +198,19 @@ class SigmoidDecoder(Model):
                 logit, -max_val, max_val, "clipped"
             )
 
-        dist = self.sample((tf.cast(logit, tf.float64)))
-        logprobs = tf.compat.v2.clip_by_value(
-            dist.log_prob(tf.cast(outputs, tf.float64)),
-            np.log(0.001),
-            np.log(0.999),
-            "logprob",
-        )
-        logprob = tf.reduce_sum(logprobs, axis=-1)
+        logprob = self.log_bernoulli_with_logits(tf.cast(outputs, tf.float32), tf.cast(logit, tf.float32))
         prob = tf.exp(logprob)
 
         return logit[None, :, :], logprob, prob
 
+    @staticmethod
+    def log_bernoulli_with_logits(x, logits, eps=0.0, axis=-1):
+        if eps > 0.0:
+            max_val = np.log(1.0 - eps) - np.log(eps)
+            logits = tf.clip_by_value(logits, -max_val, max_val,
+                                    name='clipped_logit')
+        return -tf.reduce_sum(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=x), axis)
 
 class MarginalAutoEncoder(Model):
     def __init__(
@@ -208,20 +226,20 @@ class MarginalAutoEncoder(Model):
             self.graphs_qz_g_xy = NormalEncoder(self.la_dim, self.em_dim)
         with tf.name_scope('graph_pz_g_y'):
             self.graphs_pz_g_y = NormalDecoder(
-                self.la_dim, []
+                self.la_dim, [self.la_dim]
             )
         with tf.name_scope('graph_px_g_y'):
             if self.kind == "binary":
                 self.graphs_px_g_zy = SigmoidDecoder(
                     self.in_dim, self.em_dim[::-1]
                 )
-            else:
-                self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1])
+            #else:
+            #    self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1])
 
     # @tf.function#
     def call(self, x, y, training=False):
 
-        xy = tf.concat([x, y], axis=-1)
+        xy = tf.concat([tf.cast(x, tf.float32), tf.cast(y, tf.float32)], axis=-1)
         (
             qz_g_xy__sample,
             qz_g_xy__logprob,
@@ -345,7 +363,7 @@ class Gmvae(Model):
                     name="hot_at_{}".format(i),
                 )
 
-                y = tf.cast(y, tf.float64)
+                y = tf.cast(y, tf.float32)
 
                 (
                     mc_qz_g_xy__sample[i],
@@ -394,8 +412,8 @@ class Gmvae(Model):
         # reconstruction
         recon = tf.add_n(
             [
-                tf.cast(qy_g_x[:, i], tf.float64)
-                * tf.cast(mc_px_g_zy__logprob[i], tf.float64)
+                tf.cast(qy_g_x[:, i], tf.float32)
+                * tf.cast(mc_px_g_zy__logprob[i], tf.float32)
                 for i in range(self.k)
             ]
         )
@@ -403,10 +421,10 @@ class Gmvae(Model):
         # z_entropy
         z_entropy = tf.add_n(
             [
-                tf.cast(qy_g_x[:, i], tf.float64)
+                tf.cast(qy_g_x[:, i], tf.float32)
                 * (
-                    tf.cast(mc_pz_g_y__logprob[i], tf.float64)
-                    - tf.cast(mc_qz_g_xy__logprob[i], tf.float64)
+                    tf.cast(mc_pz_g_y__logprob[i], tf.float32)
+                    - tf.cast(mc_qz_g_xy__logprob[i], tf.float32)
                 )
                 for i in range(self.k)
             ]
@@ -414,10 +432,10 @@ class Gmvae(Model):
 
         # y_entropy
         y_entropy = tf.reduce_sum(
-            tf.cast(qy_g_x, tf.float64)
+            tf.cast(qy_g_x, tf.float32)
             * (
-                tf.math.log(tf.cast(py, tf.float64))
-                - tf.math.log(tf.cast(qy_g_x, tf.float64))
+                tf.math.log(tf.cast(py, tf.float32))
+                - tf.math.log(tf.cast(qy_g_x, tf.float32))
             ),
             axis=-1,
         )
@@ -452,8 +470,8 @@ class Gmvae(Model):
         # reconstruction
         recon = tf.add_n(
             [
-                tf.cast(py[:, i], tf.float64)
-                * tf.cast(mc_px_g_zy__logprob[i], tf.float64)
+                tf.cast(py[:, i], tf.float32)
+                * tf.cast(mc_px_g_zy__logprob[i], tf.float32)
                 for i in range(self.k)
             ]
         )
@@ -461,10 +479,10 @@ class Gmvae(Model):
         # z_entropy
         z_entropy = tf.add_n(
             [
-                tf.cast(py[:, i], tf.float64)
+                tf.cast(py[:, i], tf.float32)
                 * (
-                    tf.cast(mc_pz_g_y__logprob[i], tf.float64)
-                    - tf.cast(mc_qz_g_xy__logprob[i], tf.float64)
+                    tf.cast(mc_pz_g_y__logprob[i], tf.float32)
+                    - tf.cast(mc_qz_g_xy__logprob[i], tf.float32)
                 )
                 for i in range(self.k)
             ]
@@ -486,7 +504,7 @@ class Gmvae(Model):
         # Tensorflow dataset is iterable in eager mode
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
-                loss = (self.loss_fn(x, training=True))
+                loss = tf.reduce_sum(self.loss_fn(x, training=True))
             # Update ops for batch normalization
             # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             # with tf.control_dependencies(update_ops):
@@ -522,11 +540,6 @@ class Gmvae(Model):
     def pretrain_step(self, x):
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
-
-        current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
-
-        train_summary_writer = tf.summary.FileWriter(train_log_dir)
 
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
