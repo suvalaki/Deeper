@@ -82,6 +82,6 @@ def train(
             )
 
         t1.update(1)
-    t2.n = 0
-    t2.refresh()
+        t2.n = 0
+        t2.refresh()
     t1.close()
