@@ -10,6 +10,8 @@ def train(
 ):
 
     t1 = tqdm(total=epochs, position=0)
+    t2 = tqdm(total=int(X_train.shape[0] // num), position=1, leave=False)
+
     tqdm.write(
         "{:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}".format(
             "epoch",
@@ -26,7 +28,7 @@ def train(
 
     for i in range(epochs):
 
-        t2 = tqdm(total=int(X_train.shape[0] // num), position=1, leave=False)
+        
 
         # Setup datasets
         dataset_train = (
@@ -80,4 +82,6 @@ def train(
             )
 
         t1.update(1)
+    t2.n = 0
+    t2.refresh()
     t1.close()
