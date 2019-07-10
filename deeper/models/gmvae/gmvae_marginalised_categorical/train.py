@@ -42,7 +42,7 @@ def train(
         
         for i in range(iter):
             idx=np.random.choice(len(X_train), num)
-            model.train(X_train[idx])
+            model.train_step(X_train[idx])
             t2.update(1)
         t2.close()
 
