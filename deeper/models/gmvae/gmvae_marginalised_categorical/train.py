@@ -31,14 +31,18 @@ def train(
         
 
         # Setup datasets
-        dataset_train = (
-            tf.data.Dataset.from_tensor_slices(X_train)
-            .shuffle(X_train.shape[0])
-            .batch(num)
-        )
+        #dataset_train = (
+        #    tf.data.Dataset.from_tensor_slices(X_train)
+        #    .shuffle(X_train.shape[0])
+        #    .batch(num)
+        #)
 
-        for x in dataset_train:
-            model.train_step(x)
+        #for x in dataset_train:
+        #    model.train_step(x)
+        
+        for i in range(iter):
+            idx=np.random.choice(len(X_train), num)
+            model.train(X_train[idx])
             t2.update(1)
         t2.close()
 
