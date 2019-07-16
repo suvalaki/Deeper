@@ -45,7 +45,7 @@ def train(
         #    idx=np.random.choice(len(X_train), num)
         #    model.train_step(X_train[idx])
             t2.update(1)
-        #t2.close()
+        t2.close()
 
         if i % verbose == 0:
             # Evaluate training metrics
