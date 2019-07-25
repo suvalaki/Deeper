@@ -6,7 +6,7 @@ from .utils import chain_call, purity_score
 
 
 def train(
-    model, X_train, y_train, X_test, y_test, num, epochs, iter, verbose=1
+    model, X_train, y_train, X_test, y_test, num, epochs, iter_train, num_inference, verbose=1
 ):
 
     t1 = tqdm(total=epochs, position=0)
@@ -33,7 +33,7 @@ def train(
         # Setup datasets
         dataset_train = (
             tf.data.Dataset.from_tensor_slices(X_train)
-            .repeat(iter)
+            .repeat(iter_train)
             .shuffle(X_train.shape[0])
             .batch(num)
         )
@@ -49,7 +49,7 @@ def train(
 
         if i % verbose == 0:
             # Evaluate training metrics
-            recon, z_ent, y_ent = chain_call(model.entropy_fn, X_train, num)
+            recon, z_ent, y_ent = chain_call(model.entropy_fn, X_train, num_inference)
 
             recon = np.array(recon).mean()
             z_ent = np.array(z_ent).mean()
@@ -57,8 +57,8 @@ def train(
 
             loss = -(recon + z_ent + y_ent)
 
-            idx_tr = chain_call(model.predict, X_train, num).argmax(1)
-            idx_te = chain_call(model.predict, X_test, num).argmax(1)
+            idx_tr = chain_call(model.predict, X_train, num_inference).argmax(1)
+            idx_te = chain_call(model.predict, X_test, num_inference).argmax(1)
 
             ami_tr = adjusted_mutual_info_score(
                 y_train, idx_tr, average_method="arithmetic"
