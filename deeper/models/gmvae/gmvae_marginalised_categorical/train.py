@@ -9,8 +9,8 @@ def train(
     model, X_train, y_train, X_test, y_test, num, epochs, iter_train, num_inference, verbose=1
 ):
 
-    t1 = tqdm(total=epochs, position=0)
-    t2 = tqdm(total=int(X_train.shape[0] // num), position=1, leave=False)
+    #t1 = tqdm(total=epochs, position=0)
+    #t2 = tqdm(total=int(X_train.shape[0] // num), position=1, leave=False)
 
     tqdm.write(
         "{:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}".format(
@@ -44,7 +44,7 @@ def train(
         #for i in range(iter):
         #    idx=np.random.choice(len(X_train), num)
         #    model.train_step(X_train[idx])
-            t2.update(1)
+        #    t2.update(1)
         #t2.close()
 
         if i % verbose == 0:
@@ -86,8 +86,8 @@ def train(
                 )
             )
 
-        t1.update(1)
-        t2.n = 0
-        t2.last_print_n = 0
-        t2.refresh()
-    t1.close()
+        #t1.update(1)
+        #t2.n = 0
+        #t2.last_print_n = 0
+        #t2.refresh()
+    #t1.close()
