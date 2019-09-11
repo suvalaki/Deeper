@@ -1,6 +1,9 @@
 #%%
 from pathlib import Path
 import tensorflow as tf
+
+tf.enable_eager_execution()
+
 import numpy as np
 from deeper.models.gmvae.gmvae_marginalised_categorical import model
 from deeper.models.gmvae.gmvae_marginalised_categorical.utils import (
@@ -20,7 +23,10 @@ if gpus:
     try:
         # Currently, memory growth needs to be the same across GPUs
         for gpu in gpus:
+            #tf.config.experimental.gpu.set_per_process_memory_fraction(0.9)
             tf.config.experimental.set_memory_growth(gpu, True)
+            tf.config.experimental.set_synchronous_execution(True)
+            #tf.config.experimental.set_per_process_memory_fraction( 0.9)
         logical_gpus = tf.config.experimental.list_logical_devices("GPU")
         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
     except RuntimeError as e:
@@ -45,68 +51,28 @@ m1 = model.Gmvae(
     components=len(set(y_train)),
     input_dimension=X_train.shape[1],
     embedding_dimensions=[512, 512],
-    latent_dimensions=256,
+    latent_dimensions=64,
     kind="binary",
     monte_carlo_samples=1,
-    learning_rate=0.00001,
+    learning_rate=1e-3,
+    gradient_clip=10000
 )
 
 from deeper.models.gmvae.gmvae_marginalised_categorical.train import train
 
-# with tf.device('/gpu:0'):
-train(m1, X_train, y_train, X_test, y_test, 20, 30, 1)
-# train(m1, X_train[0:1000], y_train[0:1000], X_test[0:1000], y_test[0:1000], 100, 10, 1)
-
-# m1.compile(loss=m1.loss_fn, optimizer=m1.optimizer)
-
-# m1.fit(X_train, 10)
-
-
-#%% Initialize the Graph by running th training op once
-idx_train = np.random.choice(X_train.shape[0], 100)
-recon, z_ent, y_ent = m1.entropy_fn(X_train[idx_train])
-
-recon = np.array(recon).mean()
-z_ent = np.array(z_ent).mean()
-y_ent = np.array(y_ent).mean()
-
-print("recon: {}\nz_ent: {}\ny_ent: {}".format(recon, z_ent, y_ent))
-
-
-m1.graph_qy_g_x(X_train[idx_train], training)
-
 #%% Train the model
-from deeper.models.gmvae.gmvae_marginalised_categorical.train import train
-
 # with tf.device('/gpu:0'):
-if False:
-    train(
-        m1,
-        X_train,
-        y_train,
-        X_test,
-        y_test,
-        num=10,
-        epochs=10,
-        iter=1,
-        verbose=1,
-    )
-
-#%% check gpu on training cycle
-num = 10
-epochs = 1
-iter = 100
-for i in tqdm(range(epochs), position=0):
-    for j in tqdm(range(iter), position=1):
-        idx_train = np.random.choice(X_train.shape[0], num)
-        m1.train_step(X_train[idx_train])
+train(
+    m1, 
+    X_train, y_train, 
+    X_test, y_test, 
+    num=10, 
+    samples=1,
+    epochs=10000, 
+    iter_train=1, 
+    num_inference=1000, 
+    save='model_w'
+)
 
 
-while True:
-    idx_train = np.random.choice(X_train.shape[0], num)
-    # m1.train_step(X_train[idx_train])
-
-    h = m1.entropy_fn(X_train[idx_train])
-
-#%% Check the train call for the bottlekneck
-recon, z_ent, y_ent = chain_call(m1.entropy_fn, X_train, num)
+#%%

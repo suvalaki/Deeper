@@ -32,8 +32,9 @@ class Encoder(Model):
                         units=em,
                         activation=None,
                         use_bias=True,
-                        kernel_initializer=tf.initializers.glorot_normal(seed=None),
-                        bias_initializer=tf.initializers.glorot_normal(seed=None),
+                        kernel_initializer=tf.initializers.glorot_uniform(seed=None),
+                        bias_initializer=tf.initializers.zeros(),
+                        #kernel_regularizer=tf.keras.regularizers.l2(),
                         name='layer'
                     )
                 )
@@ -45,8 +46,9 @@ class Encoder(Model):
                 units=self.latent_dim,
                 activation=None,
                 use_bias=True,
-                kernel_initializer=tf.initializers.glorot_normal(seed=None),
-                bias_initializer=tf.initializers.glorot_normal(seed=None),
+                kernel_initializer=tf.initializers.glorot_uniform(seed=None),
+                bias_initializer=tf.initializers.zeros(),
+                #kernel_regularizer=tf.keras.regularizers.l2()
             )
 
     @tf.function  # (autograph=False)
@@ -55,8 +57,10 @@ class Encoder(Model):
         x = tf.cast(inputs, tf.float32)
         for em, bn in zip(self.embeddings, self.embeddings_bn):
             x = em(x)
-            x = tf.nn.relu(x)
             x = bn(x, training=training)
+            x = tf.nn.relu(x)
+            
+            
             
         x = self.latent(x)
         #x = self.latent_bn(x, training=training)
@@ -69,17 +73,20 @@ class SoftmaxEncoder(Model):
         Model.__init__(self)
         self.latent_dim = latent_dim
         self.embedding_dimensions = embedding_dimensions
-
         self.logits = Encoder(self.latent_dim, self.embedding_dimensions)
+        self.bn = tfk.layers.BatchNormalization(axis=-1)
 
     @tf.function  # (autograph=False)
     def call(self, inputs, training=False):
         x = tf.cast(inputs, tf.float32)
-        eps = 0.01
-        maxval = np.log(1.0 - eps) - np.log(eps)
-        logits = tf.compat.v2.clip_by_value(
-            self.logits(x, training), -maxval, maxval, "clipped"
-        )
+        logits = self.logits(x, training)
+        #logits = self.bn(logits, training=training)
+        eps = 0.001
+        if eps > 0.0:
+            maxval = np.log(1.0 - eps) - np.log(eps)
+            logits = tf.compat.v2.clip_by_value(
+                logits, -maxval, maxval, "clipped"
+            )
         #prob =  tf.nn.softmax(logits)
         prob = tf.nn.softmax(logits)
         return logits, prob
@@ -93,23 +100,17 @@ class NormalEncoder(Model):
         Model.__init__(self)
         self.latent_dim = latent_dim
         self.embedding_dimensions = embedding_dimensions
-        self.bn_mu = tfk.layers.BatchNormalization(axis=-1)
-        self.mu = Encoder(self.latent_dim, self.embedding_dimensions)
-        self.logvar = Encoder(self.latent_dim, self.embedding_dimensions)
-        self.bn_logvar = tfk.layers.BatchNormalization(axis=-1)
-        self.sample = tfp.layers.DistributionLambda(
-            make_distribution_fn=lambda t: tfd.Normal(t[0], tf.exp(t[1])),
-            convert_to_tensor_fn=lambda s: s.sample(1),
+        self.mu_logvar = Encoder(
+            2*self.latent_dim, 
+            2*self.embedding_dimensions
         )
+        
 
     @tf.function
     def call(self, inputs, training=False):
-        x = tf.cast(inputs, tf.float32)
-        mu = self.mu(x, training)
-        #mu = self.bn_mu(mu, training)
-        logvar = self.logvar(x, training) + 1e-5
-        #logvar = self.bn_logvar(logvar, training)
-        #dist = self.sample((mu, logvar))
+        x = tf.cast(inputs, tf.float32) 
+        mu_logvar = self.mu_logvar(x, training)
+        mu, logvar = tf.split(mu_logvar, 2, axis=-1)        
         
         # reparmeterisation trick
         r_norm = tf.random.normal( tf.shape(mu), mean=0., stddev=1.)
@@ -123,6 +124,7 @@ class NormalEncoder(Model):
 
       
     @staticmethod
+    @tf.function
     def log_normal(x, mu, var, eps=0.0, axis=-1):
         if eps > 0.0:
             var = tf.add(var, eps, name='clipped_var')
@@ -137,27 +139,16 @@ class NormalDecoder(Model):
         Model.__init__(self)
         self.latent_dim = latent_dim
         self.embedding_dimensions = embedding_dimensions
-
-        self.mu = Encoder(self.latent_dim, self.embedding_dimensions)
-        self.logvar = Encoder(self.latent_dim, self.embedding_dimensions)
-        self.sample = tfp.layers.DistributionLambda(
-            make_distribution_fn=lambda t: tfd.Normal(t[0], tf.exp(t[1])),
-            convert_to_tensor_fn=lambda s: s.sample(),
+        self.mu_logvar = Encoder(
+            2*self.latent_dim, 
+            2*self.embedding_dimensions
         )
 
     @tf.function  # (autograph=False)
     def call(self, inputs, outputs, training=False, var=None):
         x = tf.cast(inputs, tf.float32)
-        mu = self.mu.call(x, training)
-        # logvar = self.logvar(x, training)
-        if var is not None:
-            logvar = (
-                tf.exp(tf.cast(self.logvar(x, training), tf.float32)) + 1e-5
-            )
-        else:
-            logvar = (
-                tf.fill(tf.shape(outputs), tf.cast(1.0, tf.float32)) + 1e-5
-            )
+        mu_logvar = self.mu_logvar(x, training)
+        mu, logvar = tf.split(mu_logvar, 2, axis=-1)
 
         # Metrics for loss
         logprob = self.log_normal(mu, outputs, tf.exp(logvar))
@@ -167,6 +158,7 @@ class NormalDecoder(Model):
 
       
     @staticmethod
+    @tf.function
     def log_normal(x, mu, var, eps=0.0, axis=-1):
         if eps > 0.0:
             var = tf.add(var, eps, name='clipped_var')
@@ -191,7 +183,7 @@ class SigmoidDecoder(Model):
         x = tf.cast(inputs, tf.float32)
         logit = self.mu.call(x, training)
 
-        eps = 0.01
+        eps = 0.0
         if eps > 0.0:
             max_val = np.log(1.0 - eps) - np.log(eps)
             logit = tf.compat.v2.clip_by_value(
@@ -204,6 +196,7 @@ class SigmoidDecoder(Model):
         return logit[None, :, :], logprob, prob
 
     @staticmethod
+    @tf.function
     def log_bernoulli_with_logits(x, logits, eps=0.0, axis=-1):
         if eps > 0.0:
             max_val = np.log(1.0 - eps) - np.log(eps)
@@ -226,7 +219,7 @@ class MarginalAutoEncoder(Model):
             self.graphs_qz_g_xy = NormalEncoder(self.la_dim, self.em_dim)
         with tf.name_scope('graph_pz_g_y'):
             self.graphs_pz_g_y = NormalDecoder(
-                self.la_dim, [self.la_dim]
+                self.la_dim, []
             )
         with tf.name_scope('graph_px_g_y'):
             if self.kind == "binary":
@@ -236,7 +229,7 @@ class MarginalAutoEncoder(Model):
             #else:
             #    self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1])
 
-    # @tf.function#
+    @tf.function#
     def call(self, x, y, training=False):
 
         xy = tf.concat([tf.cast(x, tf.float32), tf.cast(y, tf.float32)], axis=-1)
@@ -268,18 +261,23 @@ class MarginalAutoEncoder(Model):
             px_g_zy__prob,
         )
 
-    # @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def sample(self, samples, x, y, training=False):
         with tf.device("/gpu:0"):
             result = [self.call(x, y, training) for j in range(samples)]
+
+            for j in range(samples):
+
+
             result_pivot = list(zip(*result))
         return result_pivot
 
     @staticmethod
+    @tf.function
     def mc_stack_mean(x):
-        return tf.identity(tf.stack(x, 0) / len(x))
+        return tf.reduce_sum(tf.stack(x, 0), 0) / len(x)
 
-    # @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def monte_carlo_estimate(self, samples, x, y, training=False):
         return [
             self.mc_stack_mean(z)
@@ -294,6 +292,7 @@ class Gmvae(Model):
         input_dimension,
         embedding_dimensions,
         latent_dimensions,
+        mixture_embedding_dimensions=None,
         kind="binary",
         monte_carlo_samples=1,
         beta=0.01,
@@ -312,6 +311,12 @@ class Gmvae(Model):
         self.la_dim = latent_dimensions
         self.mc_sam = monte_carlo_samples
 
+        self.mem_dim = (
+            mixture_embedding_dimensions 
+            if mixture_embedding_dimensions is not None
+            else self.em_dim
+        )
+        
         self.epochs = 0
         self.beta = beta
         self.lmbda = lmbda
@@ -320,17 +325,23 @@ class Gmvae(Model):
         self.learning_rate = learning_rate
 
         # instantiate all variables in the graph
-        self.graph_qy_g_x = SoftmaxEncoder(self.k, self.em_dim)
-        self.marginal_autoencoder = [
-            MarginalAutoEncoder(
-                self.in_dim, self.em_dim, self.la_dim, self.kind
-            )
-            for i in range(self.k)
-        ]
+        self.graph_qy_g_x = SoftmaxEncoder(self.k, self.mem_dim)
+        if False:
+            # explosive mode
+            self.marginal_autoencoder = \
+                [MarginalAutoEncoder(
+                    self.in_dim, self.em_dim, self.la_dim, self.kind)
+                for i in range(self.k)
+                ]
+        else:
+            self.marginal_autoencoder = \
+                MarginalAutoEncoder(
+                    self.in_dim, self.em_dim, self.la_dim, self.kind)
 
         self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
 
-    def call(self, inputs, training=False):
+    @tf.function
+    def call(self, inputs, training=False, samples=1):
 
         x = inputs
         y_ = tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0)
@@ -375,8 +386,8 @@ class Gmvae(Model):
                     mc_px_g_zy__sample[i],
                     mc_px_g_zy__logprob[i],
                     mc_px_g_zy__prob[i],
-                ) = self.marginal_autoencoder[i].monte_carlo_estimate(
-                    self.mc_sam, x, y, training
+                ) = self.marginal_autoencoder.monte_carlo_estimate(
+                    samples, x, y, training
                 )
 
         return (
@@ -393,8 +404,8 @@ class Gmvae(Model):
             mc_px_g_zy__prob,
         )
 
-    # @tf.function
-    def entropy_fn(self, inputs, training=False):
+    @tf.function
+    def entropy_fn(self, inputs, training=False, samples=1):
         (
             py,
             qy_g_x,
@@ -407,7 +418,7 @@ class Gmvae(Model):
             mc_px_g_zy__sample,
             mc_px_g_zy__logprob,
             mc_px_g_zy__prob,
-        ) = self.call(inputs, training=training)
+        ) = self.call(inputs, training=training, samples)
 
         # reconstruction
         recon = tf.add_n(
@@ -443,16 +454,17 @@ class Gmvae(Model):
         # elbo = recon + z_entropy + y_entropy
         return recon, z_entropy, y_entropy
 
-    # @tf.function#(autograph=False)
-    def elbo(self, inputs, training=False):
-        recon, z_entropy, y_entropy = self.entropy_fn(inputs, training)
+    @tf.function#(autograph=False)
+    def elbo(self, inputs, training=False, samples=1):
+        recon, z_entropy, y_entropy = self.entropy_fn(inputs, training, samples)
         return recon + z_entropy + y_entropy
 
-    # @tf.function#(autograph=False)
-    def loss_fn(self, inputs, training=False):
-        return -self.elbo(inputs, training)
-
-    def even_mixture_loss(self, inputs, training=False):
+    @tf.function#(autograph=False)
+    def loss_fn(self, inputs, training=False, samples=1):
+        return -self.elbo(inputs, training, samples)
+    
+    @tf.function
+    def even_mixture_loss(self, inputs, training=False, samples=1):
         (
             py,
             qy_g_x,
@@ -465,7 +477,7 @@ class Gmvae(Model):
             mc_px_g_zy__sample,
             mc_px_g_zy__logprob,
             mc_px_g_zy__prob,
-        ) = self.call(inputs, training=training)
+        ) = self.call(inputs, training=training, samples)
 
         # reconstruction
         recon = tf.add_n(
@@ -490,8 +502,8 @@ class Gmvae(Model):
 
         return -(recon + z_entropy)
 
-    # @tf.function#(autograph=False)
-    def train_step(self, x, tenorboard=False):
+    @tf.function#(autograph=False)
+    def train_step(self, x, samples=1, tenorboard=False):
 
         if tenorboard:
             current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -504,7 +516,7 @@ class Gmvae(Model):
         # Tensorflow dataset is iterable in eager mode
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
-                loss = tf.reduce_sum(self.loss_fn(x, training=True))
+                loss = (self.loss_fn(x, True, samples))
             # Update ops for batch normalization
             # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             # with tf.control_dependencies(update_ops):
@@ -537,13 +549,13 @@ class Gmvae(Model):
                 zip(gradients, self.trainable_variables)
             )
 
-    def pretrain_step(self, x):
+    def pretrain_step(self, x, samples=1):
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
 
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
-                loss = tf.reduce_mean(self.even_mixture_loss(x, training=True))
+                loss = tf.reduce_mean(self.even_mixture_loss(x, True, samples))
             # Update ops for batch normalization
             # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             # with tf.control_dependencies(update_ops):
@@ -564,7 +576,7 @@ class Gmvae(Model):
                 zip(gradients, self.trainable_variables)
             )
 
-    # @tf.function#(autograph=False)
+    @tf.function#(autograph=False)
     def predict(self, x, training=False):
         qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
         return qy_g_x__prob

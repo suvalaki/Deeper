@@ -6,7 +6,18 @@ from .utils import chain_call, purity_score
 
 
 def train(
-    model, X_train, y_train, X_test, y_test, num, epochs, iter_train, num_inference, verbose=1, save=None
+    model, 
+    X_train, 
+    y_train, 
+    X_test, 
+    y_test, 
+    num, 
+    samples,
+    epochs, 
+    iter_train, 
+    num_inference, 
+    verbose=1, 
+    save=None
 ):
 
     #t1 = tqdm(total=epochs, position=0)
