@@ -5,22 +5,21 @@ tfk = tf.keras
 class GumbleSoftmaxLayer(tfk.layers.Layer):
     def __init__(
         self,
-        dtype=tf.float32,
+        dtype=tf.dtypes.float32,
         name='GumbleSoftmax',
         axis=-1
     ):
-        self.dtype=dtype
+        super(GumbleSoftmaxLayer,self).__init__()
         self.axis=axis
 
+
     @tf.function
-    @staticmethod
-    def _inverse_gumble_transformation(x):
+    def _inverse_gumble_transformation(self, x):
         return - tf.math.log(-tf.math.log(x))
     
     @tf.function
-    @staticmethod
-    def _gumble_softmax(logits, gumble_sample, temperature):
-        adjusted_logits = (tf.math.log(logits) + gumple_sample)/temperature
+    def _gumble_softmax(self, logits, gumble_sample, temperature):
+        adjusted_logits = (tf.math.log(logits) + gumble_sample)/temperature
         adjusted_softmax = tf.nn.softmax(adjusted_logits)
         return adjusted_softmax
 
@@ -38,7 +37,7 @@ class GumbleSoftmaxLayer(tfk.layers.Layer):
     @tf.function
     def call(self, logits, temperature=None, samples=1):
         with tf.name_scope(self.name):
-            if sample > 1:
+            if samples > 1:
                 output = tf.stack([
                     self._sample_one(logits, temperature) 
                     for i in range(samples)
