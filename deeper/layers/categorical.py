@@ -60,3 +60,13 @@ class CategoricalEncoder(Layer, Scope):
     def prob(self, inputs, training=False):
         logits, probs = self.call(inputs, training)
         return probs
+
+    @tf.function
+    def entropy(self, x, y, training=False):
+        logits = self.call_logits(x, training)
+        ent = tf.nn.softmax_cross_entropy_with_logits_v2(
+            labels=y, 
+            logits=logits,
+            name='entropy'
+        )
+        return ent

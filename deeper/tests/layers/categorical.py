@@ -14,4 +14,7 @@ encoder = CategoricalEncoder(
 
 
 z = np.array([[1,2,3,4,5, 6,7,8,9,10, 11,12,13,14,15]]).astype(float)
-encoder(z)
+res = encoder(z)
+
+y=np.array([[1,2,3,4,5,6,7,8,9,10]])
+encoder.entropy(z, res[1]>0)
