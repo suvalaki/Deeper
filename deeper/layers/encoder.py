@@ -1,11 +1,11 @@
 import tensorflow as tf 
 import numpy as np 
+from deeper.utils.scope import Scope
 
 tfk = tf.keras
-Model = tfk.Model
 Layer = tfk.layers.Layer
 
-class Encoder(Layer, Scope):
+class EncoderLayer(Layer, Scope):
     def __init__(
         self, 
         latent_dim, 
@@ -34,8 +34,8 @@ class Encoder(Layer, Scope):
                     units=em,
                     activation=None,
                     use_bias=True,
-                    kernel_initializer=tf.initializers.VarianceScaling(seed=None),
-                    bias_initializer=tf.initializers.Zeros(),
+                    kernel_initializer=tf.initializers.glorot_normal(seed=None),
+                    bias_initializer=tf.initializers.zeros(),
                     name=self.v_name('embedding_{}_dense'.format(i))
                 )
             )
@@ -62,8 +62,8 @@ class Encoder(Layer, Scope):
             units=self.latent_dim,
             activation=None,
             use_bias=True,
-            kernel_initializer=tf.initializers.Zeros(),
-            bias_initializer=tf.initializers.Zeros(),
+            kernel_initializer=tf.initializers.glorot_normal(),
+            bias_initializer=tf.initializers.zeros(),
             name=self.v_name('latent_dense')
         )
 
@@ -73,7 +73,7 @@ class Encoder(Layer, Scope):
         x = tf.cast(inputs, tf.float32)
         for em, bnb, bna in zip(
             self.embeddings, 
-            self.embeddings_bn_b, 
+            self.embeddings_bn_before, 
             self.embeddings_bn_after
         ):
             x = em(x)
