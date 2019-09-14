@@ -1,15 +1,15 @@
 import tensorflow as tf
 import numpy as np
-from deeper.layers.encoder import EncoderLayer
+from deeper.layers.encoder import Encoder
 from deeper.utils.scope import Scope
 
 tfk = tf.keras
 
 Layer = tfk.layers.Layer
 
-class SigmoidDecoder(Layer, Scope):
+class SigmoidEncoder(Layer, Scope):
     def __init__(
-        self
+        self,
         latent_dimension, 
         embedding_dimensions, 
         embedding_activation=tf.nn.relu,
@@ -17,8 +17,9 @@ class SigmoidDecoder(Layer, Scope):
         bn_before=False,
         bn_after=False,
         epsilon=0.0,
-        dtype=tf.dtypes.float32
     ):
+        Layer.__init__(self)
+        Scope.__init__(self, var_scope)
 
         self.latent_dimension = latent_dimension
         self.embedding_dimensions = embedding_dimensions
@@ -27,7 +28,7 @@ class SigmoidDecoder(Layer, Scope):
         self.bn_after = bn_after
         self.epsilon = epsilon
 
-        self.logits_encoder = EncoderLayer(
+        self.logits_encoder = Encoder(
             latent_dim=self.latent_dimension,
             embedding_dimensions=self.embedding_dimensions,
             activation=self.embedding_activation,
@@ -38,7 +39,6 @@ class SigmoidDecoder(Layer, Scope):
 
     @tf.function
     def call_logits(self, inputs, training=False):
-        x = tf.cast(inputs, self.dtype)
         logits = self.logits_encoder(x, training)
         if self.epsilon > 0.0:
             maxval = np.log(1.0 - self.epsilon) - np.log(self.epsilon)
@@ -48,14 +48,8 @@ class SigmoidDecoder(Layer, Scope):
 
     @tf.function
     def _prob(self, logits):
-        prob = tf.nn.sigmoid(logits, axis=-1, name='prob')
+        prob = tf.nn.sigmoid(logits, name='probs')
         return prob
-
-    @tf.function 
-    def call(self, inputs, training=False):
-        logits = self.logits_encoder(inputs, training)
-        probs = self._prob(logits)
-        return logits, probs
 
     @tf.function
     def prob(self, inputs, training=False):
@@ -71,3 +65,23 @@ class SigmoidDecoder(Layer, Scope):
             name='entropy'
         )
         return ent
+
+    @tf.function 
+    def call(self, inputs, training=False, y=None):
+        logits = self.logits_encoder(inputs, training)
+        probs = self._prob(logits)
+        if y is not None:
+            ent = tf.nn.sigmoid_cross_entropy_with_logits(
+                labels=y, 
+                logits=logits,
+                name='entropy'
+            )
+        else:
+            ent = tf.nn.sigmoid_cross_entropy_with_logits(
+                labels=probs,
+                logits=logits,
+                name='entropy'
+            )
+        logprob = tf.reduce_sum(tf.math.log(probs, name='logprob'), axis=-1)
+        prob = tf.math.exp(logprob, name='prob')
+        return ent, logprob, prob 
