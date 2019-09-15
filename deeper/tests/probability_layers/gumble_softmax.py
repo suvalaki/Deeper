@@ -7,5 +7,8 @@ tf.enable_eager_execution()
 
 layer = GumbleSoftmaxLayer()
 
-z = np.array([1,2,3,4]).astype(float)
-layer(z, 1.0, 10)
+z = np.array([[10000,2,3,4, 0.00001]]).astype(float)
+
+z = np.array([[-0.03840736,  2.58452828]])
+
+layer(z, 1.0 )
