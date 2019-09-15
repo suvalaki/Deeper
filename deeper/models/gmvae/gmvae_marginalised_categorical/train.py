@@ -16,6 +16,7 @@ def train(
     epochs, 
     iter_train, 
     num_inference, 
+    batch=False,
     verbose=1, 
     save=None
 ):
@@ -50,7 +51,7 @@ def train(
         )
 
         for x in dataset_train:
-            model.train_step(x)
+            model.train_step(x,samples=samples, batch=batch)
         
         #for i in range(iter):
         #    idx=np.random.choice(len(X_train), num)
