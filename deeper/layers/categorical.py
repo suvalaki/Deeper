@@ -1,5 +1,5 @@
 import tensorflow as tf
-from deeper.layers.encoder import EncoderLayer
+from deeper.layers.encoder import Encoder
 from deeper.utils.scope import Scope
 
 Layer = tf.keras.layers.Layer
@@ -14,7 +14,6 @@ class CategoricalEncoder(Layer, Scope):
         bn_before=False,
         bn_after=False,
         epsilon=0.0,
-        dtype=tf.dtypes.float32
     ):
         Layer.__init__(self)
         Scope.__init__(self, var_scope)
@@ -26,7 +25,7 @@ class CategoricalEncoder(Layer, Scope):
         self.bn_after = bn_after
         self.epsilon = epsilon
 
-        self.logits_encoder = EncoderLayer(
+        self.logits_encoder = Encoder(
             latent_dim=self.latent_dimension,
             embedding_dimensions=self.embedding_dimensions,
             activation=self.embedding_activation,
@@ -37,8 +36,7 @@ class CategoricalEncoder(Layer, Scope):
 
     @tf.function
     def call_logits(self, inputs, training=False):
-        x = tf.cast(inputs, self.dtype)
-        logits = self.logits_encoder(x, training)
+        logits = self.logits_encoder(inputs, training)
         if self.epsilon > 0.0:
             maxval = np.log(1.0 - self.epsilon) - np.log(self.epsilon)
             logits = tf.compat.v2.clip_by_value(

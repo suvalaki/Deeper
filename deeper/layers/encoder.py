@@ -5,13 +5,13 @@ from deeper.utils.scope import Scope
 tfk = tf.keras
 Layer = tfk.layers.Layer
 
-class EncoderLayer(Layer, Scope):
+class Encoder(Layer, Scope):
     def __init__(
         self, 
         latent_dim, 
         embedding_dimensions, 
         activation,
-        var_scope, 
+        var_scope='encoder', 
         bn_before=False,
         bn_after=False,
     ):
@@ -70,7 +70,7 @@ class EncoderLayer(Layer, Scope):
     @tf.function
     def call(self, inputs, training=False):
         """Define the computational flow"""
-        x = tf.cast(inputs, tf.float32)
+        x = inputs
         for em, bnb, bna in zip(
             self.embeddings, 
             self.embeddings_bn_before, 

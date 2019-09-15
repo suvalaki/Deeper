@@ -82,6 +82,6 @@ class SigmoidEncoder(Layer, Scope):
                 logits=logits,
                 name='entropy'
             )
-        logprob = tf.reduce_sum(tf.math.log(probs, name='logprob'), axis=-1)
+        logprob = - tf.reduce_sum(ent, -1, name='logprob')
         prob = tf.math.exp(logprob, name='prob')
         return ent, logprob, prob 
