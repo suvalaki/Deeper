@@ -1,15 +1,19 @@
 import tensorflow as tf
+from deeper.utils.scope import Scope
 
 tfk = tf.keras
 
-class GumbleSoftmaxLayer(tfk.layers.Layer):
+Layer = tfk.layers.Layer
+
+class GumbleSoftmaxLayer(Layer, Scope):
     def __init__(
         self,
-        dtype=tf.dtypes.float32,
-        name='GumbleSoftmax',
+        var_scope='GumbleSoftmax',
         axis=-1
     ):
-        super(GumbleSoftmaxLayer,self).__init__()
+
+        Layer.__init__(self)
+        Scope.__init__(self, var_scope)
         self.axis=axis
 
 
@@ -19,7 +23,7 @@ class GumbleSoftmaxLayer(tfk.layers.Layer):
     
     @tf.function
     def _gumble_softmax(self, logits, gumble_sample, temperature):
-        adjusted_logits = (tf.math.log(logits) + gumble_sample)/temperature
+        adjusted_logits = (logits + gumble_sample)/temperature
         adjusted_softmax = tf.nn.softmax(adjusted_logits)
         return adjusted_softmax
 
