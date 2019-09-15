@@ -32,7 +32,7 @@ class Encoder(Model):
                         units=em,
                         activation=None,
                         use_bias=True,
-                        kernel_initializer=tf.initializers.glorot_uniform(seed=None),
+                        kernel_initializer=tf.initializers.glorot_normal(),
                         bias_initializer=tf.initializers.zeros(),
                         #kernel_regularizer=tf.keras.regularizers.l2(),
                         name='layer'
@@ -46,7 +46,7 @@ class Encoder(Model):
                 units=self.latent_dim,
                 activation=None,
                 use_bias=True,
-                kernel_initializer=tf.initializers.glorot_uniform(seed=None),
+                kernel_initializer=tf.initializers.glorot_normal(),
                 bias_initializer=tf.initializers.zeros(),
                 #kernel_regularizer=tf.keras.regularizers.l2()
             )
@@ -57,7 +57,7 @@ class Encoder(Model):
         x = tf.cast(inputs, tf.float32)
         for em, bn in zip(self.embeddings, self.embeddings_bn):
             x = em(x)
-            x = bn(x, training=training)
+            #x = bn(x, training=training)
             x = tf.nn.relu(x)
             
             
@@ -81,7 +81,7 @@ class SoftmaxEncoder(Model):
         x = tf.cast(inputs, tf.float32)
         logits = self.logits(x, training)
         #logits = self.bn(logits, training=training)
-        eps = 0.001
+        eps = 1e-8
         if eps > 0.0:
             maxval = np.log(1.0 - eps) - np.log(eps)
             logits = tf.compat.v2.clip_by_value(
@@ -125,7 +125,7 @@ class NormalEncoder(Model):
       
     @staticmethod
     @tf.function
-    def log_normal(x, mu, var, eps=0.0, axis=-1):
+    def log_normal(x, mu, var, eps=1e-16, axis=-1):
         if eps > 0.0:
             var = tf.add(var, eps, name='clipped_var')
         return -0.5 * tf.reduce_sum(
@@ -159,7 +159,7 @@ class NormalDecoder(Model):
       
     @staticmethod
     @tf.function
-    def log_normal(x, mu, var, eps=0.0, axis=-1):
+    def log_normal(x, mu, var, eps=1e-16, axis=-1):
         if eps > 0.0:
             var = tf.add(var, eps, name='clipped_var')
         return -0.5 * tf.reduce_sum(
@@ -183,7 +183,7 @@ class SigmoidDecoder(Model):
         x = tf.cast(inputs, tf.float32)
         logit = self.mu.call(x, training)
 
-        eps = 0.0
+        eps = 1e-8
         if eps > 0.0:
             max_val = np.log(1.0 - eps) - np.log(eps)
             logit = tf.compat.v2.clip_by_value(
@@ -265,10 +265,6 @@ class MarginalAutoEncoder(Model):
     def sample(self, samples, x, y, training=False):
         with tf.device("/gpu:0"):
             result = [self.call(x, y, training) for j in range(samples)]
-
-            for j in range(samples):
-
-
             result_pivot = list(zip(*result))
         return result_pivot
 
@@ -418,7 +414,7 @@ class Gmvae(Model):
             mc_px_g_zy__sample,
             mc_px_g_zy__logprob,
             mc_px_g_zy__prob,
-        ) = self.call(inputs, training=training, samples)
+        ) = self.call(inputs, training=training, samples=samples)
 
         # reconstruction
         recon = tf.add_n(
@@ -477,7 +473,7 @@ class Gmvae(Model):
             mc_px_g_zy__sample,
             mc_px_g_zy__logprob,
             mc_px_g_zy__prob,
-        ) = self.call(inputs, training=training, samples)
+        ) = self.call(inputs, training=training, samples=samples)
 
         # reconstruction
         recon = tf.add_n(
@@ -503,7 +499,7 @@ class Gmvae(Model):
         return -(recon + z_entropy)
 
     @tf.function#(autograph=False)
-    def train_step(self, x, samples=1, tenorboard=False):
+    def train_step(self, x, samples=1, tenorboard=False, batch=False):
 
         if tenorboard:
             current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -516,7 +512,10 @@ class Gmvae(Model):
         # Tensorflow dataset is iterable in eager mode
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
-                loss = (self.loss_fn(x, True, samples))
+                if batch:
+                    loss = tf.reduce_mean(self.loss_fn(x, True, samples))
+                else:
+                    loss = self.loss_fn(x, True, samples)
             # Update ops for batch normalization
             # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             # with tf.control_dependencies(update_ops):
@@ -576,7 +575,39 @@ class Gmvae(Model):
                 zip(gradients, self.trainable_variables)
             )
 
+
     @tf.function#(autograph=False)
     def predict(self, x, training=False):
         qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
         return qy_g_x__prob
+
+
+    @tf.function
+    def cluster_loss(self, x, y, training=False):
+        qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
+        nent = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(
+            logits=qy_g_x__logit, 
+            labels=y
+        ))
+        return nent
+
+    def pretrain_categories_step(self, x, y):
+        with tf.device("/gpu:0"):
+            with tf.GradientTape() as tape:
+                loss = self.cluster_loss(x, y, True)
+
+        with tf.device("/gpu:0"):
+            gradients = tape.gradient(loss, self.trainable_variables)
+            # Clipping
+            gradients = [
+                None
+                if gradient is None
+                else tf.clip_by_value(
+                    gradient, -self.gradient_clip, self.gradient_clip
+                )
+                for gradient in gradients
+            ]
+        with tf.device("/gpu:0"):
+            self.optimizer.apply_gradients(
+                zip(gradients, self.trainable_variables)
+            )
