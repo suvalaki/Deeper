@@ -1,30 +1,32 @@
 import tensorflow as tf 
 import numpy as np
 
-from utils.scope import Scope
-from layers.encoder import Encoder
+from deeper.utils.scope import Scope
+from deeper.layers.encoder import Encoder
 
 tfk = tf.keras
-Model = tfk.Model
 Layer = tfk.layers.Layer
 
-
-class NormalEncoderLayer(Layer, Scope):
+class RandomNormalEncoder(Layer, Scope):
     def __init__(
         self, 
         latent_dimension, 
         embedding_dimensions, 
+        embedding_activations=tf.nn.relu,
         var_scope='normal_encoder',
         bn_before=False,
-        bn_after=False
+        bn_after=False,
+        epsilon=0.0
     ):
         Layer.__init__(self)
         Scope.__init__(self, var_scope)
 
         self.latent_dimension = latent_dimension
         self.embedding_dimensions = embedding_dimensions
+        self.embedding_activation = embedding_activations
         self.bn_before = bn_before
         self.bn_after = bn_after
+        self.epsilon = epsilon
 
         self.mu = Encoder(
             latent_dim=self.latent_dimension,
@@ -43,18 +45,23 @@ class NormalEncoderLayer(Layer, Scope):
             bn_after=self.bn_after
         )
 
-    @tf.function
-    def call(self, inputs, training=False):
-        x = tf.cast(inputs, tf.float64)
-        mu = self.mu(x, training)
-        logvar = self.logvar(x, training)
+    #@tf.function
+    def call(self, inputs, training=False, outputs=None):
+        mu = self.mu(inputs, training)
+        logvar = self.logvar(inputs, training)
 
-        # reparmeterisation trick
-        r_norm = tf.random.normal( tf.shape(mu), mean=0., stddev=1.)
-        sample = mu + r_norm * tf.math.sqrt(tf.exp(logvar))
+        if outputs is not None:
+            sample = outputs
+        else:
+            # reparmeterisation trick
+            r_norm = tf.cast(
+                tf.random.normal( tf.shape(mu), mean=0., stddev=1.),
+                inputs.dtype
+            )
+            sample = mu + r_norm * tf.math.sqrt(tf.exp(logvar))
         
         # Metrics for loss
-        logprob = self.log_normal(sample, mu, tf.exp(logvar))
+        logprob = self.log_normal(sample, mu, tf.exp(logvar), self.epsilon)
         prob = tf.exp(logprob)
 
         return sample, logprob, prob
@@ -65,5 +72,19 @@ class NormalEncoderLayer(Layer, Scope):
         if eps > 0.0:
             var = tf.add(var, eps, name='clipped_var')
         return -0.5 * tf.reduce_sum(
-            tf.math.log(2 * np.pi) + tf.math.log(var) + tf.square(x - mu) / var, axis)
+            tf.math.log(2 * tf.cast(np.pi, x.dtype)) 
+            + tf.math.log(var) + tf.square(x - mu) / var, axis)
+
+    @tf.function
+    def entropy(self, inputs, inputs_x, mu_x, var_x, training=False):
+        """Compare mu and var against """
+        mu = self.mu(inputs, training)
+        logvar = self.logvar(inputs, training)
+        entropy = (
+            self.log_normal(inputs_x, mu, var, self.epslion)
+            - self.log_normal(inputs_x, mu_x, var_x, self.epsilon)
+        )
+        return entropy
+
+
 
