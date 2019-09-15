@@ -1,3 +1,5 @@
+import numpy as np
+
 def exponential_multiplicative_cooling(i, start, end, alpha):
     """Proposed by Kirkpatrick, Gelatt and Vecchi (1983), and used as reference 
     in the comparison among the different cooling criteria. The temperature decrease 
