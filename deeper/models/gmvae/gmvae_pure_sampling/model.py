@@ -26,6 +26,32 @@ class MarginalAutoEncoder(Model, Scope):
         bn_after=False,
         latent_epsilon=0.0,
         reconstruction_epsilon=0.0,
+
+        latent_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        latent_mu_embedding_bias_initializer=tf.initializers.zeros(),
+        latent_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        latent_mu_latent_bias_initializer=tf.initializers.zeros(),
+
+        latent_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        latent_var_embedding_bias_initializer=tf.initializers.zeros(),
+        latent_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        latent_var_latent_bias_initializer=tf.initializers.ones(),
+
+        posterior_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        posterior_mu_embedding_bias_initializer=tf.initializers.zeros(),
+        posterior_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        posterior_mu_latent_bias_initializer=tf.initializers.zeros(),
+
+        posterior_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        posterior_var_embedding_bias_initializer=tf.initializers.zeros(),
+        posterior_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        posterior_var_latent_bias_initializer=tf.initializers.ones(),
+
+        recon_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        recon_embedding_bias_initializer=tf.initializers.zeros(),
+        recon_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        recon_latent_bias_initializer=tf.initializers.zeros(),
+
     ):
         Model.__init__(self)
         Scope.__init__(self, var_scope)
@@ -38,6 +64,7 @@ class MarginalAutoEncoder(Model, Scope):
         self.lat_eps = latent_epsilon
         self.rec_eps = reconstruction_epsilon
 
+
         with tf.name_scope('graph_qz_g_xy'):
             self.graphs_qz_g_xy = RandomNormalEncoder(
                 latent_dimension=self.la_dim, 
@@ -45,7 +72,17 @@ class MarginalAutoEncoder(Model, Scope):
                 var_scope=self.v_name('graph_qz_g_xy'),
                 bn_before=self.bn_before,
                 bn_after=self.bn_after,
-                epsilon=self.lat_eps
+                epsilon=self.lat_eps,
+
+                embedding_mu_kernel_initializer=latent_mu_embedding_kernel_initializer,
+                embedding_mu_bias_initializer=latent_mu_embedding_bias_initializer,
+                latent_mu_kernel_initialiazer=latent_mu_latent_kernel_initialiazer,
+                latent_mu_bias_initializer=latent_mu_latent_bias_initializer,
+
+                embedding_var_kernel_initializer=latent_var_embedding_kernel_initializer,
+                embedding_var_bias_initializer=latent_var_embedding_bias_initializer,
+                latent_var_kernel_initialiazer=latent_var_latent_kernel_initialiazer,
+                latent_var_bias_initializer=latent_var_latent_bias_initializer,
             )
         with tf.name_scope('graph_pz_g_y'):
             self.graphs_pz_g_y = RandomNormalEncoder(
@@ -54,7 +91,17 @@ class MarginalAutoEncoder(Model, Scope):
                 var_scope=self.v_name('graph_pz_g_y'),
                 bn_before=self.bn_before,
                 bn_after=self.bn_after,
-                epsilon=self.lat_eps
+                epsilon=self.lat_eps,
+
+                embedding_mu_kernel_initializer=posterior_mu_embedding_kernel_initializer,
+                embedding_mu_bias_initializer=posterior_mu_embedding_bias_initializer,
+                latent_mu_kernel_initialiazer=posterior_mu_latent_kernel_initialiazer,
+                latent_mu_bias_initializer=posterior_mu_latent_bias_initializer,
+
+                embedding_var_kernel_initializer=posterior_var_embedding_kernel_initializer,
+                embedding_var_bias_initializer=posterior_var_embedding_bias_initializer,
+                latent_var_kernel_initialiazer=posterior_var_latent_kernel_initialiazer,
+                latent_var_bias_initializer=posterior_var_latent_bias_initializer,
             )
         with tf.name_scope('graph_px_g_y'):
             if self.kind == "binary":
@@ -64,7 +111,13 @@ class MarginalAutoEncoder(Model, Scope):
                     var_scope=self.v_name('graph_px_g_y'),
                     bn_before=self.bn_before,
                     bn_after=self.bn_after,
-                    epsilon=self.rec_eps
+                    epsilon=self.rec_eps,
+
+                    embedding_kernel_initializer=recon_embedding_kernel_initializer,
+                    embedding_bias_initializer=recon_embedding_bias_initializer,
+                    latent_kernel_initialiazer=recon_latent_kernel_initialiazer,
+                    latent_bias_initializer=recon_latent_bias_initializer,
+
                 )
             #else:
             #    self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1])
@@ -77,12 +130,20 @@ class MarginalAutoEncoder(Model, Scope):
             qz_g_xy__sample,
             qz_g_xy__logprob,
             qz_g_xy__prob,
+            qz_g_xy__mu,
+            qz_g_xy__logvar
         ) = self.graphs_qz_g_xy.call(xy, training)
         (
             pz_g_y__sample,
             pz_g_y__logprob,
             pz_g_y__prob,
+            pz_gy__mu,
+            pz_gy__logvar,
         ) = self.graphs_pz_g_y.call(y,  training, qz_g_xy__sample)
+        dkl_z_g_xy = self.graphs_pz_g_y.entropy(
+            y, qz_g_xy__sample, qz_g_xy__mu, tf.exp(qz_g_xy__logvar),
+            self.lat_eps
+        )
         (
             px_g_zy__sample,
             px_g_zy__logprob,
@@ -96,6 +157,7 @@ class MarginalAutoEncoder(Model, Scope):
             pz_g_y__sample,
             pz_g_y__logprob,
             pz_g_y__prob,
+            dkl_z_g_xy,
             px_g_zy__sample,
             px_g_zy__logprob,
             px_g_zy__prob,
@@ -140,7 +202,41 @@ class Gmvae(Model, Scope):
         kind="binary",
         learning_rate=0.01,
         gradient_clip=None,
-        var_scope='gmvae'
+        var_scope='gmvae',
+
+        cat_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        cat_embedding_bias_initializer=tf.initializers.zeros(),
+        cat_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        cat_latent_bias_initializer=None,
+
+        latent_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        latent_mu_embedding_bias_initializer=tf.initializers.zeros(),
+        latent_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        latent_mu_latent_bias_initializer=tf.initializers.zeros(),
+
+        latent_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        latent_var_embedding_bias_initializer=tf.initializers.zeros(),
+        latent_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        latent_var_latent_bias_initializer=tf.initializers.constant(1.0),
+
+        posterior_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        posterior_mu_embedding_bias_initializer=tf.initializers.zeros(),
+        posterior_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        posterior_mu_latent_bias_initializer=tf.initializers.zeros(),
+
+        posterior_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        posterior_var_embedding_bias_initializer=tf.initializers.zeros(),
+        posterior_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        posterior_var_latent_bias_initializer=tf.initializers.constant(1.0),
+
+        recon_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        recon_embedding_bias_initializer=tf.initializers.zeros(),
+        recon_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        recon_latent_bias_initializer=tf.initializers.zeros(),
+
+        z_kl_lambda=1.0,
+
+        optimizer=tf.keras.optimizers.SGD(0.001)
     ):
 
         # instatiate
@@ -177,31 +273,67 @@ class Gmvae(Model, Scope):
         self.learning_rate = learning_rate
         self.cooling_distance = 0
 
+        if cat_latent_bias_initializer is None:
+            cat_latent_bias_initializer = tf.initializers.constant(
+                np.log((1/self.k)/(1-1/self.k))
+            )
         # instantiate all variables in the graph
 
+        self.z_kl_lambda = z_kl_lambda
         # 
         with tf.name_scope('categorical'):
             self.graph_qy_g_x = CategoricalEncoder(
                 latent_dimension=self.k, 
                 embedding_dimensions=self.mem_dim, 
-                embedding_activation=tf.nn.relu,
+                embedding_activation=self.mem_act,
                 var_scope=self.v_name('categorical_encoder'),
                 bn_before=self.bn_before,
                 bn_after=self.bn_after,
                 epsilon=self.cat_eps,
+                embedding_kernel_initializer=cat_embedding_kernel_initializer,
+                embedding_bias_initializer=cat_embedding_bias_initializer,
+                latent_kernel_initialiazer=cat_latent_kernel_initialiazer,
+                latent_bias_initializer=cat_latent_bias_initializer
             )
             
             self.graph_qy_g_x_ohe = GumbleSoftmaxLayer()
 
         self.marginal_autoencoder = \
             MarginalAutoEncoder(
-                self.in_dim, self.em_dim, self.la_dim, self.kind,
+                self.in_dim, self.em_dim, self.la_dim, kind=self.kind,
                 var_scope=self.v_name('marginal_autoencoder'),
                 latent_epsilon=self.lat_eps,
-                reconstruction_epsilon=self.rec_eps)
+                reconstruction_epsilon=self.rec_eps,
+                embedding_activations=self.em_act,
+
+                latent_mu_embedding_kernel_initializer=latent_mu_embedding_kernel_initializer,
+                latent_mu_embedding_bias_initializer=latent_mu_embedding_bias_initializer,
+                latent_mu_latent_kernel_initialiazer=latent_mu_latent_kernel_initialiazer,
+                latent_mu_latent_bias_initializer=latent_mu_latent_bias_initializer,
+
+                latent_var_embedding_kernel_initializer=latent_var_embedding_kernel_initializer,
+                latent_var_embedding_bias_initializer=latent_var_embedding_bias_initializer,
+                latent_var_latent_kernel_initialiazer=latent_var_latent_kernel_initialiazer,
+                latent_var_latent_bias_initializer=latent_var_latent_bias_initializer,
+
+                posterior_mu_embedding_kernel_initializer=posterior_mu_embedding_kernel_initializer,
+                posterior_mu_embedding_bias_initializer=posterior_mu_embedding_bias_initializer,
+                posterior_mu_latent_kernel_initialiazer=posterior_mu_latent_kernel_initialiazer,
+                posterior_mu_latent_bias_initializer=posterior_mu_latent_bias_initializer,
+
+                posterior_var_embedding_kernel_initializer=posterior_var_embedding_kernel_initializer,
+                posterior_var_embedding_bias_initializer=posterior_var_embedding_bias_initializer,
+                posterior_var_latent_kernel_initialiazer=posterior_var_latent_kernel_initialiazer,
+                posterior_var_latent_bias_initializer=posterior_var_latent_bias_initializer,
+
+                recon_embedding_kernel_initializer=recon_embedding_kernel_initializer,
+                recon_embedding_bias_initializer=recon_embedding_bias_initializer,
+                recon_latent_kernel_initialiazer=recon_latent_kernel_initialiazer,
+                recon_latent_bias_initializer=recon_latent_bias_initializer,
+            )
 
         #self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
-        self.optimizer = tf.keras.optimizers.SGD(self.learning_rate)
+        self.optimizer = optimizer
 
     def increment_cooling(self):
         self.cooling_distance += 1
@@ -211,7 +343,10 @@ class Gmvae(Model, Scope):
         x = inputs
 
         qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
-        qy_g_x_ohe = self.graph_qy_g_x_ohe(qy_g_x__logit, temperature)
+        qy_g_x_ohe = self.graph_qy_g_x_ohe(
+            qy_g_x__logit, 
+            temperature
+        )
 
         (
             qz_g_xy__sample,
@@ -220,6 +355,7 @@ class Gmvae(Model, Scope):
             pz_g_y__sample,
             pz_g_y__logprob,
             pz_g_y__prob,
+            dkl_z_g_xy,
             px_g_zy__sample,
             px_g_zy__logprob,
             px_g_zy__prob,
@@ -235,15 +371,67 @@ class Gmvae(Model, Scope):
             pz_g_y__sample,
             pz_g_y__logprob,
             pz_g_y__prob,
+            dkl_z_g_xy,
             px_g_zy__sample,
             px_g_zy__logprob,
             px_g_zy__prob,
         )
 
+    @tf.function 
+    def sample_one_even(self, inputs, training=False):
+        x = inputs
+
+        y_ = tf.cast(
+            tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
+            dtype=x.dtype
+        )
+
+        qy_g_x__prob = tf.cast(
+            tf.fill(tf.stack([tf.shape(x)[0], self.k]), 1/self.k),
+            dtype=x.dtype
+        )
+
+        (
+            qz_g_xy__sample,
+            qz_g_xy__logprob,
+            qz_g_xy__prob,
+            pz_g_y__sample,
+            pz_g_y__logprob,
+            pz_g_y__prob,
+            dkl_z_g_xy,
+            px_g_zy__sample,
+            px_g_zy__logprob,
+            px_g_zy__prob,
+        ) = self.marginal_autoencoder(
+            x, y_, training
+        )
+
+        return (
+            qy_g_x__prob,
+            qz_g_xy__sample,
+            qz_g_xy__logprob,
+            qz_g_xy__prob,
+            pz_g_y__sample,
+            pz_g_y__logprob,
+            pz_g_y__prob,
+            dkl_z_g_xy,
+            px_g_zy__sample,
+            px_g_zy__logprob,
+            px_g_zy__prob,
+        )
+
+
     @tf.function(experimental_relax_shapes=True)
     def sample(self, samples, x, training=False, temperature=1.0):
         with tf.device("/gpu:0"):
             result = [self.sample_one(x, training, temperature) for j in range(samples)]
+            result_pivot = list(zip(*result))
+        return result_pivot
+
+    @tf.function(experimental_relax_shapes=True)
+    def sample_even(self, samples, x, training=False):
+        with tf.device("/gpu:0"):
+            result = [self.sample_one_even(x, training) for j in range(samples)]
             result_pivot = list(zip(*result))
         return result_pivot
 
@@ -257,6 +445,14 @@ class Gmvae(Model, Scope):
         return [
             self.mc_stack_mean(z)
             for z in self.sample(samples, x, training=False, temperature=temperature)
+        ]
+
+
+    @tf.function(experimental_relax_shapes=True)
+    def monte_carlo_estimate_even(self, samples, x, training=False):
+        return [
+            self.mc_stack_mean(z)
+            for z in self.sample_even(samples, x, training=False, )
         ]
 
 
@@ -277,6 +473,7 @@ class Gmvae(Model, Scope):
             mc_pz_g_y__sample,
             mc_pz_g_y__logprob,
             mc_pz_g_y__prob,
+            mc_dkl_z_g_xy,
             mc_px_g_zy__sample,
             mc_px_g_zy__logprob,
             mc_px_g_zy__prob,
@@ -295,11 +492,53 @@ class Gmvae(Model, Scope):
             mc_pz_g_y__sample,
             mc_pz_g_y__logprob,
             mc_pz_g_y__prob,
+            mc_dkl_z_g_xy,
             mc_px_g_zy__sample,
             mc_px_g_zy__logprob,
             mc_px_g_zy__prob,
         )
 
+    @tf.function 
+    def call_even(self, x, training=False, samples=1):
+
+        y_ = tf.cast(
+            tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
+            dtype=x.dtype
+        )
+        py = tf.cast(tf.fill(tf.shape(y_), 1 / self.k, name="prob"), x.dtype)
+
+        (
+            mc_qy_g_x__prob,
+            mc_qz_g_xy__sample,
+            mc_qz_g_xy__logprob,
+            mc_qz_g_xy__prob,
+            mc_pz_g_y__sample,
+            mc_pz_g_y__logprob,
+            mc_pz_g_y__prob,
+            mc_dkl_z_g_xy,
+            mc_px_g_zy__sample,
+            mc_px_g_zy__logprob,
+            mc_px_g_zy__prob,
+        ) = self.monte_carlo_estimate_even(samples, x, training, )
+
+
+        #recon = qy_g_x[:, i] * tf.cast(mc_px_g_zy__logprob
+
+
+        return (
+            py,
+            mc_qy_g_x__prob,
+            mc_qz_g_xy__sample,
+            mc_qz_g_xy__logprob,
+            mc_qz_g_xy__prob,
+            mc_pz_g_y__sample,
+            mc_pz_g_y__logprob,
+            mc_pz_g_y__prob,
+            mc_dkl_z_g_xy,
+            mc_px_g_zy__sample,
+            mc_px_g_zy__logprob,
+            mc_px_g_zy__prob,
+        )
 
     @tf.function
     def entropy_fn(self, inputs, training=False, samples=1, temperature=1.0):
@@ -312,6 +551,7 @@ class Gmvae(Model, Scope):
             mc_pz_g_y__sample,
             mc_pz_g_y__logprob,
             mc_pz_g_y__prob,
+            mc_dkl_z_g_xy,
             mc_px_g_zy__sample,
             mc_px_g_zy__logprob,
             mc_px_g_zy__prob,
@@ -321,7 +561,8 @@ class Gmvae(Model, Scope):
         recon = mc_px_g_zy__logprob
 
         # z_entropy
-        z_entropy = mc_pz_g_y__logprob - mc_qz_g_xy__logprob
+        #z_entropy = mc_pz_g_y__logprob - mc_qz_g_xy__logprob
+        z_entropy = mc_dkl_z_g_xy 
 
         # y_entropy
         y_entropy = tf.reduce_sum(
@@ -335,7 +576,7 @@ class Gmvae(Model, Scope):
     @tf.function#(autograph=False)
     def elbo(self, inputs, training=False, samples=1, temperature=1.0):
         recon, z_entropy, y_entropy = self.entropy_fn(inputs, training, samples, temperature)
-        return recon + z_entropy + y_entropy
+        return recon + self.z_kl_lambda * z_entropy + y_entropy
 
     @tf.function#(autograph=False)
     def loss_fn(self, inputs, training=False, samples=1, temperature=1.0):
@@ -352,31 +593,16 @@ class Gmvae(Model, Scope):
             mc_pz_g_y__sample,
             mc_pz_g_y__logprob,
             mc_pz_g_y__prob,
+            mc_dkl_z_g_xy,
             mc_px_g_zy__sample,
             mc_px_g_zy__logprob,
             mc_px_g_zy__prob,
-        ) = self.call(inputs, training=training, samples=samples)
+        ) = self.call_even(inputs, training=training, samples=samples)
 
         # reconstruction
-        recon = tf.add_n(
-            [
-                tf.cast(py[:, i], tf.float32)
-                * tf.cast(mc_px_g_zy__logprob[i], tf.float32)
-                for i in range(self.k)
-            ]
-        )
-
+        recon = mc_px_g_zy__prob
         # z_entropy
-        z_entropy = tf.add_n(
-            [
-                tf.cast(py[:, i], tf.float32)
-                * (
-                    tf.cast(mc_pz_g_y__logprob[i], tf.float32)
-                    - tf.cast(mc_qz_g_xy__logprob[i], tf.float32)
-                )
-                for i in range(self.k)
-            ]
-        )
+        z_entropy = mc_dkl_z_g_xy
 
         return -(recon + z_entropy)
 
@@ -395,15 +621,20 @@ class Gmvae(Model, Scope):
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
                 if batch:
-                    loss = tf.reduce_mean(self.loss_fn(x, True, samples, temperature))
+                    loss = tf.reduce_mean(
+                        self.loss_fn(x, True, samples, temperature)
+                    )
                 else:
-                    loss = tf.reduce_sum(self.loss_fn(x, True, samples))
+                    loss = (
+                        self.loss_fn(x, True, samples, temperature)
+                    )
             # Update ops for batch normalization
             # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             # with tf.control_dependencies(update_ops):
 
         with tf.device("/gpu:0"):
             gradients = tape.gradient(loss, self.trainable_variables)
+
             # Clipping
             gradients = [
                 None
@@ -411,6 +642,9 @@ class Gmvae(Model, Scope):
                 else tf.clip_by_value(
                     gradient, -self.gradient_clip, self.gradient_clip
                 )
+                #else tf.clip_by_norm(
+                #    gradient, self.gradient_clip
+                #)
                 for gradient in gradients
             ]
 
@@ -429,13 +663,16 @@ class Gmvae(Model, Scope):
                 zip(gradients, self.trainable_variables)
             )
 
-    def pretrain_step(self, x, samples=1):
+    def pretrain_step(self, x, samples=1, batch=False):
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
 
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
-                loss = tf.reduce_mean(self.even_mixture_loss(x, True, samples))
+                if batch:
+                    loss = tf.reduce_mean(self.even_mixture_loss(x, True, samples))
+                else:
+                    loss = (self.even_mixture_loss(x, True, samples))
             # Update ops for batch normalization
             # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             # with tf.control_dependencies(update_ops):
@@ -446,8 +683,11 @@ class Gmvae(Model, Scope):
             gradients = [
                 None
                 if gradient is None
-                else tf.clip_by_value(
-                    gradient, -self.gradient_clip, self.gradient_clip
+                #else tf.clip_by_value(
+                #    gradient, -self.gradient_clip, self.gradient_clip
+                #)
+                else tf.clip_by_norm(
+                    gradient, self.gradient_clip
                 )
                 for gradient in gradients
             ]
