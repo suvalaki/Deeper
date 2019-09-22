@@ -26,7 +26,7 @@ def train(
     #t2 = tqdm(total=int(X_train.shape[0] // num), position=1, leave=False)
 
     tqdm.write(
-        "{:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10}".format(
+        "{:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10}".format(
             "epoch",
             "loss",
             "likelih",
@@ -36,6 +36,7 @@ def train(
             "teAMI",
             "trPUR",
             "tePUR",
+            'attch_te',
             "temp"
         )
     )
@@ -84,13 +85,19 @@ def train(
                 y_test, idx_te, average_method="arithmetic"
             )
 
+            attch_te = (
+                np.array(np.unique(idx_te, return_counts=True)[1]).max()
+                / len(idx_te)
+            )
+
             purity_train = purity_score(y_train, idx_tr)
             purity_test = purity_score(y_test, idx_te)
 
             tqdm.write(
                 "{:10d} {:10.5f} {:10.5f} {:10.5f} {:10.5f} "
                 "{:10.5f} {:10.5f} "
-                "{:10.5f} {:10.5f} {:10.5f}".format(
+                "{:10.5f} {:10.5f} "
+                "{:10.2f} {:10.5f}".format(
                     i,
                     loss,
                     recon,
@@ -100,6 +107,7 @@ def train(
                     ami_te,
                     purity_train,
                     purity_test,
+                    attch_te,
                     temp
                 )
             )
