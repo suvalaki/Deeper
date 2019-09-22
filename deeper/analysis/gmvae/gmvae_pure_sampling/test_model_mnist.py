@@ -1,10 +1,15 @@
 #%%
+
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+
 from pathlib import Path
 import tensorflow as tf
 import numpy as np
 from tqdm import tqdm
 
 tf.enable_eager_execution()
+tf.set_random_seed(12343411231)
 
 import numpy as np
 from deeper.models.gmvae.gmvae_pure_sampling import model
@@ -59,7 +64,8 @@ from importlib import reload
 
 model = reload(model)
 
-initial_learning_rate = 1e-3
+
+initial_learning_rate = 1e-4
 lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
     initial_learning_rate,
     decay_steps=1000,
@@ -70,14 +76,22 @@ m1 = model.Gmvae(
     components=len(set(y_train)),
     input_dimension=X_train.shape[1],
     embedding_dimensions=[512, 512],
+    embedding_activations=tf.nn.tanh,
     latent_dimensions=64,
     kind="binary",
     learning_rate=initial_learning_rate,
-    gradient_clip=10000,
-    bn_before=False
+    gradient_clip=1e0,
+    bn_before=False,
+    bn_after=False,
+    categorical_epsilon=0.0,
+    reconstruction_epsilon=0.0,
+    latent_epsilon= 0.0,
+    z_kl_lambda=1.0,
+    cat_latent_bias_initializer=None,
+    optimizer = tf.keras.optimizers.SGD(1e-4, momentum=0.99)
 )
 
-
+#m1.load_weights('model_w')
 
 #%% Examine SOftmax Distribution
 import pandas as pd
@@ -86,7 +100,7 @@ logits, prob = m1.graph_qy_g_x.call(X_test, training=False)
 
 logit_df = pd.DataFrame()
 for col in range(logits.shape[1]):
-    temp_df = pd.DataFrame({'value':logits[:,col]})
+    temp_df = pd.DataFrame({'value':prob[:,col]})
     temp_df['k'] = str(col)
     logit_df = logit_df.append(temp_df, ignore_index=True)
 import seaborn as sns
@@ -100,26 +114,10 @@ sns.violinplot(data=logit_df, y='value' , x='k')
 # for each caategory map the appropriate prediction
 confusion_matrix(y_test, np.argmax(m1.predict(X_test),1))
 
-#%% Train the model
-# with tf.device('/gpu:0'):
-train(
-    m1, 
-    X_train, y_train, 
-    X_test, y_test, 
-    num=10, 
-    samples=10,
-    epochs=10000, 
-    iter_train=1, 
-    num_inference=1000, 
-    save='model_w',
-    batch=False,
-    temperature_function=lambda x: 5
-)
 
-
-
-
-
+#%%
+#for i in range(10000):
+#    m1.pretrain_step(X_train[np.random.choice(len(X_train), 100)], batch=True)
 
 #%% Train the model
 # with tf.device('/gpu:0'):
@@ -127,20 +125,44 @@ train(
     m1, 
     X_train, y_train, 
     X_test, y_test, 
-    num=10, 
-    samples=10,
+    num=100, 
+    samples=1,
     epochs=10000, 
-    iter_train=1, 
+    iter_train=10, 
     num_inference=1000, 
     save='model_w',
-    batch=False,
+    batch=True,
     temperature_function=lambda x: exponential_multiplicative_cooling(
-        x, 5, 0.01, 0.96)
+        x, 0.5, 0.5, 0.98)
 )
 
 
-#%%o
-qy_g_x__logit, qy_g_x__prob = m1.graph_qy_g_x(X_train[[0]])
-m1.graph_qy_g_x_ohe(qy_g_x__prob, 50.0)
+#%%
+qy_g_x__logit, qy_g_x__prob = m1.graph_qy_g_x(X_train[[9]])
+qy_g_x__ohe =np.array([
+    m1.graph_qy_g_x_ohe(qy_g_x__prob, .005).numpy()[0]
+    for i in range(1000)])
+
+#%%
+logit_df = pd.DataFrame()
+for col in range(qy_g_x__ohe.shape[1]):
+    temp_df = pd.DataFrame({'value':qy_g_x__ohe[:,col]})
+    temp_df['k'] = str(col)
+    logit_df = logit_df.append(temp_df, ignore_index=True)
+import seaborn as sns
+sns.boxplot(data=logit_df, y='value' , x='k')
+
+
+#%%
+for y in m1.entropy_fn(X_train[0:3]):
+    print(tf.shape(y))
+
+#%%
+
+for y in m1.call(X_train[0:3]):
+    print(tf.shape(y))
+
+#%%
+m1.call(X_train[0:3])
 
 #%%
