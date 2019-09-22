@@ -14,6 +14,10 @@ class Encoder(Layer, Scope):
         var_scope='encoder', 
         bn_before=False,
         bn_after=False,
+        embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        embedding_bias_initializer=tf.initializers.zeros(),
+        latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        latent_bias_initializer=tf.initializers.zeros()
     ):
         Layer.__init__(self)
         Scope.__init__(self, var_scope)
@@ -34,8 +38,8 @@ class Encoder(Layer, Scope):
                     units=em,
                     activation=None,
                     use_bias=True,
-                    kernel_initializer=tf.initializers.glorot_normal(seed=None),
-                    bias_initializer=tf.initializers.zeros(),
+                    kernel_initializer=embedding_kernel_initializer,
+                    bias_initializer=embedding_bias_initializer,
                     name=self.v_name('embedding_{}_dense'.format(i))
                 )
             )
@@ -62,8 +66,8 @@ class Encoder(Layer, Scope):
             units=self.latent_dim,
             activation=None,
             use_bias=True,
-            kernel_initializer=tf.initializers.glorot_normal(),
-            bias_initializer=tf.initializers.zeros(),
+            kernel_initializer=latent_kernel_initialiazer,
+            bias_initializer=latent_bias_initializer,
             name=self.v_name('latent_dense')
         )
 

@@ -14,6 +14,10 @@ class CategoricalEncoder(Layer, Scope):
         bn_before=False,
         bn_after=False,
         epsilon=0.0,
+        embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        embedding_bias_initializer=tf.initializers.zeros(),
+        latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        latent_bias_initializer=tf.initializers.zeros()
     ):
         Layer.__init__(self)
         Scope.__init__(self, var_scope)
@@ -31,7 +35,11 @@ class CategoricalEncoder(Layer, Scope):
             activation=self.embedding_activation,
             var_scope=self.v_name('logits_encoder'), 
             bn_before=self.bn_before,
-            bn_after=self.bn_after
+            bn_after=self.bn_after,
+            embedding_kernel_initializer=embedding_kernel_initializer,
+            embedding_bias_initializer=embedding_bias_initializer,
+            latent_kernel_initialiazer=latent_kernel_initialiazer,
+            latent_bias_initializer=latent_bias_initializer
         )
 
     @tf.function
