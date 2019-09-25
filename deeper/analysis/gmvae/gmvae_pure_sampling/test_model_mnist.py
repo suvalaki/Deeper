@@ -18,7 +18,10 @@ from deeper.models.gmvae.gmvae_pure_sampling.utils import (
     chain_call_dataset,
     purity_score,
 )
-from deeper.models.gmvae.gmvae_pure_sampling.train import train
+from deeper.models.gmvae.gmvae_pure_sampling.train import (
+    train, 
+    pretrain_with_clusters
+)
 from deeper.utils.cooling import exponential_multiplicative_cooling
 
 from sklearn.metrics import confusion_matrix, classification_report
@@ -57,6 +60,9 @@ X_test = X_test.reshape(X_test.shape[0], 28 * 28)
 X_train = (X_train > 0.5).astype(float)
 X_test = (X_test > 0.5).astype(float)
 
+y_ohe = OneHotEncoder()
+y_train_ohe = np.array(y_ohe.fit_transform(y_train.reshape(-1,1)).todense())
+y_test_ohe = np.array(y_ohe.transform(y_test.reshape(-1,1)).todense())
 
 
 #%% Instantiate the model
@@ -65,7 +71,7 @@ from importlib import reload
 model = reload(model)
 
 
-initial_learning_rate = 1e-4
+initial_learning_rate = 1e-3
 lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
     initial_learning_rate,
     decay_steps=1000,
@@ -76,7 +82,7 @@ m1 = model.Gmvae(
     components=len(set(y_train)),
     input_dimension=X_train.shape[1],
     embedding_dimensions=[512, 512],
-    embedding_activations=tf.nn.tanh,
+    embedding_activations=tf.nn.relu,
     latent_dimensions=64,
     kind="binary",
     learning_rate=initial_learning_rate,
@@ -87,8 +93,12 @@ m1 = model.Gmvae(
     reconstruction_epsilon=0.0,
     latent_epsilon= 0.0,
     z_kl_lambda=1.0,
+    c_kl_lambda=1.0,
     cat_latent_bias_initializer=None,
-    optimizer = tf.keras.optimizers.SGD(1e-4, momentum=0.99)
+    optimizer = tf.keras.optimizers.SGD(
+        initial_learning_rate, 
+        momentum=0.99
+    )
 )
 
 #m1.load_weights('model_w')
@@ -115,9 +125,19 @@ sns.violinplot(data=logit_df, y='value' , x='k')
 confusion_matrix(y_test, np.argmax(m1.predict(X_test),1))
 
 
-#%%
-#for i in range(10000):
-#    m1.pretrain_step(X_train[np.random.choice(len(X_train), 100)], batch=True)
+#%% Pretrain the model with some known clusters
+pretrain_with_clusters(
+    m1, 
+    X_train, y_train, 
+    X_test, y_test, 
+    num=100, 
+    samples=1,
+    epochs=10, 
+    iter_train=1, 
+    num_inference=1000, 
+    save='model_w',
+)
+
 
 #%% Train the model
 # with tf.device('/gpu:0'):
@@ -127,13 +147,13 @@ train(
     X_test, y_test, 
     num=100, 
     samples=1,
-    epochs=10000, 
+    epochs=1000, 
     iter_train=10, 
     num_inference=1000, 
     save='model_w',
     batch=True,
     temperature_function=lambda x: exponential_multiplicative_cooling(
-        x, 0.5, 0.5, 0.98)
+        x, 1.0, 0.5, 0.98)
 )
 
 
