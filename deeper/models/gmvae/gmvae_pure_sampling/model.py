@@ -235,6 +235,7 @@ class Gmvae(Model, Scope):
         recon_latent_bias_initializer=tf.initializers.zeros(),
 
         z_kl_lambda=1.0,
+        c_kl_lambda=1.0,
 
         optimizer=tf.keras.optimizers.SGD(0.001)
     ):
@@ -280,6 +281,7 @@ class Gmvae(Model, Scope):
         # instantiate all variables in the graph
 
         self.z_kl_lambda = z_kl_lambda
+        self.c_kl_lambda = c_kl_lambda
         # 
         with tf.name_scope('categorical'):
             self.graph_qy_g_x = CategoricalEncoder(
@@ -576,7 +578,7 @@ class Gmvae(Model, Scope):
     @tf.function#(autograph=False)
     def elbo(self, inputs, training=False, samples=1, temperature=1.0):
         recon, z_entropy, y_entropy = self.entropy_fn(inputs, training, samples, temperature)
-        return recon + self.z_kl_lambda * z_entropy + y_entropy
+        return recon + self.z_kl_lambda * z_entropy + self.c_kl_lambda * y_entropy
 
     @tf.function#(autograph=False)
     def loss_fn(self, inputs, training=False, samples=1, temperature=1.0):
@@ -706,16 +708,33 @@ class Gmvae(Model, Scope):
     @tf.function
     def cluster_loss(self, x, y, training=False):
         qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
-        nent = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(
-            logits=qy_g_x__logit, 
-            labels=y
-        ))
+        #nent = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+        #    logits=qy_g_x__logit, 
+        #    labels=y
+        #), axis=-1)
+
+        nent = (
+            - tf.add_n(
+                [
+                    y[:,i] * (
+                        tf.math.log(qy_g_x__prob[:,i])
+                        - tf.math.log(y[:,i])
+                    )
+                    for i in range(self.k)
+                ]
+            )
+        )
+
         return nent
 
-    def pretrain_categories_step(self, x, y):
+    def pretrain_categories_step(self, x, y, samples=1):
+        y = tf.clip_by_value(y, 0.05, 0.95)
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
-                loss = self.cluster_loss(x, y, True)
+                loss = tf.add(
+                    0.1* tf.reduce_mean(self.cluster_loss(x, y, True)),
+                    tf.reduce_mean(self.loss_fn(x, True, samples, temperature=0.6))
+                )
 
         with tf.device("/gpu:0"):
             gradients = tape.gradient(loss, self.trainable_variables)
