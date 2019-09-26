@@ -6,3 +6,7 @@ A view of the deep learning landscape; implementations of old and new deep learn
 ### Autoencoders
 - VAE
 - Gaussian Mixture VAE
+    - Marginalised VAE
+    - Gumble Softmax discrete sampling
+- Gaussian Mixture VAE with GAN Error
+    - Gumble softmax discrete sampling
