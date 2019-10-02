@@ -3,6 +3,7 @@ import numpy as np
 from tqdm.autonotebook import tqdm
 from sklearn.metrics import adjusted_mutual_info_score
 from .utils import chain_call, purity_score
+import os
 
 from sklearn.preprocessing import OneHotEncoder
 
@@ -20,27 +21,43 @@ def train(
     batch=False,
     verbose=1, 
     save=None,
-    temperature_function=None
+    temperature_function=None,
+    save_results=None
 ):
 
     #t1 = tqdm(total=epochs, position=0)
     #t2 = tqdm(total=int(X_train.shape[0] // num), position=1, leave=False)
 
-    tqdm.write(
-        "{:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10}".format(
-            "epoch",
-            "loss",
-            "likelih",
-            "z-prior",
-            "y-prior",
-            "trAMI",
-            "teAMI",
-            "trPUR",
-            "tePUR",
-            'attch_te',
-            "temp"
+    if save_results is not None:
+
+        header_str = ((
+            "{:<10}\t{:<10}\t{:<10}\t{:<10}\t"
+            "{:<10}\t{:<10}\t{:<10}\t{:<10}\t"
+            "{:<10}\t{:<10}\t{:<10}"
+            ).format(
+                "epoch",
+                "loss",
+                "likelih",
+                "z-prior",
+                "y-prior",
+                "trAMI",
+                "teAMI",
+                "trPUR",
+                "tePUR",
+                'attch_te',
+                "temp"
+            )
         )
-    )
+
+        save_results = os.path.join(os.path.abspath(save_results))
+
+        if not os.path.exists(save_results):
+            with open(save_results, 'w') as results_file:
+                results_file.write(header_str)   
+
+
+    tqdm.write(header_str)
+
 
     for i in range(epochs):
 
@@ -94,11 +111,11 @@ def train(
             purity_train = purity_score(y_train, idx_tr)
             purity_test = purity_score(y_test, idx_te)
 
-            tqdm.write(
-                "{:10d} {:10.5f} {:10.5f} {:10.5f} {:10.5f} "
-                "{:10.5f} {:10.5f} "
-                "{:10.5f} {:10.5f} "
-                "{:10.2f} {:10.5f}".format(
+            value_str = (
+                "{:d}\t{:10.5f}\t{:10.5f}\t{:10.5f}\t{:10.5f}\t"
+                "{:10.5f}\t{:10.5f}\t"
+                "{:10.5f}\t{:10.5f}\t"
+                "{:10.2f}\t{:10.5f}".format(
                     i,
                     loss,
                     recon,
@@ -112,6 +129,15 @@ def train(
                     temp
                 )
             )
+
+            if save_results is not None:
+                with open(save_results, 'a') as results_file:
+                    results_file.write('\n'+value_str)   
+
+
+
+            tqdm.write(value_str)
+            
             if save is not None:
                 model.save_weights(save, save_format='tf')
 
