@@ -25,6 +25,7 @@ class MarginalAutoEncoder(Model, Scope):
         bn_before=False,
         bn_after=False,
         latent_epsilon=0.0,
+        latent_prior_epsilon=0.0,
         reconstruction_epsilon=0.0,
 
         latent_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
@@ -62,6 +63,7 @@ class MarginalAutoEncoder(Model, Scope):
         self.bn_before = bn_before
         self.bn_after = bn_after
         self.lat_eps = latent_epsilon
+        self.lat_p_eps = latent_prior_epsilon
         self.rec_eps = reconstruction_epsilon
 
 
@@ -91,7 +93,7 @@ class MarginalAutoEncoder(Model, Scope):
                 var_scope=self.v_name('graph_pz_g_y'),
                 bn_before=self.bn_before,
                 bn_after=self.bn_after,
-                epsilon=self.lat_eps,
+                epsilon=self.lat_p_eps,
 
                 embedding_mu_kernel_initializer=posterior_mu_embedding_kernel_initializer,
                 embedding_mu_bias_initializer=posterior_mu_embedding_bias_initializer,
@@ -198,6 +200,7 @@ class Gmvae(Model, Scope):
         bn_after=False,
         categorical_epsilon=0.0,
         latent_epsilon=0.0,
+        latent_prior_epsilon=0.0,
         reconstruction_epsilon=0.0,
         kind="binary",
         learning_rate=0.01,
@@ -307,6 +310,7 @@ class Gmvae(Model, Scope):
                 latent_epsilon=self.lat_eps,
                 reconstruction_epsilon=self.rec_eps,
                 embedding_activations=self.em_act,
+                latent_prior_epsilon=latent_prior_epsilon,
 
                 latent_mu_embedding_kernel_initializer=latent_mu_embedding_kernel_initializer,
                 latent_mu_embedding_bias_initializer=latent_mu_embedding_bias_initializer,
