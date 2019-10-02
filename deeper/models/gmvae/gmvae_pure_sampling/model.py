@@ -87,7 +87,7 @@ class MarginalAutoEncoder(Model, Scope):
         with tf.name_scope('graph_pz_g_y'):
             self.graphs_pz_g_y = RandomNormalEncoder(
                 latent_dimension=self.la_dim, 
-                embedding_dimensions=[self.la_dim], 
+                embedding_dimensions=[], 
                 var_scope=self.v_name('graph_pz_g_y'),
                 bn_before=self.bn_before,
                 bn_after=self.bn_after,
@@ -732,7 +732,7 @@ class Gmvae(Model, Scope):
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
                 loss = tf.add(
-                    0.1* tf.reduce_mean(self.cluster_loss(x, y, True)),
+                    tf.reduce_mean(self.cluster_loss(x, y, True)),
                     tf.reduce_mean(self.loss_fn(x, True, samples, temperature=0.6))
                 )
 
