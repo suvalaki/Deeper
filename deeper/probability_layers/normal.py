@@ -16,11 +16,11 @@ class RandomNormalEncoder(Layer, Scope):
         var_scope='normal_encoder',
         bn_before=False,
         bn_after=False,
-        epsilon=0.0,
+        epsilon=1e-8,
 
         embedding_mu_kernel_initializer=tf.initializers.glorot_uniform(),
         embedding_mu_bias_initializer=tf.initializers.zeros(),
-        latent_mu_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        latent_mu_kernel_initialiazer=tf.initializers.glorot_normal(),
         latent_mu_bias_initializer=tf.initializers.zeros(),
 
         embedding_var_kernel_initializer=tf.initializers.glorot_uniform(),
@@ -62,11 +62,28 @@ class RandomNormalEncoder(Layer, Scope):
             latent_kernel_initialiazer=latent_var_kernel_initialiazer,
             latent_bias_initializer=latent_var_bias_initializer
         )
+        self.mu_logvar = Encoder(
+            latent_dim=2*self.latent_dimension,
+            embedding_dimensions=[
+                2*x for x in self.embedding_dimensions
+            ],
+            activation=self.embedding_activation,
+            var_scope=self.v_name('mu_encoder'), 
+            bn_before=self.bn_before,
+            bn_after=self.bn_after,
+            embedding_kernel_initializer=embedding_mu_kernel_initializer,
+            embedding_bias_initializer=embedding_mu_bias_initializer,
+            latent_kernel_initialiazer=latent_mu_kernel_initialiazer,
+            latent_bias_initializer=latent_mu_bias_initializer
+        )
+        
 
     #@tf.function
     def call(self, inputs, training=False, outputs=None):
         mu = self.mu(inputs, training)
         logvar = self.logvar(inputs, training)
+        #mu_logvar = self.mu_logvar(inputs, training)
+        #mu, logvar = tf.split(mu_logvar, 2, axis=-1)
 
         if outputs is not None:
             sample = outputs
@@ -110,6 +127,8 @@ class RandomNormalEncoder(Layer, Scope):
         """Compare mu and var against """
         mu = self.mu(inputs, training)
         logvar = self.logvar(inputs, training)
+        #mu_logvar = self.mu_logvar(inputs, training)
+        #mu, logvar = tf.split(mu_logvar, 2, axis=-1)
         var = tf.math.exp(logvar)  
 
         if eps > 0.0:

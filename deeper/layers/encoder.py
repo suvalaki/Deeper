@@ -50,6 +50,9 @@ class Encoder(Layer, Scope):
                         name=self.v_name('embedding_{}_bn_before'.format(i))
                     )
                 )
+            else:
+                self.embeddings_bn_before.append(None)
+
             if self.bn_after:
                 self.embeddings_bn_after.append(
                     tfk.layers.BatchNormalization(
@@ -57,6 +60,8 @@ class Encoder(Layer, Scope):
                         name=self.v_name('embedding_{}_bn_after'.format(i))
                     )
                 )
+            else:
+                self.embeddings_bn_after.append(None)
 
         self.latent_bn = tfk.layers.BatchNormalization(
             axis=-1, 
@@ -81,7 +86,7 @@ class Encoder(Layer, Scope):
             self.embeddings_bn_after
         ):
             x = em(x)
-            if self.self.bn_before:
+            if self.bn_before:
                 x = bnb(x, training=training)
             x = self.activation(x)
             if self.bn_after:

@@ -10,10 +10,10 @@ class CategoricalEncoder(Layer, Scope):
         latent_dimension, 
         embedding_dimensions, 
         embedding_activation=tf.nn.relu,
-        var_scope='binary_encoder',
+        var_scope='cat_encoder',
         bn_before=False,
         bn_after=False,
-        epsilon=0.0,
+        epsilon=0.01,
         embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         embedding_bias_initializer=tf.initializers.zeros(),
         latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
@@ -48,7 +48,7 @@ class CategoricalEncoder(Layer, Scope):
         if self.epsilon > 0.0:
             maxval = np.log(1.0 - self.epsilon) - np.log(self.epsilon)
             logits = tf.compat.v2.clip_by_value(
-                logits, -maxval, maxval, "clipped")
+                logits, -maxval, maxval, self.v_name("clipped"))
         return logits
 
     @tf.function
