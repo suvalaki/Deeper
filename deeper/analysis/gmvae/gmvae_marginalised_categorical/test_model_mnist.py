@@ -7,7 +7,7 @@ from tqdm import tqdm
 tf.enable_eager_execution()
 
 import numpy as np
-from deeper.models.gmvae.gmvae_marginalised_categorical import model
+from deeper.models.gmvae.gmvae_marginalised_categorical import model as model
 from deeper.models.gmvae.gmvae_marginalised_categorical.utils import (
     chain_call,
     chain_call_dataset,
@@ -68,9 +68,16 @@ m1 = model.Gmvae(
     embedding_dimensions=[512, 512],
     latent_dimensions=64,
     kind="binary",
-    monte_carlo_samples=1,
     learning_rate=initial_learning_rate,
-    gradient_clip=10000
+    gradient_clip=10000,
+    #optimizer=tf.keras.optimizers.SGD(1e-3, momentum=0.99),
+    optimizer=tf.keras.optimizers.Adam(1e-3),
+    bn_before=False,
+    categorical_epsilon=0.0,
+    reconstruction_epsilon=0.0,
+    latent_epsilon= 0.0,
+    z_kl_lambda=1.,
+    c_kl_lambda=1.,
 )
 
 
@@ -109,11 +116,11 @@ km_y_test = ohe.transform(km_y_test_idx.reshape(-1,1)).todense()
 
 
 #%% Pretrain the model. Each layer individually.
-for i in tqdm(range(10)):
+for i in tqdm(range(100)):
     idx = np.random.choice(len(X_train), 100)
     m1.pretrain_categories_step(X_train[idx], np.array(km_y_train[idx]))
 
-# validate the model now matches the pretrained dist
+#%% validate the model now matches the pretrained dist
 confusion_matrix(y_test, km_y_test_idx)
 
 for i in tqdm(range(10)):
@@ -127,12 +134,12 @@ train(
     X_train, y_train, 
     X_test, y_test, 
     num=100, 
-    samples=2,
+    samples=1,
     epochs=10000, 
     iter_train=1, 
     num_inference=1000, 
     save='model_w',
-    batch=False
+    batch=True
 )
 
 
