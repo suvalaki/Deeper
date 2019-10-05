@@ -16,7 +16,7 @@ def chain_call(func, x, num):
     # pivot the resultsif
     if type(result[0]) == tuple:
         result_pivot = [
-            np.concatenate([y[i] for y in result], -1) for i in range(num_dats)
+            np.concatenate([y[i] for y in result], 0) for i in range(num_dats)
         ]
     else:
         result_pivot = np.concatenate(result)
@@ -32,7 +32,7 @@ def chain_call_dataset(func, dataset):
 
     if type(result[0]) == tuple:
         result_pivot = [
-            np.concatenate([y[i] for y in result], -1) for i in range(num_dats)
+            np.concatenate([y[i] for y in result], 0) for i in range(num_dats)
         ]
     else:
         result_pivot = np.concatenate(result)
