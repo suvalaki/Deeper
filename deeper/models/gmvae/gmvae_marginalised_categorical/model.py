@@ -621,7 +621,7 @@ class Gmvae(Model, Scope):
             tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
             dtype=x.dtype
         )
-        py = tf.cast(tf.fill(tf.shape(y_), 1 / self.k, name="prob"), x.dtype)
+        py = tf.cast(tf.fill(tf.shape(y_), 1.k, name="prob"), x.dtype)
 
         (
             mc_qy_g_x__prob,
@@ -807,38 +807,43 @@ class Gmvae(Model, Scope):
                 zip(gradients, self.trainable_variables)
             )
 
+    #@tf.function
     def pretrain_step(self, x, samples=1, batch=False):
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
-
+        target_vars = [
+            v for v in self.trainable_variables  
+            #if 'gmvae/marginal_autoencoder' in v.name
+        ]
         with tf.device("/gpu:0"):
-            with tf.GradientTape() as tape:
+            with tf.GradientTape(watch_accessed_variables=True) as tape:
+                #tape.watch(target_vars)
+
                 if batch:
                     loss = tf.reduce_mean(self.even_mixture_loss(x, True, samples))
                 else:
                     loss = (self.even_mixture_loss(x, True, samples))
-            # Update ops for batch normalization
-            # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-            # with tf.control_dependencies(update_ops):
+                # Update ops for batch normalization
+                # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+                # with tf.control_dependencies(update_ops):
 
-        with tf.device("/gpu:0"):
-            gradients = tape.gradient(loss, self.trainable_variables)
-            # Clipping
-            gradients = [
-                None
-                if gradient is None
-                #else tf.clip_by_value(
-                #    gradient, -self.gradient_clip, self.gradient_clip
-                #)
-                else tf.clip_by_norm(
-                    gradient, self.gradient_clip
+                gradients = tape.gradient(loss, target_vars)
+                # Clipping
+                gradients = [
+                    None
+                    if gradient is None
+                    #else tf.clip_by_value(
+                    #    gradient, -self.gradient_clip, self.gradient_clip
+                    #)
+                    else tf.clip_by_norm(
+                        gradient, self.gradient_clip
+                    )
+                    for gradient in gradients
+                ]
+
+                self.optimizer.apply_gradients(
+                    zip(gradients, target_vars)
                 )
-                for gradient in gradients
-            ]
-        with tf.device("/gpu:0"):
-            self.optimizer.apply_gradients(
-                zip(gradients, self.trainable_variables)
-            )
 
 
     @tf.function#(autograph=False)
