@@ -145,7 +145,7 @@ class MarginalAutoEncoder(Model, Scope):
         ) = self.graphs_pz_g_y.call(y,  training, qz_g_xy__sample)
         dkl_z_g_xy = self.graphs_pz_g_y.entropy(
             y, qz_g_xy__sample, qz_g_xy__mu, tf.exp(qz_g_xy__logvar),
-            self.lat_eps
+            self.lat_eps, self.lat_p_eps
         )
         (
             px_g_zy__sample,
