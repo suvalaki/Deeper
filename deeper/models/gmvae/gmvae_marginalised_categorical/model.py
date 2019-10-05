@@ -197,6 +197,7 @@ class Gmvae(Model, Scope):
         embedding_activations=tf.nn.relu,
         mixture_embedding_activations=None,
         mixture_embedding_dimensions=None,
+        mixture_latent_dimensions=None,
         bn_before=False,
         bn_after=False,
         categorical_epsilon=0.0,
@@ -265,6 +266,11 @@ class Gmvae(Model, Scope):
             if mixture_embedding_activations is not None
             else self.em_act
         )
+        self.mem_lat = (
+            mixture_latent_dimensions
+            if mixture_latent_dimensions is not None 
+            else self.la_dim
+        )
 
         self.bn_before = bn_before
         self.bn_after = bn_after
@@ -305,11 +311,11 @@ class Gmvae(Model, Scope):
 
         self.marginal_autoencoder = \
             MarginalAutoEncoder(
-                self.in_dim, self.em_dim, self.la_dim, kind=self.kind,
+                self.in_dim, self.mem_dim, self.mem_lat, kind=self.kind,
                 var_scope=self.v_name('marginal_autoencoder'),
                 latent_epsilon=self.lat_eps,
                 reconstruction_epsilon=self.rec_eps,
-                embedding_activations=self.em_act,
+                embedding_activations=self.mem_act,
                 latent_prior_epsilon=latent_prior_epsilon,
 
                 latent_mu_embedding_kernel_initializer=latent_mu_embedding_kernel_initializer,
