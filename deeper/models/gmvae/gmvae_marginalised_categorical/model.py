@@ -621,7 +621,7 @@ class Gmvae(Model, Scope):
             tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
             dtype=x.dtype
         )
-        py = tf.cast(tf.fill(tf.shape(y_), 1.k, name="prob"), x.dtype)
+        py = tf.cast(tf.fill(tf.shape(y_), 1/k, name="prob"), x.dtype)
 
         (
             mc_qy_g_x__prob,
