@@ -4,7 +4,9 @@ import numpy as np
 import datetime
 
 from deeper.probability_layers.gumble_softmax import GumbleSoftmaxLayer
-from deeper.probability_layers.normal import RandomNormalEncoder
+from deeper.probability_layers.normal import (
+    RandomNormalEncoder, RandomStandardNormalEncoder
+)
 from deeper.layers.binary import SigmoidEncoder
 from deeper.layers.categorical import CategoricalEncoder
 from deeper.utils.scope import Scope
@@ -87,7 +89,7 @@ class MarginalAutoEncoder(Model, Scope):
                 latent_var_bias_initializer=latent_var_latent_bias_initializer,
             )
         with tf.name_scope('graph_pz_g_y'):
-            self.graphs_pz_g_y = RandomNormalEncoder(
+            self.graphs_pz_g_y = RandomStandardNormalEncoder(
                 latent_dimension=self.la_dim, 
                 embedding_dimensions=[], 
                 var_scope=self.v_name('graph_pz_g_y'),
@@ -196,6 +198,7 @@ class Gmvae(Model, Scope):
         embedding_activations=tf.nn.relu,
         mixture_embedding_activations=None,
         mixture_embedding_dimensions=None,
+        mixture_latent_dimensions=None,
         bn_before=False,
         bn_after=False,
         categorical_epsilon=0.0,
@@ -264,6 +267,11 @@ class Gmvae(Model, Scope):
             if mixture_embedding_activations is not None
             else self.em_act
         )
+        self.mem_lat = (
+            mixture_latent_dimensions
+            if mixture_latent_dimensions is not None 
+            else self.la_dim
+        )
 
         self.bn_before = bn_before
         self.bn_after = bn_after
@@ -289,8 +297,8 @@ class Gmvae(Model, Scope):
         with tf.name_scope('categorical'):
             self.graph_qy_g_x = CategoricalEncoder(
                 latent_dimension=self.k, 
-                embedding_dimensions=self.mem_dim, 
-                embedding_activation=self.mem_act,
+                embedding_dimensions=self.em_dim, 
+                embedding_activation=self.em_act,
                 var_scope=self.v_name('categorical_encoder'),
                 bn_before=self.bn_before,
                 bn_after=self.bn_after,
@@ -305,7 +313,7 @@ class Gmvae(Model, Scope):
 
         self.marginal_autoencoder = \
             MarginalAutoEncoder(
-                self.in_dim, self.em_dim, self.la_dim, kind=self.kind,
+                self.in_dim, self.mem_dim, self.mem_lat, kind=self.kind,
                 var_scope=self.v_name('marginal_autoencoder'),
                 latent_epsilon=self.lat_eps,
                 reconstruction_epsilon=self.rec_eps,
@@ -393,7 +401,7 @@ class Gmvae(Model, Scope):
         )
 
         qy_g_x__prob = tf.cast(
-            tf.fill(tf.stack([tf.shape(x)[0], self.k]), 1/self.k),
+            tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
             dtype=x.dtype
         )
 
@@ -606,7 +614,7 @@ class Gmvae(Model, Scope):
         ) = self.call_even(inputs, training=training, samples=samples)
 
         # reconstruction
-        recon = mc_px_g_zy__prob
+        recon = mc_px_g_zy__logprob
         # z_entropy
         z_entropy = mc_dkl_z_g_xy
 
@@ -669,39 +677,43 @@ class Gmvae(Model, Scope):
                 zip(gradients, self.trainable_variables)
             )
 
+    #@tf.function
     def pretrain_step(self, x, samples=1, batch=False):
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
-
+        target_vars = [
+            v for v in self.trainable_variables  
+            if 'gmvae/marginal_autoencoder' in v.name
+        ]
         with tf.device("/gpu:0"):
-            with tf.GradientTape() as tape:
+            with tf.GradientTape(watch_accessed_variables=True) as tape:
+                #tape.watch(target_vars)
+
                 if batch:
                     loss = tf.reduce_mean(self.even_mixture_loss(x, True, samples))
                 else:
                     loss = (self.even_mixture_loss(x, True, samples))
-            # Update ops for batch normalization
-            # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-            # with tf.control_dependencies(update_ops):
+                # Update ops for batch normalization
+                # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+                # with tf.control_dependencies(update_ops):
 
-        with tf.device("/gpu:0"):
-            gradients = tape.gradient(loss, self.trainable_variables)
-            # Clipping
-            gradients = [
-                None
-                if gradient is None
-                #else tf.clip_by_value(
-                #    gradient, -self.gradient_clip, self.gradient_clip
-                #)
-                else tf.clip_by_norm(
-                    gradient, self.gradient_clip
+                gradients = tape.gradient(loss, self.trainable_variables)
+                # Clipping
+                gradients = [
+                    None
+                    if gradient is None
+                    #else tf.clip_by_value(
+                    #    gradient, -self.gradient_clip, self.gradient_clip
+                    #)
+                    else tf.clip_by_norm(
+                        gradient, self.gradient_clip
+                    )
+                    for gradient in gradients
+                ]
+
+                self.optimizer.apply_gradients(
+                    zip(gradients, self.trainable_variables)
                 )
-                for gradient in gradients
-            ]
-        with tf.device("/gpu:0"):
-            self.optimizer.apply_gradients(
-                zip(gradients, self.trainable_variables)
-            )
-
 
     @tf.function#(autograph=False)
     def predict(self, x, training=False):
