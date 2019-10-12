@@ -33,6 +33,25 @@ class RandomNormalEncoder(Layer, Scope):
         connected_weights=True,
 
     ):
+        """Probability Layer multivariate random normal
+
+        Parameters:
+        -----------
+        latent_dimensions: int, Output dimension of the probabilistic layer
+        embedding_dimensions: list, the dimension of each layer from input to
+            output for the embedding layers of the encoder for mu and logvar
+        embedding_activation = the tensorflow activation function to apply to 
+            each layer of the embedding encoder for mu and logvar
+        bn_before: bool, flag whether to apply batch normalisation before
+            activation in the encoder for mu and logvar
+        bn_after: bool, glag whether to apply batch normalisation after 
+            activation in the encoder for mu and logvar
+        fixed_mu: value (to be implemented) A fixed value for mu
+        fixed_var: value (to be implemented) A fixed value for var
+        connected_weights: bool, whether to train mu and var as a fully 
+            connected network. 
+
+        """
         Layer.__init__(self)
         Scope.__init__(self, var_scope)
 
