@@ -4,10 +4,15 @@ from tensorflow.python.eager import context
 import numpy as np
 import datetime
 
-from deeper.probability_layers.gumble_softmax import GumbleSoftmaxLayer
-from deeper.probability_layers.normal import RandomNormalEncoder
+from deeper.ops.distance import kl_divergence
 from deeper.layers.binary import SigmoidEncoder
 from deeper.layers.categorical import CategoricalEncoder
+from deeper.probability_layers.gumble_softmax import GumbleSoftmaxLayer
+from deeper.probability_layers.normal import (
+    RandomNormalEncoder,
+    RandomStandardNormalEncoder,
+    lognormal_kl
+)
 from deeper.utils.scope import Scope
 
 tfk = tf.keras
@@ -142,11 +147,14 @@ class MarginalAutoEncoder(Model, Scope):
             pz_g_y__prob,
             pz_gy__mu,
             pz_gy__logvar,
-        ) = self.graphs_pz_g_y.call(y,  training, qz_g_xy__sample)
-        dkl_z_g_xy = self.graphs_pz_g_y.entropy(
-            y, qz_g_xy__sample, qz_g_xy__mu, tf.exp(qz_g_xy__logvar),
-            self.lat_eps, self.lat_p_eps
-        )
+        ) = self.graphs_pz_g_y.call(y, training, qz_g_xy__sample)
+        #dkl_z_g_xy = lognormal_kl(
+        #    qz_g_xy__sample,
+        #    qz_g_xy__mu, pz_gy__mu,
+        #    qz_g_xy__logvar, pz_gy__logvar,
+        #    self.lat_eps, self.lat_p_eps
+        #)
+        dkl_z_g_xy = kl_divergence(pz_g_y__prob, qz_g_xy__prob)
         (
             px_g_zy__sample,
             px_g_zy__logprob,
@@ -269,7 +277,7 @@ class Gmvae(Model, Scope):
         self.mem_lat = (
             mixture_latent_dimensions
             if mixture_latent_dimensions is not None 
-            else self.la_dim
+            else self.RandomStandardNormalEncoder
         )
 
         self.bn_before = bn_before
@@ -296,8 +304,8 @@ class Gmvae(Model, Scope):
         with tf.name_scope('categorical'):
             self.graph_qy_g_x = CategoricalEncoder(
                 latent_dimension=self.k, 
-                embedding_dimensions=self.mem_dim, 
-                embedding_activation=self.mem_act,
+                embedding_dimensions=self.em_dim, 
+                embedding_activation=self.em_act,
                 var_scope=self.v_name('categorical_encoder'),
                 bn_before=self.bn_before,
                 bn_after=self.bn_after,
@@ -412,7 +420,7 @@ class Gmvae(Model, Scope):
         # z_entropy
         z_entropy = tf.add_n(
             [
-                qy_g_x__prob[:, i] * (pz_g_y__logprob[i] - qz_g_xy__logprob[i])
+                qy_g_x__prob[:, i] * (dkl_z_g_xy[i])
                 for i in range(self.k)
             ]
         )
