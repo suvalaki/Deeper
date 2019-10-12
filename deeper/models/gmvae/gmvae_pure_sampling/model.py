@@ -5,7 +5,8 @@ import datetime
 
 from deeper.probability_layers.gumble_softmax import GumbleSoftmaxLayer
 from deeper.probability_layers.normal import (
-    RandomNormalEncoder, RandomStandardNormalEncoder
+    RandomNormalEncoder, RandomStandardNormalEncoder,
+    lognormal_kl
 )
 from deeper.layers.binary import SigmoidEncoder
 from deeper.layers.categorical import CategoricalEncoder
@@ -38,7 +39,7 @@ class MarginalAutoEncoder(Model, Scope):
         latent_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         latent_var_embedding_bias_initializer=tf.initializers.zeros(),
         latent_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        latent_var_latent_bias_initializer=tf.initializers.ones(),
+        latent_var_latent_bias_initializer=tf.initializers.zeros(),
 
         posterior_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         posterior_mu_embedding_bias_initializer=tf.initializers.zeros(),
@@ -48,7 +49,7 @@ class MarginalAutoEncoder(Model, Scope):
         posterior_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         posterior_var_embedding_bias_initializer=tf.initializers.zeros(),
         posterior_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        posterior_var_latent_bias_initializer=tf.initializers.ones(),
+        posterior_var_latent_bias_initializer=tf.initializers.zeros(),
 
         recon_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         recon_embedding_bias_initializer=tf.initializers.zeros(),
@@ -89,7 +90,7 @@ class MarginalAutoEncoder(Model, Scope):
                 latent_var_bias_initializer=latent_var_latent_bias_initializer,
             )
         with tf.name_scope('graph_pz_g_y'):
-            self.graphs_pz_g_y = RandomStandardNormalEncoder(
+            self.graphs_pz_g_y = RandomNormalEncoder(
                 latent_dimension=self.la_dim, 
                 embedding_dimensions=[], 
                 var_scope=self.v_name('graph_pz_g_y'),
@@ -135,7 +136,8 @@ class MarginalAutoEncoder(Model, Scope):
             qz_g_xy__logprob,
             qz_g_xy__prob,
             qz_g_xy__mu,
-            qz_g_xy__logvar
+            qz_g_xy__logvar,
+            qz_g_xy__var
         ) = self.graphs_qz_g_xy.call(xy, training)
         (
             pz_g_y__sample,
@@ -143,11 +145,14 @@ class MarginalAutoEncoder(Model, Scope):
             pz_g_y__prob,
             pz_gy__mu,
             pz_gy__logvar,
-        ) = self.graphs_pz_g_y.call(y,  training, qz_g_xy__sample)
-        dkl_z_g_xy = self.graphs_pz_g_y.entropy(
-            y, qz_g_xy__sample, qz_g_xy__mu, tf.exp(qz_g_xy__logvar),
-            self.lat_eps
-        )
+            pz_gy__var,
+        ) = self.graphs_pz_g_y.call(y, training, qz_g_xy__sample)
+        #dkl_z_g_xy = lognormal_kl(
+        #    qz_g_xy__sample,
+        #    qz_g_xy__mu, pz_gy__mu,
+        #    qz_g_xy__logvar, pz_gy__logvar,
+        #)
+        dkl_z_g_xy = pz_g_y__logprob - qz_g_xy__logprob
         (
             px_g_zy__sample,
             px_g_zy__logprob,
