@@ -1,4 +1,3 @@
-
 import tensorflow as tf
 from tensorflow.python.eager import context
 import numpy as np
@@ -58,6 +57,7 @@ class MarginalAutoEncoder(Model, Scope):
         recon_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         recon_latent_bias_initializer=tf.initializers.zeros(),
 
+        connected_weights=True
     ):
         Model.__init__(self)
         Scope.__init__(self, var_scope)
@@ -70,6 +70,7 @@ class MarginalAutoEncoder(Model, Scope):
         self.lat_eps = latent_epsilon
         self.lat_p_eps = latent_prior_epsilon
         self.rec_eps = reconstruction_epsilon
+        self.connected_weights = connected_weights
 
 
         with tf.name_scope('graph_qz_g_xy'):
@@ -90,6 +91,8 @@ class MarginalAutoEncoder(Model, Scope):
                 embedding_var_bias_initializer=latent_var_embedding_bias_initializer,
                 latent_var_kernel_initialiazer=latent_var_latent_kernel_initialiazer,
                 latent_var_bias_initializer=latent_var_latent_bias_initializer,
+
+                connected_weights = connected_weights
             )
         with tf.name_scope('graph_pz_g_y'):
             self.graphs_pz_g_y = RandomNormalEncoder(
@@ -109,6 +112,9 @@ class MarginalAutoEncoder(Model, Scope):
                 embedding_var_bias_initializer=posterior_var_embedding_bias_initializer,
                 latent_var_kernel_initialiazer=posterior_var_latent_kernel_initialiazer,
                 latent_var_bias_initializer=posterior_var_latent_bias_initializer,
+
+
+                connected_weights = connected_weights
             )
         with tf.name_scope('graph_px_g_y'):
             if self.kind == "binary":
@@ -250,7 +256,9 @@ class Gmvae(Model, Scope):
         z_kl_lambda=1.0,
         c_kl_lambda=1.0,
 
-        optimizer=tf.keras.optimizers.SGD(0.001)
+        optimizer=tf.keras.optimizers.SGD(0.001),
+
+        connected_weights=True
     ):
 
         # instatiate
@@ -277,7 +285,7 @@ class Gmvae(Model, Scope):
         self.mem_lat = (
             mixture_latent_dimensions
             if mixture_latent_dimensions is not None 
-            else self.RandomStandardNormalEncoder
+            else self.la_dim
         )
 
         self.bn_before = bn_before
@@ -350,6 +358,8 @@ class Gmvae(Model, Scope):
                 recon_embedding_bias_initializer=recon_embedding_bias_initializer,
                 recon_latent_kernel_initialiazer=recon_latent_kernel_initialiazer,
                 recon_latent_bias_initializer=recon_latent_bias_initializer,
+
+                connected_weights=connected_weights,
             )
 
         #self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
@@ -800,6 +810,9 @@ class Gmvae(Model, Scope):
                 else tf.clip_by_value(
                     gradient, -self.gradient_clip, self.gradient_clip
                 )
+                if self.gradient_clip is not None
+                else 
+                gradient
                 #else tf.clip_by_norm(
                 #    gradient, self.gradient_clip
                 #)
