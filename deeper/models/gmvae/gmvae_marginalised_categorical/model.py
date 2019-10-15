@@ -225,32 +225,32 @@ class Gmvae(Model, Scope):
 
         cat_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         cat_embedding_bias_initializer=tf.initializers.zeros(),
-        cat_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        cat_latent_kernel_initialiazer=tf.initializers.glorot_normal(),
         cat_latent_bias_initializer=None,
 
-        latent_mu_embedding_kernel_initializer=tf.initializers.glorot_normal(),
+        latent_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         latent_mu_embedding_bias_initializer=tf.initializers.zeros(),
-        latent_mu_latent_kernel_initialiazer=tf.initializers.glorot_normal(),
-        latent_mu_latent_bias_initializer=tf.initializers.zeros(),
+        latent_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        latent_mu_latent_bias_initializer=tf.initializers.glorot_normal(),
 
-        latent_var_embedding_kernel_initializer=tf.initializers.glorot_normal(),
+        latent_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         latent_var_embedding_bias_initializer=tf.initializers.zeros(),
-        latent_var_latent_kernel_initialiazer=tf.initializers.glorot_normal(),
-        latent_var_latent_bias_initializer=tf.initializers.zeros(),
+        latent_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        latent_var_latent_bias_initializer=tf.initializers.glorot_normal(),
 
-        posterior_mu_embedding_kernel_initializer=tf.initializers.glorot_normal(),
+        posterior_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         posterior_mu_embedding_bias_initializer=tf.initializers.zeros(),
-        posterior_mu_latent_kernel_initialiazer=tf.initializers.glorot_normal(),
-        posterior_mu_latent_bias_initializer=tf.initializers.zeros(),
+        posterior_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        posterior_mu_latent_bias_initializer=tf.initializers.glorot_normal(),
 
-        posterior_var_embedding_kernel_initializer=tf.initializers.glorot_normal(),
+        posterior_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         posterior_var_embedding_bias_initializer=tf.initializers.zeros(),
-        posterior_var_latent_kernel_initialiazer=tf.initializers.glorot_normal(),
-        posterior_var_latent_bias_initializer=tf.initializers.zeros(),
+        posterior_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        posterior_var_latent_bias_initializer=tf.initializers.glorot_normal(),
 
         recon_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         recon_embedding_bias_initializer=tf.initializers.zeros(),
-        recon_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        recon_latent_kernel_initialiazer=tf.initializers.glorot_normal(),
         recon_latent_bias_initializer=tf.initializers.zeros(),
 
         z_kl_lambda=1.0,
@@ -436,10 +436,18 @@ class Gmvae(Model, Scope):
         )
 
         # y_entropy
-        y_entropy = tf.reduce_sum(
-            qy_g_x__prob * (tf.math.log(py) - tf.math.log(qy_g_x__prob)),
-            axis=-1,
+        # E_q [log(p/q)] = sum q (log_p - log_q)
+        y_entropy = (
+            tf.reduce_sum(qy_g_x__prob * tf.math.log(py),-1)  
+            + tf.nn.softmax_cross_entropy_with_logits_v2(
+                logits=qy_g_x__logit, 
+                labels=qy_g_x__prob
+            )
         )
+        #tf.reduce_sum(
+        #    qy_g_x__prob * (tf.math.log(py) - tf.math.log(qy_g_x__prob)),
+        #    axis=-1,
+        #)
 
         # elbo
         elbo = recon + self.z_kl_lambda * z_entropy + self.c_kl_lambda * y_entropy
