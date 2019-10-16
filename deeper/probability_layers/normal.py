@@ -227,9 +227,15 @@ class RandomNormalEncoder(Layer, Scope):
         if eps > 0.0:
             var = tf.add(var, eps, name='clipped_var')
 
+        #kernel = - 0.5 * (
+        #    tf.math.log(2 * tf.cast(np.pi, mu.dtype)) 
+        #    + tf.math.log(var) + tf.square(x - mu) / var
+        #)
+
         kernel = - 0.5 * (
             tf.math.log(2 * tf.cast(np.pi, mu.dtype)) 
-            + tf.math.log(var) + tf.square(x - mu) / var
+            + tf.math.log(var) 
+            + tf.math.divide_no_nan(tf.square(x - mu), var)
         )
 
         logprob = tf.reduce_sum(kernel, axis)
