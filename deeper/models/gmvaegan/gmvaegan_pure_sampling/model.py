@@ -22,23 +22,26 @@ class GmvaeGan(Model, Scope):
         input_dimension,
         embedding_dimensions,
         latent_dimensions,
+        embedding_activations=tf.nn.relu,
+        mixture_embedding_activations=None,
+        mixture_embedding_dimensions=None,
+        mixture_latent_dimensions=None,
+        bn_before=False,
+        bn_after=False,
+        categorical_epsilon=0.0,
+        latent_epsilon=0.0,
+        latent_prior_epsilon=0.0,
+        reconstruction_epsilon=0.0,
+        kind="binary",
+        learning_rate=0.01,
+        gradient_clip=None,
+        var_scope='gmvaegan',
+
         descr_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         descr_embedding_bias_initializer=tf.initializers.zeros(),
         descr_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         descr_latent_bias_initializer=tf.initializers.zeros(),
 
-        embedding_activations=tf.nn.relu,
-        mixture_embedding_activations=None,
-        mixture_embedding_dimensions=None,
-        bn_before=False,
-        bn_after=False,
-        categorical_epsilon=0.0,
-        latent_epsilon=0.0,
-        reconstruction_epsilon=0.0,
-        kind="binary",
-        learning_rate=0.01,
-        gradient_clip=None,
-        var_scope='gmvae',
 
         cat_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         cat_embedding_bias_initializer=tf.initializers.zeros(),
@@ -73,59 +76,97 @@ class GmvaeGan(Model, Scope):
         z_kl_lambda=1.0,
         c_kl_lambda=1.0,
 
-        optimizer=tf.keras.optimizers.SGD(0.001)
+        optimizer=tf.keras.optimizers.SGD(0.001),
+
+        connected_weights=True,
     ):
         self.var_scope = 'gmvaegan'
-        self.cooling_distance = 0
+        self.kind = kind
         self.k = components
+        self.in_dim = input_dimension
+        self.em_dim = embedding_dimensions
+        self.la_dim = latent_dimensions
+        self.em_act = embedding_activations
+
+        self.mem_dim = (
+            mixture_embedding_dimensions 
+            if mixture_embedding_dimensions is not None
+            else self.em_dim
+        )
+        self.mem_act = (
+            mixture_embedding_activations
+            if mixture_embedding_activations is not None
+            else self.em_act
+        )
+        self.mem_lat = (
+            mixture_latent_dimensions
+            if mixture_latent_dimensions is not None 
+            else self.la_dim
+        )
+
+        self.bn_before = bn_before
+        self.bn_after = bn_after
+
+        self.cat_eps = categorical_epsilon
+        self.lat_eps = latent_epsilon
+        self.rec_eps = reconstruction_epsilon
+
+        self.kind = kind
         self.gradient_clip = gradient_clip
+        self.learning_rate = learning_rate
+        self.cooling_distance = 0
         self.optimizer = optimizer
-        super(GmvaeGan, self).__init__()
+
+        Model.__init__(self)
+        Scope.__init__(self, var_scope)
+        
 
         self.gmvae = Gmvae(
-            components,
-            input_dimension,
-            embedding_dimensions,
-            latent_dimensions,
-            embedding_activations,
-            mixture_embedding_activations,
-            mixture_embedding_dimensions,
-            bn_before,
-            bn_after,
-            categorical_epsilon,
-            latent_epsilon,
-            reconstruction_epsilon,
-            kind,
-            learning_rate,
-            gradient_clip,
-            var_scope,
-            cat_embedding_kernel_initializer,
-            cat_embedding_bias_initializer,
-            cat_latent_kernel_initialiazer,
-            cat_latent_bias_initializer,
-            latent_mu_embedding_kernel_initializer,
-            latent_mu_embedding_bias_initializer,
-            latent_mu_latent_kernel_initialiazer,
-            latent_mu_latent_bias_initializer,
-            latent_var_embedding_kernel_initializer,
-            latent_var_embedding_bias_initializer,
-            latent_var_latent_kernel_initialiazer,
-            latent_var_latent_bias_initializer,
-            posterior_mu_embedding_kernel_initializer,
-            posterior_mu_embedding_bias_initializer,
-            posterior_mu_latent_kernel_initialiazer,
-            posterior_mu_latent_bias_initializer,
-            posterior_var_embedding_kernel_initializer,
-            posterior_var_embedding_bias_initializer,
-            posterior_var_latent_kernel_initialiazer,
-            posterior_var_latent_bias_initializer,
-            recon_embedding_kernel_initializer,
-            recon_embedding_bias_initializer,
-            recon_latent_kernel_initialiazer,
-            recon_latent_bias_initializer,
-            z_kl_lambda,
-            c_kl_lambda,
-            optimizer
+            components=components,
+            input_dimension=input_dimension,
+            embedding_dimensions=embedding_dimensions,
+            latent_dimensions=latent_dimensions,
+            embedding_activations=embedding_activations,
+            mixture_embedding_activations=mixture_embedding_activations,
+            mixture_embedding_dimensions=mixture_embedding_dimensions,
+            bn_before=bn_before,
+            bn_after=bn_after,
+            categorical_epsilon=categorical_epsilon,
+            latent_epsilon=latent_epsilon,
+            latent_prior_epsilon=latent_prior_epsilon,
+            reconstruction_epsilon=reconstruction_epsilon,
+            kind=kind,
+            learning_rate=learning_rate,
+            gradient_clip=gradient_clip,
+            var_scope=self.v_name('gmvae'),
+            cat_embedding_kernel_initializer=cat_embedding_kernel_initializer,
+            cat_embedding_bias_initializer=cat_embedding_bias_initializer,
+            cat_latent_kernel_initialiazer=cat_latent_kernel_initialiazer,
+            cat_latent_bias_initializer=cat_latent_bias_initializer,
+            latent_mu_embedding_kernel_initializer=latent_mu_embedding_kernel_initializer,
+            latent_mu_embedding_bias_initializer=latent_mu_embedding_bias_initializer,
+            latent_mu_latent_kernel_initialiazer=latent_mu_latent_kernel_initialiazer,
+            latent_mu_latent_bias_initializer=latent_mu_latent_bias_initializer,
+            latent_var_embedding_kernel_initializer=latent_var_embedding_kernel_initializer,
+            latent_var_embedding_bias_initializer=latent_var_embedding_bias_initializer,
+            latent_var_latent_kernel_initialiazer=latent_var_latent_kernel_initialiazer,
+            latent_var_latent_bias_initializer=latent_var_latent_bias_initializer,
+            posterior_mu_embedding_kernel_initializer=posterior_mu_embedding_kernel_initializer,
+            posterior_mu_embedding_bias_initializer=posterior_mu_embedding_bias_initializer,
+            posterior_mu_latent_kernel_initialiazer=posterior_mu_latent_kernel_initialiazer,
+            posterior_mu_latent_bias_initializer=posterior_mu_latent_bias_initializer,
+            posterior_var_embedding_kernel_initializer=posterior_var_embedding_kernel_initializer,
+            posterior_var_embedding_bias_initializer=posterior_var_embedding_bias_initializer,
+            posterior_var_latent_kernel_initialiazer=posterior_var_latent_kernel_initialiazer,
+            posterior_var_latent_bias_initializer=posterior_var_latent_bias_initializer,
+            recon_embedding_kernel_initializer=recon_embedding_kernel_initializer,
+            recon_embedding_bias_initializer=recon_embedding_bias_initializer,
+            recon_latent_kernel_initialiazer=recon_latent_kernel_initialiazer,
+            recon_latent_bias_initializer=recon_latent_bias_initializer,
+            z_kl_lambda=z_kl_lambda,
+            c_kl_lambda=c_kl_lambda,
+            optimizer=optimizer,
+            connected_weights=connected_weights
         )
         self.descriminator = SigmoidEncoder(
             latent_dimension=1, 
