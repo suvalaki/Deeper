@@ -17,7 +17,8 @@ class Encoder(Layer, Scope):
         embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         embedding_bias_initializer=tf.initializers.zeros(),
         latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        latent_bias_initializer=tf.initializers.zeros()
+        latent_bias_initializer=tf.initializers.zeros(),
+        embedding_dropout=0.2
     ):
         Layer.__init__(self)
         Scope.__init__(self, var_scope)
@@ -31,7 +32,9 @@ class Encoder(Layer, Scope):
         self.activation = activation
         self.bn_before = bn_before
         self.bn_after = bn_after
-        
+        self.dropout_rate = embedding_dropout
+        self.dropout = []
+
         for i,em in enumerate(self.em_dim):
             self.embeddings.append(
                 tfk.layers.Dense(
@@ -63,6 +66,11 @@ class Encoder(Layer, Scope):
             else:
                 self.embeddings_bn_after.append(None)
 
+            if self.dropout_rate > 0.0:
+                self.dropout.append(
+                    tfk.layers.Dropout(self.dropout_rate)
+                )
+
         self.latent_bn = tfk.layers.BatchNormalization(
             axis=-1, 
             name=self.v_name('latent_bn')
@@ -80,10 +88,11 @@ class Encoder(Layer, Scope):
     def call(self, inputs, training=False):
         """Define the computational flow"""
         x = inputs
-        for em, bnb, bna in zip(
+        for em, bnb, bna, drp in zip(
             self.embeddings, 
             self.embeddings_bn_before, 
-            self.embeddings_bn_after
+            self.embeddings_bn_after,
+            self.dropout
         ):
             x = em(x)
             if self.bn_before:
@@ -91,6 +100,8 @@ class Encoder(Layer, Scope):
             x = self.activation(x)
             if self.bn_after:
                 x = bna(x, training=training)
+            if self.dropout_rate > 0.0:
+                x = drp(x)
         x = self.latent(x)
         return x
 
