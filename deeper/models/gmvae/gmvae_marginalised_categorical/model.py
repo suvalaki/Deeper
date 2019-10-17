@@ -721,13 +721,13 @@ class Gmvae(Model, Scope):
         return recon, z_entropy, y_entropy
 
     @tf.function#(autograph=False)
-    def elbo(self, inputs, training=False, samples=1):
+    def elbo(self, inputs, training=False, samples=1, beta_z=1.0, beta_y=1.0):
         recon, z_entropy, y_entropy = self.entropy_fn(inputs, training, samples)
         return recon + self.z_kl_lambda * z_entropy + self.c_kl_lambda * y_entropy
 
     @tf.function#(autograph=False)
-    def loss_fn(self, inputs, training=False, samples=1):
-        return -self.elbo(inputs, training, samples)
+    def loss_fn(self, inputs, training=False, samples=1, beta_z=1.0, beta_y=1.0):
+        return -self.elbo(inputs, training, samples, beta_z, beta_y)
     
     @tf.function
     def even_mixture_loss(self, inputs, training=False, samples=1):
@@ -757,33 +757,17 @@ class Gmvae(Model, Scope):
 
         return -(recon + z_entropy)
 
-    @tf.function
-    def get_loss(self, x, training=False, samples=1):
-        (
-            py,
-            qy_g_x,
-            mc_qz_g_xy__sample,
-            mc_qz_g_xy__logprob,
-            mc_qz_g_xy__prob,
-            mc_pz_g_y__sample,
-            mc_pz_g_y__logprob,
-            mc_pz_g_y__prob,
-            mc_dkl_z_g_xy,
-            mc_px_g_zy__sample,
-            mc_px_g_zy__logprob,
-            mc_px_g_zy__prob,
-            recon,
-            z_entropy,
-            y_entropy,
-            elbo
-        ) = self.call(x, training=training, samples=samples)
-    
-        return -elbo
-
-
 
     @tf.function#(autograph=False)
-    def train_step(self, x, samples=1, tenorboard=False, batch=False):
+    def train_step(
+        self, 
+        x, 
+        samples=1, 
+        tenorboard=False, 
+        batch=False, 
+        beta_z=1.0, 
+        beta_y=1.0
+        ):
 
         if tenorboard:
             current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -798,11 +782,11 @@ class Gmvae(Model, Scope):
             with tf.GradientTape() as tape:
                 if batch:
                     loss = tf.reduce_mean(
-                        self.get_loss(x, True, samples)
+                        self.loss_fn(x, True, samples, beta_z, beta_y)
                     )
                 else:
                     loss = (
-                        self.get_loss(x, True, samples)
+                        self.loss_fn(x, True, samples, beta_z, beta_y)
                     )
             # Update ops for batch normalization
             # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
