@@ -6,7 +6,13 @@ A view of the deep learning landscape; implementations of old and new deep learn
 ### Autoencoders
 - VAE
 - Gaussian Mixture VAE
-    - Marginalised VAE
-    - Gumble Softmax discrete sampling
+    - [x] Marginalised VAE
+    - [x] Gumble Softmax discrete sampling
 - Gaussian Mixture VAE with GAN Error
-    - Gumble softmax discrete sampling
+    - [] Matginalised VAE
+    - [x] Gumble softmax discrete sampling
+
+### Attention Models
+- [] Attention Graph
+- [] BERT (pretraining)
+=
