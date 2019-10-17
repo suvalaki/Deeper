@@ -31,3 +31,29 @@ def quadratic_multiplicative_cooling(k, start, end, alpha):
     cooling = 1 / (1+alpha*k**2)
     shifted_base = start - end
     return shifted_base*cooling + end 
+
+
+class CyclicCoolingRegime():
+
+    def __init__(self, method, start, end, alpha, cycle):
+        """Object to hold the cooling method for this
+
+        method: name of the cooling regime to implement
+
+        """
+        self.method = method
+        self.start = start
+        self.end = end 
+        self.alpha = alpha 
+        self.cycle = cycle 
+        self.iter = 0
+
+    def increment_iter(self):
+        self.iter += 1
+
+    def __call__(self):
+        if self.iter > self.cycle:
+            self.iter = 0
+        value = self.method(self.iter, self.start, self.end, self.alpha)
+        self.iter += 1
+        return value
