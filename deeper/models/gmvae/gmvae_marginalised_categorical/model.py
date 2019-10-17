@@ -225,32 +225,32 @@ class Gmvae(Model, Scope):
 
         cat_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         cat_embedding_bias_initializer=tf.initializers.zeros(),
-        cat_latent_kernel_initialiazer=tf.initializers.glorot_normal(),
+        cat_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         cat_latent_bias_initializer=None,
 
         latent_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         latent_mu_embedding_bias_initializer=tf.initializers.zeros(),
         latent_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        latent_mu_latent_bias_initializer=tf.initializers.glorot_normal(),
+        latent_mu_latent_bias_initializer=tf.initializers.zeros(),
 
         latent_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         latent_var_embedding_bias_initializer=tf.initializers.zeros(),
         latent_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        latent_var_latent_bias_initializer=tf.initializers.glorot_normal(),
+        latent_var_latent_bias_initializer=tf.initializers.zeros(),
 
         posterior_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         posterior_mu_embedding_bias_initializer=tf.initializers.zeros(),
         posterior_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        posterior_mu_latent_bias_initializer=tf.initializers.glorot_normal(),
+        posterior_mu_latent_bias_initializer=tf.initializers.zeros(),
 
         posterior_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         posterior_var_embedding_bias_initializer=tf.initializers.zeros(),
         posterior_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        posterior_var_latent_bias_initializer=tf.initializers.glorot_normal(),
+        posterior_var_latent_bias_initializer=tf.initializers.zeros(),
 
         recon_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         recon_embedding_bias_initializer=tf.initializers.zeros(),
-        recon_latent_kernel_initialiazer=tf.initializers.glorot_normal(),
+        recon_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         recon_latent_bias_initializer=tf.initializers.zeros(),
 
         z_kl_lambda=1.0,
