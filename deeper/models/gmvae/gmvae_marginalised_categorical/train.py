@@ -3,6 +3,7 @@ import numpy as np
 from tqdm.autonotebook import tqdm
 from sklearn.metrics import adjusted_mutual_info_score
 from .utils import chain_call, purity_score
+from deeper.utils.cooling import CyclicCoolingRegime
 
 
 def train(
@@ -19,8 +20,8 @@ def train(
     batch=False,
     verbose=1, 
     save=None,
-    beta_z_method=lambda x: 1.0,
-    beta_y_method=lambda x: 1.0,
+    beta_z_method=lambda: 1.0,
+    beta_y_method=lambda: 1.0,
 ):
 
     #t1 = tqdm(total=epochs, position=0)
@@ -40,8 +41,8 @@ def train(
 
         # Setup datasets
         iter = model.cooling_distance
-        beta_z = beta_z_method(iter)
-        beta_y = beta_y_method(iter)
+        beta_z = beta_z_method()
+        beta_y = beta_y_method()
         dataset_train = (
             tf.data.Dataset.from_tensor_slices(X_train)
             .repeat(iter_train)
