@@ -715,7 +715,7 @@ class Gmvae(Model, Scope):
     @tf.function#(autograph=False)
     def elbo(self, inputs, training=False, samples=1, beta_z=1.0, beta_y=1.0):
         recon, z_entropy, y_entropy = self.entropy_fn(inputs, training, samples)
-        return recon + self.z_kl_lambda * z_entropy + self.c_kl_lambda * y_entropy
+        return recon + beta_z * z_entropy + beta_y * y_entropy
 
 
     @tf.function#(autograph=False)
