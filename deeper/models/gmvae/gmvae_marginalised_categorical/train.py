@@ -52,7 +52,13 @@ def train(
 
         # Train over the dataset
         for x in dataset_train:
-            model.train_step(x,samples=samples, batch=batch, beta_z, beta_y)
+            model.train_step(
+                x, 
+                samples=samples, 
+                batch=batch, 
+                beta_z=beta_z, 
+                beta_y=beta_y
+            )
         model.increment_cooling()
         
 

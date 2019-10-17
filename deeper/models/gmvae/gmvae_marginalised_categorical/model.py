@@ -365,12 +365,17 @@ class Gmvae(Model, Scope):
         #self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
         self.optimizer = optimizer
 
+
     def increment_cooling(self):
         self.cooling_distance += 1
+
 
     @tf.function
     def sample_one(self, inputs, training=False):
         x = inputs
+
+        #Add random binarizer
+
         y_ = tf.cast(
             tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
             x.dtype
