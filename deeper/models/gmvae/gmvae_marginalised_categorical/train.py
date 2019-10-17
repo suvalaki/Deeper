@@ -18,31 +18,30 @@ def train(
     num_inference, 
     batch=False,
     verbose=1, 
-    save=None
+    save=None,
+    beta_z_method=lambda x: 1.0,
+    beta_y_method=lambda x: 1.0,
 ):
 
     #t1 = tqdm(total=epochs, position=0)
     #t2 = tqdm(total=int(X_train.shape[0] // num), position=1, leave=False)
 
     tqdm.write(
-        "{:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}".format(
-            "epoch",
-            "loss",
-            "likelih",
-            "z-prior",
-            "y-prior",
-            "trAMI",
-            "teAMI",
-            "trPUR",
-            "tePUR",
+        "{:>10} {:>10} {:>10} "
+        "{:>10} {:>10} {:>10} {:>10} "
+        "{:>10} {:>10} {:>10} {:>10} {:>10}".format(
+            "epoch", "beta_z", "beta_y",
+            "loss","likelih","z-prior","y-prior",
+            "trAMI","teAMI","trPUR","tePUR","te_ATCH"
         )
     )
 
     for i in range(epochs):
 
-        
-
         # Setup datasets
+        iter = model.cooling_distance
+        beta_z = beta_z_method(iter)
+        beta_y = beta_y_method(iter)
         dataset_train = (
             tf.data.Dataset.from_tensor_slices(X_train)
             .repeat(iter_train)
@@ -50,14 +49,11 @@ def train(
             .batch(num)
         )
 
+        # Train over the dataset
         for x in dataset_train:
-            model.train_step(x,samples=samples, batch=batch)
+            model.train_step(x,samples=samples, batch=batch, beta_z, beta_y)
+        model.increment_cooling()
         
-        #for i in range(iter):
-        #    idx=np.random.choice(len(X_train), num)
-        #    model.train_step(X_train[idx])
-        #    t2.update(1)
-        #t2.close()
 
         if i % verbose == 0:
             # Evaluate training metrics
@@ -82,19 +78,19 @@ def train(
             purity_train = purity_score(y_train, idx_tr)
             purity_test = purity_score(y_test, idx_te)
 
+            attch_te = (
+                np.array(np.unique(idx_te, return_counts=True)[1]).max()
+                / len(idx_te)
+            )
+
             tqdm.write(
-                "{:10d} {:10.5f} {:10.5f} {:10.5f} {:10.5f} "
-                "{:10.5f} {:10.5f} "
-                "{:10.5f} {:10.5f}".format(
-                    i,
-                    loss,
-                    recon,
-                    z_ent,
-                    y_ent,
-                    ami_tr,
-                    ami_te,
-                    purity_train,
-                    purity_test,
+                "{:10d} {:10.5f} {:10.5f} "
+                "{:10.5f} {:10.5f} {:10.5f} {:10.5f} "
+                "{:10.5f} {:10.5f} {:10.5f} {:10.5f} {:10.5f} "
+                .format(
+                    iter, beta_z, beta_y,
+                    loss, recon, z_ent, y_ent,
+                    ami_tr, ami_te, purity_train, purity_test, attach_te
                 )
             )
             if save is not None:
