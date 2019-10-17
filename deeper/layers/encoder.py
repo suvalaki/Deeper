@@ -18,7 +18,7 @@ class Encoder(Layer, Scope):
         embedding_bias_initializer=tf.initializers.zeros(),
         latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         latent_bias_initializer=tf.initializers.zeros(),
-        embedding_dropout=0.2
+        embedding_dropout=0.0
     ):
         Layer.__init__(self)
         Scope.__init__(self, var_scope)
