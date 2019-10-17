@@ -1,5 +1,12 @@
 import numpy as np
 
+
+def linear_cooling(k, start, end, alpha ):
+    """Linear interpolation between two points over alpha time periods"""
+    shifted_base = start - end
+    return end - (shifted_base) * min(k, alpha) / alpha 
+
+
 def exponential_multiplicative_cooling(i, start, end, alpha):
     """Proposed by Kirkpatrick, Gelatt and Vecchi (1983), and used as reference 
     in the comparison among the different cooling criteria. The temperature decrease 
