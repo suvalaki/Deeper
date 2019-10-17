@@ -101,7 +101,7 @@ class Encoder(Layer, Scope):
             if self.bn_after:
                 x = bna(x, training=training)
             if self.dropout_rate > 0.0:
-                x = drp(x)
+                x = drp(x, training=training)
         x = self.latent(x)
         return x
 
