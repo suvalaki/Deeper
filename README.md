@@ -14,5 +14,5 @@ A view of the deep learning landscape; implementations of old and new deep learn
 
 ### Attention Models
 - [] Attention Graph
-- [] BERT (pretraining)
+- [] BERT (pretraining): https://arxiv.org/pdf/1903.10145.pdf
 =
