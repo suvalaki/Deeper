@@ -97,7 +97,7 @@ def train(
                 .format(
                     iter, beta_z, beta_y,
                     loss, recon, z_ent, y_ent,
-                    ami_tr, ami_te, purity_train, purity_test, attach_te
+                    ami_tr, ami_te, purity_train, purity_test, attch_te
                 )
             )
             if save is not None:
