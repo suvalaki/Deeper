@@ -92,7 +92,7 @@ class RandomNormalEncoder(Layer, Scope):
                 embedding_kernel_initializer=embedding_var_kernel_initializer,
                 embedding_bias_initializer=embedding_var_bias_initializer,
                 latent_kernel_initialiazer=latent_var_kernel_initialiazer,
-                latent_bias_initializer=latent_var_bias_initializer
+                latent_bias_initializer=latent_var_bias_initializer,
                 embedding_dropout=embedding_var_dropout,
             )
         else:
