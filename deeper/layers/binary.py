@@ -20,7 +20,8 @@ class SigmoidEncoder(Layer, Scope):
         embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         embedding_bias_initializer=tf.initializers.zeros(),
         latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        latent_bias_initializer=tf.initializers.zeros()
+        latent_bias_initializer=tf.initializers.zeros(),
+        embedding_dropout=0.0
     ):
         Layer.__init__(self)
         Scope.__init__(self, var_scope)
@@ -42,7 +43,8 @@ class SigmoidEncoder(Layer, Scope):
             embedding_kernel_initializer=embedding_kernel_initializer,
             embedding_bias_initializer=embedding_bias_initializer,
             latent_kernel_initialiazer=latent_kernel_initialiazer,
-            latent_bias_initializer=latent_bias_initializer
+            latent_bias_initializer=latent_bias_initializer,
+            embedding_dropout=embedding_dropout
         )
 
     @tf.function

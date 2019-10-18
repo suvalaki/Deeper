@@ -13,11 +13,12 @@ class CategoricalEncoder(Layer, Scope):
         var_scope='cat_encoder',
         bn_before=False,
         bn_after=False,
-        epsilon=0.01,
+        epsilon=0.0,
         embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         embedding_bias_initializer=tf.initializers.zeros(),
         latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        latent_bias_initializer=tf.initializers.zeros()
+        latent_bias_initializer=tf.initializers.zeros(),
+        embedding_dropout=0.0
     ):
         Layer.__init__(self)
         Scope.__init__(self, var_scope)
@@ -39,7 +40,8 @@ class CategoricalEncoder(Layer, Scope):
             embedding_kernel_initializer=embedding_kernel_initializer,
             embedding_bias_initializer=embedding_bias_initializer,
             latent_kernel_initialiazer=latent_kernel_initialiazer,
-            latent_bias_initializer=latent_bias_initializer
+            latent_bias_initializer=latent_bias_initializer,
+            embedding_dropout=embedding_dropout
         )
 
     @tf.function
@@ -54,6 +56,10 @@ class CategoricalEncoder(Layer, Scope):
     @tf.function
     def _prob(self, logits):
         prob = tf.nn.softmax(logits, axis=-1, name='prob')
+        if self.epsilon > 0.0:
+            prob = tf.compat.v2.clip_by_value(
+                prob, self.epsilon, 1-self.epsilon, self.v_name('prob_clipepd')
+            )
         return prob
 
     @tf.function 

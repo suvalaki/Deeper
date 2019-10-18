@@ -57,7 +57,13 @@ class MarginalAutoEncoder(Model, Scope):
         recon_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         recon_latent_bias_initializer=tf.initializers.zeros(),
 
-        connected_weights=True
+        connected_weights=True,
+
+        latent_mu_embedding_dropout=0.0,
+        latent_var_embedding_dropout=0.0,
+        posterior_mu_dropout=0.0,
+        posterior_var_dropout=0.0,
+        recon_dropouut=0.0,
     ):
         Model.__init__(self)
         Scope.__init__(self, var_scope)
@@ -92,7 +98,10 @@ class MarginalAutoEncoder(Model, Scope):
                 latent_var_kernel_initialiazer=latent_var_latent_kernel_initialiazer,
                 latent_var_bias_initializer=latent_var_latent_bias_initializer,
 
-                connected_weights = connected_weights
+                connected_weights = connected_weights,
+
+                embedding_mu_dropout=latent_mu_embedding_dropout,
+                embedding_var_dropout=latent_var_embedding_dropout,
             )
         with tf.name_scope('graph_pz_g_y'):
             self.graphs_pz_g_y = RandomNormalEncoder(
@@ -113,8 +122,10 @@ class MarginalAutoEncoder(Model, Scope):
                 latent_var_kernel_initialiazer=posterior_var_latent_kernel_initialiazer,
                 latent_var_bias_initializer=posterior_var_latent_bias_initializer,
 
+                connected_weights = connected_weights,
 
-                connected_weights = connected_weights
+                embedding_mu_dropout=posterior_mu_dropout,
+                embedding_var_dropout=posterior_var_dropout,
             )
         with tf.name_scope('graph_px_g_y'):
             if self.kind == "binary":
@@ -131,6 +142,7 @@ class MarginalAutoEncoder(Model, Scope):
                     latent_kernel_initialiazer=recon_latent_kernel_initialiazer,
                     latent_bias_initializer=recon_latent_bias_initializer,
 
+                    embedding_dropout=recon_dropouut,
                 )
             #else:
             #    self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1])
@@ -155,11 +167,6 @@ class MarginalAutoEncoder(Model, Scope):
             pz_gy__logvar,
             pz_gy__var,
         ) = self.graphs_pz_g_y.call(y, training, qz_g_xy__sample)
-        #dkl_z_g_xy = lognormal_kl(
-        #    qz_g_xy__sample,
-        #    qz_g_xy__mu, pz_gy__mu,
-        #    qz_g_xy__logvar, pz_gy__logvar,
-        #)
         dkl_z_g_xy = pz_g_y__logprob - qz_g_xy__logprob
         (
             px_g_zy__sample,
@@ -258,7 +265,14 @@ class Gmvae(Model, Scope):
 
         optimizer=tf.keras.optimizers.SGD(0.001),
 
-        connected_weights=True
+        connected_weights=True,
+
+        categorical_latent_embedding_dropout=0.0,
+        mixture_latent_mu_embedding_dropout=0.0,
+        mixture_latent_var_embedding_dropout=0.0,
+        mixture_posterior_mu_dropout=0.0,
+        mixture_posterior_var_dropout=0.0,
+        recon_dropouut=0.0,
     ):
 
         # instatiate
@@ -321,7 +335,9 @@ class Gmvae(Model, Scope):
                 embedding_kernel_initializer=cat_embedding_kernel_initializer,
                 embedding_bias_initializer=cat_embedding_bias_initializer,
                 latent_kernel_initialiazer=cat_latent_kernel_initialiazer,
-                latent_bias_initializer=cat_latent_bias_initializer
+                latent_bias_initializer=cat_latent_bias_initializer,
+                embedding_dropout=categorical_latent_embedding_dropout
+
             )
             
 
@@ -360,7 +376,15 @@ class Gmvae(Model, Scope):
                 recon_latent_bias_initializer=recon_latent_bias_initializer,
 
                 connected_weights=connected_weights,
+
+                latent_mu_embedding_dropout=mixture_latent_mu_embedding_dropout,
+                latent_var_embedding_dropout=mixture_latent_var_embedding_dropout,
+                posterior_mu_dropout=mixture_posterior_mu_dropout,
+                posterior_var_dropout=mixture_posterior_var_dropout,
+                recon_dropouut=recon_dropouut,
             )
+
+        input_dropout=tf.keras.layers.Dropout(0.2)
 
         #self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
         self.optimizer = optimizer

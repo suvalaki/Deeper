@@ -32,6 +32,9 @@ class RandomNormalEncoder(Layer, Scope):
         fixed_var=None,
         connected_weights=True,
 
+        embedding_mu_dropout=0.0,
+        embedding_var_dropout=0.0,
+
     ):
         """Probability Layer multivariate random normal
 
@@ -76,7 +79,8 @@ class RandomNormalEncoder(Layer, Scope):
                 embedding_kernel_initializer=embedding_mu_kernel_initializer,
                 embedding_bias_initializer=embedding_mu_bias_initializer,
                 latent_kernel_initialiazer=latent_mu_kernel_initialiazer,
-                latent_bias_initializer=latent_mu_bias_initializer
+                latent_bias_initializer=latent_mu_bias_initializer,
+                embedding_dropout=embedding_mu_dropout,
             )
             self.logvar = Encoder(
                 latent_dim=self.latent_dimension,
@@ -89,6 +93,7 @@ class RandomNormalEncoder(Layer, Scope):
                 embedding_bias_initializer=embedding_var_bias_initializer,
                 latent_kernel_initialiazer=latent_var_kernel_initialiazer,
                 latent_bias_initializer=latent_var_bias_initializer
+                embedding_dropout=embedding_var_dropout,
             )
         else:
             self.mu_logvar = Encoder(
@@ -103,7 +108,8 @@ class RandomNormalEncoder(Layer, Scope):
                 embedding_kernel_initializer=embedding_mu_kernel_initializer,
                 embedding_bias_initializer=embedding_mu_bias_initializer,
                 latent_kernel_initialiazer=latent_mu_kernel_initialiazer,
-                latent_bias_initializer=latent_mu_bias_initializer
+                latent_bias_initializer=latent_mu_bias_initializer,
+                embedding_dropout=embedding_mu_dropout,
             )
         
 
