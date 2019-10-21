@@ -64,6 +64,8 @@ class MarginalAutoEncoder(Model, Scope):
         posterior_mu_dropout=0.0,
         posterior_var_dropout=0.0,
         recon_dropouut=0.0,
+
+        latent_fixed_var=None,
     ):
         Model.__init__(self)
         Scope.__init__(self, var_scope)
@@ -102,6 +104,8 @@ class MarginalAutoEncoder(Model, Scope):
 
                 embedding_mu_dropout=latent_mu_embedding_dropout,
                 embedding_var_dropout=latent_var_embedding_dropout,
+
+                fixed_var=latent_fixed_var,
             )
         with tf.name_scope('graph_pz_g_y'):
             self.graphs_pz_g_y = RandomNormalEncoder(
@@ -126,6 +130,8 @@ class MarginalAutoEncoder(Model, Scope):
 
                 embedding_mu_dropout=posterior_mu_dropout,
                 embedding_var_dropout=posterior_var_dropout,
+
+                fixed_var=latent_fixed_var,
             )
         with tf.name_scope('graph_px_g_y'):
             if self.kind == "binary":
@@ -286,6 +292,8 @@ class Gmvae(Model, Scope):
         mixture_posterior_mu_dropout=0.0,
         mixture_posterior_var_dropout=0.0,
         recon_dropouut=0.0,
+
+        latent_fixed_var=None,
     ):
 
         # instatiate
@@ -395,6 +403,8 @@ class Gmvae(Model, Scope):
                 posterior_mu_dropout=mixture_posterior_mu_dropout,
                 posterior_var_dropout=mixture_posterior_var_dropout,
                 recon_dropouut=recon_dropouut,
+
+                latent_fixed_var=latent_fixed_var,
             )
 
         input_dropout=tf.keras.layers.Dropout(0.2)
