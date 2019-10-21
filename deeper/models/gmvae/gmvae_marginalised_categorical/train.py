@@ -32,21 +32,21 @@ def plot_latent(latent_vectors, y_test):
 
     #fig, ax = plt.subplots()
 
-    plt.figure(figsize=(10,10))
+    fig = plt.figure(figsize=(10,10))
     #true_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='cat', ax=ax)
-    true_scatter = df_latent.plot.scatter(
-        x='x1', y='x2', c='cat',colormap='viridis'
+    true_scatter = plt.scatter(
+        df_latent.x1, df_latent.x2, c=df_latent.cat, colormap='viridis'
     )
 
     #fig2, ax2 = plt.subplots()
-    plt.figure(figsize=(10,10))
+    fug2=plt.figure(figsize=(10,10))
     #pred_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='kmeans', ax=ax2)
-    pred_scatter = df_latent.plot.scatter(
-        x='x1', y='x2', c='kmeans',colormap='viridis'
+    pred_scatter = plt.scatter(
+        df_latent.x1, df_latent.x2, c=df_latent.cat, colormap='viridis'
     )
 
-    #return fig, fig2
-    return true_scatter, pred_scatter
+    return fig, fig2
+    #return true_scatter, pred_scatter
 
 
 def plot_to_image(figure):
