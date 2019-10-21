@@ -144,8 +144,8 @@ class MarginalAutoEncoder(Model, Scope):
 
                     embedding_dropout=recon_dropouut,
                 )
-            #else:
-            #    self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1])
+            else:
+                self.graphs_px_g_zy = RandomNormalEncoder(self.in_dim, self.em_dim[::-1])
 
     @tf.function#
     def call(self, x, y, training=False):
