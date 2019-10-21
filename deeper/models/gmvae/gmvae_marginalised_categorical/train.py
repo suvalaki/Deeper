@@ -12,6 +12,8 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from matplotlib import pyplot as plt
 from sklearn.mixture import GaussianMixture
+import pandas as pd
+import io
 
 
 def plot_latent(latent_vectors, y_test):
@@ -20,7 +22,6 @@ def plot_latent(latent_vectors, y_test):
     X_pca = pca.fit_transform(latent_vectors)
     kmeans = GaussianMixture(10, tol=1e-6, max_iter = 1000)
     pred = kmeans.fit_predict(X_pca)
-    print(purity_score(y_test, pred))
 
     df_latent = pd.DataFrame({
         'x1':X_pca[:,0], 
@@ -28,13 +29,17 @@ def plot_latent(latent_vectors, y_test):
         'cat':['pred_{}'.format(i) for i in y_test],
         'kmeans':['pred_{}'.format(i) for i in pred]
     })
-    plt.figure(figsize=(10,10))
-    true_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='cat')
+
+    fig, ax = plt.subplots()
 
     plt.figure(figsize=(10,10))
-    pred_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='kmeans')
+    true_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='cat', ax=ax)
 
-    return true_scatter, pred_scatter
+    fig2, ax2 = plt.subplots()
+    plt.figure(figsize=(10,10))
+    pred_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='kmeans', ax=ax2)
+
+    return fig, fig2
 
 
 
@@ -164,7 +169,7 @@ def train(
             )
             plt_latent_true, plt_latent_pred = plot_latent(
                 latent_vectors, 
-                y_train
+                y_test
             )
 
             with summary_writer.as_default():
