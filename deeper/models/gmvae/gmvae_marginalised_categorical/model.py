@@ -398,6 +398,7 @@ class Gmvae(Model, Scope):
     def sample_one(self, inputs, training=False):
         x = inputs
 
+        #x = tf.cast(tf.greater(tf.cast(x,tf.float32), tf.random_uniform(tf.shape(x), 0, 1)), tf.float32)
         #Add random binarizer
 
         y_ = tf.cast(
@@ -468,7 +469,7 @@ class Gmvae(Model, Scope):
         # E_q [log(p/q)] = sum q (log_p - log_q)
         y_entropy = (
             tf.reduce_sum(qy_g_x__prob * tf.math.log(py),-1)  
-            + tf.nn.softmax_cross_entropy_with_logits_v2(
+            + tf.nn.softmax_cross_entropy_with_logits(
                 logits=qy_g_x__logit, 
                 labels=qy_g_x__prob
             )
@@ -614,6 +615,7 @@ class Gmvae(Model, Scope):
 
     @tf.function
     def call(self, x, training=False, samples=1):
+
 
         y_ = tf.cast(
             tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
@@ -859,7 +861,7 @@ class Gmvae(Model, Scope):
             with tf.GradientTape() as tape:
                 loss = tf.reduce_mean(
                     self.loss_fn_with_known_clusters(
-                        x, y, training, samples, beta_z, beta_y
+                        x, y, True, samples, beta_z, beta_y
                     )
                 )
 

@@ -50,7 +50,8 @@ class Encoder(Layer, Scope):
                 self.embeddings_bn_before.append(
                     tfk.layers.BatchNormalization(
                         axis=-1, 
-                        name=self.v_name('embedding_{}_bn_before'.format(i))
+                        name=self.v_name('embedding_{}_bn_before'.format(i)),
+                        renorm=True
                     )
                 )
             else:
@@ -60,7 +61,8 @@ class Encoder(Layer, Scope):
                 self.embeddings_bn_after.append(
                     tfk.layers.BatchNormalization(
                         axis=-1,
-                        name=self.v_name('embedding_{}_bn_after'.format(i))
+                        name=self.v_name('embedding_{}_bn_after'.format(i)),
+                        renorm=True
                     )
                 )
             else:
