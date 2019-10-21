@@ -4,7 +4,10 @@ import tensorflow as tf
 import numpy as np
 from tqdm import tqdm
 
-tf.enable_eager_execution()
+#tf.enable_v2_behavior()
+#tf.enable_eager_execution()
+tf.random.set_seed(123154)
+tf.keras.backend.set_floatx('float64')
 
 import numpy as np
 from deeper.models.gmvae.gmvae_marginalised_categorical import model as model
@@ -47,8 +50,8 @@ mnist = tf.keras.datasets.mnist
 X_train, X_test = X_train / 255.0, X_test / 255.0
 X_train = X_train.reshape(X_train.shape[0], 28 * 28)
 X_test = X_test.reshape(X_test.shape[0], 28 * 28)
-X_train = (X_train > 0.5).astype(float)
-X_test = (X_test > 0.5).astype(float)
+#X_train = (X_train > 0.5).astype(float)
+#X_test = (X_test > 0.5).astype(float)
 
 
 
@@ -68,14 +71,14 @@ params = {
     "components":len(set(y_train)),
     "input_dimension":X_train.shape[1],
     "embedding_dimensions":[512, 512, ],
-    "latent_dimensions":64,
+    "latent_dimensions":256,
     "mixture_embedding_dimensions":[512, 512, ],
-    "mixture_latent_dimensions":64,
+    "mixture_latent_dimensions":24,
     "embedding_activations":tf.nn.relu,
-    "kind":"binary",
+    "kind":"regression",
     "learning_rate":initial_learning_rate,
-    "gradient_clip":None,
-    "bn_before":False,
+    "gradient_clip":1e10,
+    "bn_before":True,
     "bn_after":False,
     "categorical_epsilon":0.0,
     "reconstruction_epsilon":0.0,
@@ -84,12 +87,19 @@ params = {
     "z_kl_lambda":1.0,
     "c_kl_lambda":1.0,
     "cat_latent_bias_initializer":None,
-    "optimizer":tf.keras.optimizers.Adam(epsilon=1e-9),
+    "optimizer":tf.keras.optimizers.Adam(1e-3, epsilon=1e-12),
     "connected_weights": True,
     #"optimizer":tf.keras.optimizers.SGD(
     #    1e-3, 
     #    #momentum=0.99
     #),
+    "categorical_latent_embedding_dropout":0.2,
+    "mixture_latent_mu_embedding_dropout":0.2,
+    "mixture_latent_var_embedding_dropout":0.2,
+    "mixture_posterior_mu_dropout":0.2,
+    "mixture_posterior_var_dropout":0.2,
+    "recon_dropouut":0.2,
+    'latent_fixed_var': 1.0,
 }
 
 param_string = "__".join([str(k)+"_"+str(v) for k,v in params.items()])
@@ -156,8 +166,11 @@ for i in tqdm(range(10)):
 
 #%% setup cooling for trainign loop constants
 
-z_cooling = cooling.CyclicCoolingRegime(cooling.linear_cooling, 0, 1, 20, 30)
-y_cooling = cooling.CyclicCoolingRegime(cooling.linear_cooling, 0, 1, 20, 35)
+#z_cooling = cooling.CyclicCoolingRegime(cooling.linear_cooling, 1e-1, 1, 25, 35)
+#y_cooling = cooling.CyclicCoolingRegime(cooling.linear_cooling, 10.0, 1.0, 25, 35)
+
+z_cooling = lambda: 1.0 
+y_cooling = lambda: 1.0
 
 #%% Train the model
 # with tf.device('/gpu:0'):
@@ -178,7 +191,7 @@ train(
 
 
 
-# Plot the latent space
+#%% Plot the latent space
 
 res_tensors = chain_call(m1.call, X_test, 1000)
 mixture_prob = res_tensors[1]
@@ -193,8 +206,8 @@ from sklearn.manifold import TSNE
 from matplotlib import pyplot as plt
 from sklearn.mixture import GaussianMixture
 
-#pca = PCA(2)
-pca = TSNE(2)
+pca = PCA(2)
+#pca = TSNE(2)
 X_pca = pca.fit_transform(latent_vectors)
 kmeans = GaussianMixture(10, tol=1e-6, max_iter = 1000)
 pred = kmeans.fit_predict(X_pca)
