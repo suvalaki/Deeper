@@ -26,21 +26,27 @@ def plot_latent(latent_vectors, y_test):
     df_latent = pd.DataFrame({
         'x1':X_pca[:,0], 
         'x2':X_pca[:,1], 
-        'cat':['pred_{}'.format(i) for i in y_test],
-        'kmeans':['pred_{}'.format(i) for i in pred]
+        'cat':y_test,#['pred_{}'.format(i) for i in y_test],
+        'kmeans':pred#['pred_{}'.format(i) for i in pred]
     })
 
-    fig, ax = plt.subplots()
+    #fig, ax = plt.subplots()
 
     plt.figure(figsize=(10,10))
-    true_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='cat', ax=ax)
+    #true_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='cat', ax=ax)
+    true_scatter = df_latent.plot.scatter(
+        x='x1', y='x2', c='cat',colormap='viridis'
+    )
 
-    fig2, ax2 = plt.subplots()
+    #fig2, ax2 = plt.subplots()
     plt.figure(figsize=(10,10))
-    pred_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='kmeans', ax=ax2)
+    #pred_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='kmeans', ax=ax2)
+    pred_scatter = df_latent.plot.scatter(
+        x='x1', y='x2', c='kmeans',colormap='viridis'
+    )
 
-    return fig, fig2
-
+    #return fig, fig2
+    return true_scatter, pred_scatter
 
 
 def plot_to_image(figure):
@@ -185,7 +191,6 @@ def train(
                 tf.summary.scalar('purity_test', purity_test, step=iter)
                 tf.summary.scalar('max_cluster_attachment_test', attch_te, step=iter)
                 tf.summary.scalar('beta_z', beta_z, step=iter)
-
                 tf.summary.image(
                     "latent_true", plot_to_image(plt_latent_true), step=iter
                 )
