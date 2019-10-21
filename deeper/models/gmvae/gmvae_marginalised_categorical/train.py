@@ -32,20 +32,21 @@ def plot_latent(latent_vectors, y_test):
 
     #fig, ax = plt.subplots()
 
+    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(10,20))
+
     fig = plt.figure(figsize=(10,10))
     #true_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='cat', ax=ax)
-    true_scatter = plt.scatter(
+    ax1.scatter(
         df_latent.x1, df_latent.x2, c=df_latent.cat, cmap='viridis'
     )
 
     #fig2, ax2 = plt.subplots()
-    fig2=plt.figure(figsize=(10,10))
     #pred_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='kmeans', ax=ax2)
-    pred_scatter = plt.scatter(
+    ax2.scatter(
         df_latent.x1, df_latent.x2, c=df_latent.cat, cmap='viridis'
     )
 
-    return fig, fig2
+    return f
     #return true_scatter, pred_scatter
 
 
@@ -173,7 +174,7 @@ def train(
                 X_test, 
                 num_inference
             )
-            plt_latent_true, plt_latent_pred = plot_latent(
+            plt_latent_true  = plot_latent(
                 latent_vectors, 
                 y_test
             )
@@ -192,10 +193,7 @@ def train(
                 tf.summary.scalar('max_cluster_attachment_test', attch_te, step=iter)
                 tf.summary.scalar('beta_z', beta_z, step=iter)
                 tf.summary.image(
-                    "latent_true", plot_to_image(plt_latent_true), step=iter
-                )
-                tf.summary.image(
-                    'latent_pred', plot_to_image(plt_latent_pred), step=iter
+                    "latent", plot_to_image(plt_latent_true), step=iter
                 )
 
         #t1.update(1)
