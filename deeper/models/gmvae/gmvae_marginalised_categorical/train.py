@@ -4,6 +4,56 @@ from tqdm.autonotebook import tqdm
 from sklearn.metrics import adjusted_mutual_info_score
 from .utils import chain_call, purity_score
 from deeper.utils.cooling import CyclicCoolingRegime
+from matplotlib import pyplot as plt 
+import seaborn as sns
+
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+from matplotlib import pyplot as plt
+from sklearn.mixture import GaussianMixture
+
+
+def plot_latent(latent_vectors, y_test):
+    pca = PCA(2)
+    #pca = TSNE(2)
+    X_pca = pca.fit_transform(latent_vectors)
+    kmeans = GaussianMixture(10, tol=1e-6, max_iter = 1000)
+    pred = kmeans.fit_predict(X_pca)
+    print(purity_score(y_test, pred))
+
+    df_latent = pd.DataFrame({
+        'x1':X_pca[:,0], 
+        'x2':X_pca[:,1], 
+        'cat':['pred_{}'.format(i) for i in y_test],
+        'kmeans':['pred_{}'.format(i) for i in pred]
+    })
+    plt.figure(figsize=(10,10))
+    true_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='cat')
+
+    plt.figure(figsize=(10,10))
+    pred_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='kmeans')
+
+    return true_scatter, pred_scatter
+
+
+
+def plot_to_image(figure):
+    """Converts the matplotlib plot specified by 'figure' to a PNG image and
+    returns it. The supplied figure is closed and inaccessible after this call."""
+    # Save the plot to a PNG in memory.
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    # Closing the figure prevents it from being displayed directly inside
+    # the notebook.
+    plt.close(figure)
+    buf.seek(0)
+    # Convert PNG buffer to TF image
+    image = tf.image.decode_png(buf.getvalue(), channels=4)
+    # Add the batch dimension
+    image = tf.expand_dims(image, 0)
+    return image
+
 
 
 def train(
@@ -106,6 +156,17 @@ def train(
             if save is not None:
                 model.save_weights(save, save_format='tf')
 
+            #plot latent space 
+            latent_vectors = chain_call(
+                model.latent_sample, 
+                X_test, 
+                num_inference
+            )
+            plt_latent_true, plt_latent_pred = plot_latent(
+                latent_vectors, 
+                y_train
+            )
+
             with summary_writer.as_default():
                 tf.summary.scalar('beta_z', beta_z, step=iter)
                 tf.summary.scalar('beta_y', beta_y, step=iter)
@@ -120,6 +181,12 @@ def train(
                 tf.summary.scalar('max_cluster_attachment_test', attch_te, step=iter)
                 tf.summary.scalar('beta_z', beta_z, step=iter)
 
+                tf.summary.image(
+                    "latent_true", plot_to_image(plt_latent_true), step=iter
+                )
+                tf.summary.image(
+                    'latent_pred', plot_to_image(plt_latent_pred), step=iter
+                )
 
         #t1.update(1)
         #t2.n = 0
