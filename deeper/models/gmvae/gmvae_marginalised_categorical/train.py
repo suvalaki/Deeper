@@ -34,7 +34,6 @@ def plot_latent(latent_vectors, y_test):
 
     f, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(10,20))
 
-    fig = plt.figure(figsize=(10,10))
     #true_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='cat', ax=ax)
     ax1.scatter(
         df_latent.x1, df_latent.x2, c=df_latent.cat, cmap='viridis'
