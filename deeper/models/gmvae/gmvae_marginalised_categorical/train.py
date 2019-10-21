@@ -32,7 +32,7 @@ def plot_latent(latent_vectors, y_test):
 
     #fig, ax = plt.subplots()
 
-    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(10,20))
+    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(20,10))
 
     #true_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='cat', ax=ax)
     ax1.scatter(
