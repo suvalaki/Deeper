@@ -109,15 +109,19 @@ def train(
             with summary_writer.as_default():
                 tf.summary.scalar('beta_z', beta_z, step=iter)
                 tf.summary.scalar('beta_y', beta_y, step=iter)
-                tf.summary.scalar('loss', loss, step=iter)
-                tf.summary.scalar('likelihood', recon, step=iter)
-                tf.summary.scalar('z_prior_entropy', z_ent, step=iter)
-                tf.summary.scalar('y_prior_entropy', y_ent, step=iter)
-                tf.summary.scalar('ami_train', ami_tr, step=iter)
-                tf.summary.scalar('ami_test', ami_te, step=iter)
-                tf.summary.scalar('purity_train', purity_train, step=iter)
-                tf.summary.scalar('purity_test', purity_test, step=iter)
-                tf.summary.scalar('max_cluster_attachment_test', attch_te, step=iter)
+                tf.summary.merge([
+                    tf.summary.scalar('loss', loss, step=iter),
+                    tf.summary.scalar('likelihood', recon, step=iter),
+                    tf.summary.scalar('z_prior_entropy', z_ent, step=iter),
+                    tf.summary.scalar('y_prior_entropy', y_ent, step=iter),
+                ])
+                tf.summary.merge([
+                    tf.summary.scalar('ami_train', ami_tr, step=iter),
+                    tf.summary.scalar('ami_test', ami_te, step=iter),
+                    tf.summary.scalar('purity_train', purity_train, step=iter),
+                    tf.summary.scalar('purity_test', purity_test, step=iter),
+                    tf.summary.scalar('max_cluster_attachment_test', attch_te, step=iter),
+                ])
 
 
         #t1.update(1)
