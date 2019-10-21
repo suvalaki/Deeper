@@ -39,7 +39,7 @@ def plot_latent(latent_vectors, y_test):
     )
 
     #fig2, ax2 = plt.subplots()
-    fug2=plt.figure(figsize=(10,10))
+    fig2=plt.figure(figsize=(10,10))
     #pred_scatter = sns.scatterplot(data=df_latent,x='x1',y='x2',hue='kmeans', ax=ax2)
     pred_scatter = plt.scatter(
         df_latent.x1, df_latent.x2, c=df_latent.cat, cmap='viridis'
