@@ -145,7 +145,19 @@ class MarginalAutoEncoder(Model, Scope):
                     embedding_dropout=recon_dropouut,
                 )
             else:
-                self.graphs_px_g_zy = RandomNormalEncoder(self.in_dim, self.em_dim[::-1])
+                self.graphs_px_g_zy = RandomNormalEncoder(
+                    self.in_dim, 
+                    self.em_dim[::-1],
+                    bn_before=self.bn_before,
+                    bn_after=self.bn_after,
+                    embedding_mu_dropout=recon_dropouut,
+                    embedding_var_dropout=recon_dropouut,
+                    epsilon=self.rec_eps,
+                    embedding_mu_kernel_initializer=recon_embedding_kernel_initializer,
+                    embedding_mu_bias_initializer=recon_embedding_bias_initializer,
+                    latent_mu_kernel_initialiazer=recon_latent_kernel_initialiazer,
+                    latent_mu_bias_initializer=recon_latent_bias_initializer,
+                )
 
     @tf.function#
     def call(self, x, y, training=False):
