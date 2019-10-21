@@ -761,7 +761,7 @@ class Gmvae(Model, Scope):
 
         latent = tf.add_n(
             [
-                qy_g_x[:, i] * (mc_pz_g_y__sample[i])
+                qy_g_x[:, i, None] * (mc_pz_g_y__sample[i])
                 for i in range(self.k)
             ]
         )
