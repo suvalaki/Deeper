@@ -152,6 +152,7 @@ class MarginalAutoEncoder(Model, Scope):
                     bn_after=self.bn_after,
                     embedding_mu_dropout=recon_dropouut,
                     embedding_var_dropout=recon_dropouut,
+                    fixed_var=1.0,
                     epsilon=self.rec_eps,
                     embedding_mu_kernel_initializer=recon_embedding_kernel_initializer,
                     embedding_mu_bias_initializer=recon_embedding_bias_initializer,
