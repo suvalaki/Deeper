@@ -28,7 +28,7 @@ def train(
     #t1 = tqdm(total=epochs, position=0)
     #t2 = tqdm(total=int(X_train.shape[0] // num), position=1, leave=False)
 
-    summary_writer = tf.summary.create_file_writer(tesnoboard)
+    summary_writer = tf.summary.create_file_writer(tensorboard)
 
     tqdm.write(
         "{:>10} {:>10} {:>10} "
