@@ -28,7 +28,7 @@ def train(
     #t1 = tqdm(total=epochs, position=0)
     #t2 = tqdm(total=int(X_train.shape[0] // num), position=1, leave=False)
 
-    summary_writer = tf.summary.create_file_writer(tensorboard)
+    summary_writer = tf.summary.create_file_writer(tesnoboard)
 
     tqdm.write(
         "{:>10} {:>10} {:>10} "
@@ -109,19 +109,16 @@ def train(
             with summary_writer.as_default():
                 tf.summary.scalar('beta_z', beta_z, step=iter)
                 tf.summary.scalar('beta_y', beta_y, step=iter)
-                tf.summary.merge([
-                    tf.summary.scalar('loss', loss, step=iter),
-                    tf.summary.scalar('likelihood', recon, step=iter),
-                    tf.summary.scalar('z_prior_entropy', z_ent, step=iter),
-                    tf.summary.scalar('y_prior_entropy', y_ent, step=iter),
-                ])
-                tf.summary.merge([
-                    tf.summary.scalar('ami_train', ami_tr, step=iter),
-                    tf.summary.scalar('ami_test', ami_te, step=iter),
-                    tf.summary.scalar('purity_train', purity_train, step=iter),
-                    tf.summary.scalar('purity_test', purity_test, step=iter),
-                    tf.summary.scalar('max_cluster_attachment_test', attch_te, step=iter),
-                ])
+                tf.summary.scalar('loss', loss, step=iter)
+                tf.summary.scalar('likelihood', recon, step=iter)
+                tf.summary.scalar('z_prior_entropy', z_ent, step=iter)
+                tf.summary.scalar('y_prior_entropy', y_ent, step=iter)
+                tf.summary.scalar('ami_train', ami_tr, step=iter)
+                tf.summary.scalar('ami_test', ami_te, step=iter)
+                tf.summary.scalar('purity_train', purity_train, step=iter)
+                tf.summary.scalar('purity_test', purity_test, step=iter)
+                tf.summary.scalar('max_cluster_attachment_test', attch_te, step=iter)
+                tf.summary.scalar('beta_z', beta_z, step=iter)
 
 
         #t1.update(1)
