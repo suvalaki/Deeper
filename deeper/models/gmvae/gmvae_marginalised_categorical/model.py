@@ -172,7 +172,7 @@ class MarginalAutoEncoder(Model, Scope):
             px_g_zy__sample,
             px_g_zy__logprob,
             px_g_zy__prob,
-        ) = self.graphs_px_g_zy.call(qz_g_xy__sample, training, x)
+        ) = self.graphs_px_g_zy.call(qz_g_xy__sample, training, x)[0:3]
 
         return (
             qz_g_xy__sample,
