@@ -727,6 +727,38 @@ class Gmvae(Model, Scope):
             elbo
         )
 
+
+    @tf.function
+    def latent_sample(self, inputs, training=False, samples=1 ):
+        (
+            py,
+            qy_g_x,
+            mc_qz_g_xy__sample,
+            mc_qz_g_xy__logprob,
+            mc_qz_g_xy__prob,
+            mc_pz_g_y__sample,
+            mc_pz_g_y__logprob,
+            mc_pz_g_y__prob,
+            mc_dkl_z_g_xy,
+            mc_px_g_zy__sample,
+            mc_px_g_zy__logprob,
+            mc_px_g_zy__prob,
+            recon,
+            z_entropy,
+            y_entropy,
+            elbo
+        ) = self.call(inputs, training=training, samples=samples)
+
+        latent = tf.add_n(
+            [
+                qy_g_x[:, i] * (mc_pz_g_y__sample[i])
+                for i in range(self.k)
+            ]
+        )
+
+        return latent
+
+
     @tf.function
     def entropy_fn(self, inputs, training=False, samples=1 ):
         (
