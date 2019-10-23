@@ -210,7 +210,7 @@ class GmvaeGan(Model, Scope):
 
         # Sample from the generator
         (
-            q_g_x__logit
+            qy_g_x__logit,
             qy_g_x__prob,
             qz_g_xy__sample,
             qz_g_xy__logprob,
@@ -263,7 +263,7 @@ class GmvaeGan(Model, Scope):
 
         return (
             py,
-            q_g_x__logit,
+            qy_g_x__logit,
             qy_g_x__prob,
             qz_g_xy__sample,
             qz_g_xy__logprob,
@@ -307,7 +307,7 @@ class GmvaeGan(Model, Scope):
     def monte_carlo_estimate(self, samples, x, training=False, temperature=1.0, beta_z=1.0, beta_y=1.0):
         return [
             self.mc_stack_mean(z)
-            for z in self.sample(samples, x, training=False, temperature=temperature, beat_z=beta_z, beta_y=beta_y)
+            for z in self.sample(samples, x, training=False, temperature=temperature, beta_z=beta_z, beta_y=beta_y)
         ]
 
 
@@ -317,10 +317,15 @@ class GmvaeGan(Model, Scope):
 
 
     @tf.function
+    def latent_sample(self, inputs, training=False, samples=1 ):
+        return self.gmvae.latent(inputs, training, samples)
+
+
+    @tf.function
     def loss_fn(self, inputs, training=False, samples=1, temperature=1.0, beta_z=1.0, beta_y=1.0):
         (
             py,
-            q_g_x__logit,
+            qy_g_x__logit,
             qy_g_x__prob,
             qz_g_xy__sample,
             qz_g_xy__logprob,
@@ -343,14 +348,14 @@ class GmvaeGan(Model, Scope):
             descr__prob,
             descriminator_entropy,
             loss
-        ) = self.call(inputs, training, samples, temperature, beat_z, beta_y)
+        ) = self.call(inputs, training, samples, temperature, beta_z, beta_y)
 
         return loss
     
     def entropy_fn(self, inputs, training=False, samples=1, temperature=1.0, beta_z=1.0, beta_y=1.0):
         (
             py,
-            q_g_x__logit,
+            qy_g_x__logit,
             qy_g_x__prob,
             qz_g_xy__sample,
             qz_g_xy__logprob,
