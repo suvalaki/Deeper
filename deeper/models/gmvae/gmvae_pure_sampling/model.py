@@ -5,198 +5,17 @@ import datetime
 
 from deeper.probability_layers.gumble_softmax import GumbleSoftmaxLayer
 from deeper.probability_layers.normal import (
-    RandomNormalEncoder, RandomStandardNormalEncoder,
+    RandomNormalEncoder, 
     lognormal_kl
 )
 from deeper.layers.binary import SigmoidEncoder
 from deeper.layers.categorical import CategoricalEncoder
 from deeper.utils.scope import Scope
+from deeper.models.gmvae.marginalautoencoder import MarginalAutoEncoder
 
 tfk = tf.keras
 
 Model = tfk.Model
-
-class MarginalAutoEncoder(Model, Scope):
-    def __init__(
-        self, 
-        input_dimension, 
-        embedding_dimensions, 
-        latent_dim, 
-        embedding_activations=tf.nn.tanh,
-        kind="binary",
-        var_scope='marginal_autoencoder',
-        bn_before=False,
-        bn_after=False,
-        latent_epsilon=0.0,
-        latent_prior_epsilon=0.0,
-        reconstruction_epsilon=0.0,
-
-        latent_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
-        latent_mu_embedding_bias_initializer=tf.initializers.zeros(),
-        latent_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        latent_mu_latent_bias_initializer=tf.initializers.zeros(),
-
-        latent_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
-        latent_var_embedding_bias_initializer=tf.initializers.zeros(),
-        latent_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        latent_var_latent_bias_initializer=tf.initializers.zeros(),
-
-        posterior_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
-        posterior_mu_embedding_bias_initializer=tf.initializers.zeros(),
-        posterior_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        posterior_mu_latent_bias_initializer=tf.initializers.zeros(),
-
-        posterior_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
-        posterior_var_embedding_bias_initializer=tf.initializers.zeros(),
-        posterior_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        posterior_var_latent_bias_initializer=tf.initializers.zeros(),
-
-        recon_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
-        recon_embedding_bias_initializer=tf.initializers.zeros(),
-        recon_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        recon_latent_bias_initializer=tf.initializers.zeros(),
-
-        connected_weights=True,
-    ):
-        Model.__init__(self)
-        Scope.__init__(self, var_scope)
-        self.in_dim = input_dimension
-        self.la_dim = latent_dim
-        self.em_dim = embedding_dimensions
-        self.kind = kind
-        self.bn_before = bn_before
-        self.bn_after = bn_after
-        self.lat_eps = latent_epsilon
-        self.lat_p_eps = latent_prior_epsilon
-        self.rec_eps = reconstruction_epsilon
-        self.connected_weights = connected_weights
-
-
-        with tf.name_scope('graph_qz_g_xy'):
-            self.graphs_qz_g_xy = RandomNormalEncoder(
-                latent_dimension=self.la_dim, 
-                embedding_dimensions=self.em_dim, 
-                var_scope=self.v_name('graph_qz_g_xy'),
-                bn_before=self.bn_before,
-                bn_after=self.bn_after,
-                epsilon=self.lat_eps,
-
-                embedding_mu_kernel_initializer=latent_mu_embedding_kernel_initializer,
-                embedding_mu_bias_initializer=latent_mu_embedding_bias_initializer,
-                latent_mu_kernel_initialiazer=latent_mu_latent_kernel_initialiazer,
-                latent_mu_bias_initializer=latent_mu_latent_bias_initializer,
-
-                embedding_var_kernel_initializer=latent_var_embedding_kernel_initializer,
-                embedding_var_bias_initializer=latent_var_embedding_bias_initializer,
-                latent_var_kernel_initialiazer=latent_var_latent_kernel_initialiazer,
-                latent_var_bias_initializer=latent_var_latent_bias_initializer,
-
-                connected_weights = connected_weights
-            )
-        with tf.name_scope('graph_pz_g_y'):
-            self.graphs_pz_g_y = RandomNormalEncoder(
-                latent_dimension=self.la_dim, 
-                embedding_dimensions=[], 
-                var_scope=self.v_name('graph_pz_g_y'),
-                bn_before=self.bn_before,
-                bn_after=self.bn_after,
-                epsilon=self.lat_p_eps,
-
-                embedding_mu_kernel_initializer=posterior_mu_embedding_kernel_initializer,
-                embedding_mu_bias_initializer=posterior_mu_embedding_bias_initializer,
-                latent_mu_kernel_initialiazer=posterior_mu_latent_kernel_initialiazer,
-                latent_mu_bias_initializer=posterior_mu_latent_bias_initializer,
-
-                embedding_var_kernel_initializer=posterior_var_embedding_kernel_initializer,
-                embedding_var_bias_initializer=posterior_var_embedding_bias_initializer,
-                latent_var_kernel_initialiazer=posterior_var_latent_kernel_initialiazer,
-                latent_var_bias_initializer=posterior_var_latent_bias_initializer,
-
-                connected_weights = connected_weights
-            )
-        with tf.name_scope('graph_px_g_y'):
-            if self.kind == "binary":
-                self.graphs_px_g_zy = SigmoidEncoder(
-                    latent_dimension=self.in_dim, 
-                    embedding_dimensions=self.em_dim[::-1], 
-                    var_scope=self.v_name('graph_px_g_y'),
-                    bn_before=self.bn_before,
-                    bn_after=self.bn_after,
-                    epsilon=self.rec_eps,
-
-                    embedding_kernel_initializer=recon_embedding_kernel_initializer,
-                    embedding_bias_initializer=recon_embedding_bias_initializer,
-                    latent_kernel_initialiazer=recon_latent_kernel_initialiazer,
-                    latent_bias_initializer=recon_latent_bias_initializer,
-
-                )
-            #else:
-            #    self.graphs_px_g_zy = NormalDecoder(self.in_dim, self.em_dim[::-1])
-
-    @tf.function#
-    def call(self, x, y, training=False):
-
-        xy = tf.concat([x, y], axis=-1)
-        (
-            qz_g_xy__sample,
-            qz_g_xy__logprob,
-            qz_g_xy__prob,
-            qz_g_xy__mu,
-            qz_g_xy__logvar,
-            qz_g_xy__var
-        ) = self.graphs_qz_g_xy.call(xy, training)
-        (
-            pz_g_y__sample,
-            pz_g_y__logprob,
-            pz_g_y__prob,
-            pz_gy__mu,
-            pz_gy__logvar,
-            pz_gy__var,
-        ) = self.graphs_pz_g_y.call(y, training, qz_g_xy__sample)
-        #dkl_z_g_xy = lognormal_kl(
-        #    qz_g_xy__sample,
-        #    qz_g_xy__mu, pz_gy__mu,
-        #    qz_g_xy__logvar, pz_gy__logvar,
-        #)
-        dkl_z_g_xy = pz_g_y__logprob - qz_g_xy__logprob
-        (
-            px_g_zy__sample,
-            px_g_zy__logprob,
-            px_g_zy__prob,
-        ) = self.graphs_px_g_zy.call(qz_g_xy__sample, training, x)
-
-        return (
-            qz_g_xy__sample,
-            qz_g_xy__logprob,
-            qz_g_xy__prob,
-            pz_g_y__sample,
-            pz_g_y__logprob,
-            pz_g_y__prob,
-            dkl_z_g_xy,
-            px_g_zy__sample,
-            px_g_zy__logprob,
-            px_g_zy__prob,
-        )
-
-    @tf.function(experimental_relax_shapes=True)
-    def sample(self, samples, x, y, training=False):
-        with tf.device("/gpu:0"):
-            result = [self.call(x, y, training) for j in range(samples)]
-            result_pivot = list(zip(*result))
-        return result_pivot
-
-    @staticmethod
-    @tf.function
-    def mc_stack_mean(x):
-        return tf.reduce_sum(tf.stack(x, 0), 0) / len(x)
-
-    @tf.function(experimental_relax_shapes=True)
-    def monte_carlo_estimate(self, samples, x, y, training=False):
-        return [
-            self.mc_stack_mean(z)
-            for z in self.sample(samples, x, y, training=False)
-        ]
-
 
 
 class Gmvae(Model, Scope):
@@ -234,7 +53,7 @@ class Gmvae(Model, Scope):
         latent_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         latent_var_embedding_bias_initializer=tf.initializers.zeros(),
         latent_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        latent_var_latent_bias_initializer=tf.initializers.constant(1.0),
+        latent_var_latent_bias_initializer=tf.initializers.zeros(),
 
         posterior_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         posterior_mu_embedding_bias_initializer=tf.initializers.zeros(),
@@ -244,7 +63,7 @@ class Gmvae(Model, Scope):
         posterior_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         posterior_var_embedding_bias_initializer=tf.initializers.zeros(),
         posterior_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        posterior_var_latent_bias_initializer=tf.initializers.constant(1.0),
+        posterior_var_latent_bias_initializer=tf.initializers.zeros(),
 
         recon_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         recon_embedding_bias_initializer=tf.initializers.zeros(),
@@ -257,6 +76,15 @@ class Gmvae(Model, Scope):
         optimizer=tf.keras.optimizers.SGD(0.001),
 
         connected_weights=True,
+
+        categorical_latent_embedding_dropout=0.0,
+        mixture_latent_mu_embedding_dropout=0.0,
+        mixture_latent_var_embedding_dropout=0.0,
+        mixture_posterior_mu_dropout=0.0,
+        mixture_posterior_var_dropout=0.0,
+        recon_dropouut=0.0,
+
+        latent_fixed_var=None,
     ):
 
         # instatiate
@@ -359,6 +187,14 @@ class Gmvae(Model, Scope):
                 recon_latent_bias_initializer=recon_latent_bias_initializer,
 
                 connected_weights=connected_weights,
+
+                latent_mu_embedding_dropout=mixture_latent_mu_embedding_dropout,
+                latent_var_embedding_dropout=mixture_latent_var_embedding_dropout,
+                posterior_mu_dropout=mixture_posterior_mu_dropout,
+                posterior_var_dropout=mixture_posterior_var_dropout,
+                recon_dropouut=recon_dropouut,
+
+                latent_fixed_var=latent_fixed_var,
             )
 
         #self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
@@ -393,6 +229,7 @@ class Gmvae(Model, Scope):
         )
 
         return (
+            qy_g_x__logit,
             qy_g_x__prob,
             qz_g_xy__sample,
             qz_g_xy__logprob,
@@ -494,7 +331,8 @@ class Gmvae(Model, Scope):
         )
         py = tf.cast(tf.fill(tf.shape(y_), 1 / self.k, name="prob"), x.dtype)
 
-        (
+        (   
+            mc_qy_g_x__logit,
             mc_qy_g_x__prob,
             mc_qz_g_xy__sample,
             mc_qz_g_xy__logprob,
@@ -514,6 +352,7 @@ class Gmvae(Model, Scope):
 
         return (
             py,
+            mc_qy_g_x__logit,
             mc_qy_g_x__prob,
             mc_qz_g_xy__sample,
             mc_qz_g_xy__logprob,
@@ -573,6 +412,7 @@ class Gmvae(Model, Scope):
     def entropy_fn(self, inputs, training=False, samples=1, temperature=1.0):
         (
             py,
+            qy_g_x__logit,
             qy_g_x,
             mc_qz_g_xy__sample,
             mc_qz_g_xy__logprob,
@@ -595,7 +435,7 @@ class Gmvae(Model, Scope):
 
         # y_entropy
         y_entropy = tf.reduce_sum(
-            qy_g_x * (tf.math.log(py) - tf.math.log(qy_g_x)),
+            qy_g_x * (tf.math.log(py) - tf.nn.log_softmax(qy_g_x__logit)),
             axis=-1,
         )
 
@@ -603,13 +443,13 @@ class Gmvae(Model, Scope):
         return recon, z_entropy, y_entropy
 
     @tf.function#(autograph=False)
-    def elbo(self, inputs, training=False, samples=1, temperature=1.0):
+    def elbo(self, inputs, training=False, samples=1, temperature=1.0, beta_z=1.0, beta_y=1.0):
         recon, z_entropy, y_entropy = self.entropy_fn(inputs, training, samples, temperature)
-        return recon + self.z_kl_lambda * z_entropy + self.c_kl_lambda * y_entropy
+        return recon + beta_z * z_entropy + beta_y * y_entropy
 
     @tf.function#(autograph=False)
-    def loss_fn(self, inputs, training=False, samples=1, temperature=1.0):
-        return -self.elbo(inputs, training, samples, temperature)
+    def loss_fn(self, inputs, training=False, samples=1, temperature=1.0, beta_z=1.0, beta_y=1.0):
+        return -self.elbo(inputs, training, samples, temperature, beta_z, beta_y)
     
     @tf.function
     def even_mixture_loss(self, inputs, training=False, samples=1):
@@ -636,7 +476,7 @@ class Gmvae(Model, Scope):
         return -(recon + z_entropy)
 
     @tf.function#(autograph=False)
-    def train_step(self, x, samples=1, tenorboard=False, batch=False, temperature=1.0):
+    def train_step(self, x, samples=1, tenorboard=False, batch=False, temperature=1.0, beta_z=1.0, beta_y=1.0):
 
         if tenorboard:
             current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -649,14 +489,9 @@ class Gmvae(Model, Scope):
         # Tensorflow dataset is iterable in eager mode
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
-                if batch:
-                    loss = tf.reduce_mean(
-                        self.loss_fn(x, True, samples, temperature)
-                    )
-                else:
-                    loss = (
-                        self.loss_fn(x, True, samples, temperature)
-                    )
+                loss = tf.reduce_mean(
+                    self.loss_fn(x, True, samples, temperature, beta_z, beta_y)
+                )
             # Update ops for batch normalization
             # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             # with tf.control_dependencies(update_ops):
@@ -671,6 +506,9 @@ class Gmvae(Model, Scope):
                 else tf.clip_by_value(
                     gradient, -self.gradient_clip, self.gradient_clip
                 )
+                if self.gradient_clip is not None
+                else 
+                gradient
                 #else tf.clip_by_norm(
                 #    gradient, self.gradient_clip
                 #)

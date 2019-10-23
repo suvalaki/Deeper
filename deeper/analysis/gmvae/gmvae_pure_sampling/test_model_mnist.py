@@ -7,10 +7,12 @@ from pathlib import Path
 import tensorflow as tf
 import numpy as np
 from tqdm import tqdm
+import json
 
 #tf.enable_eager_execution()
-tf.enable_v2_behavior()
-tf.set_random_seed(12343411231)
+
+tf.random.set_seed(1234)
+tf.keras.backend.set_floatx('float64')
 
 import numpy as np
 from deeper.models.gmvae.gmvae_pure_sampling import model
@@ -73,39 +75,60 @@ from importlib import reload
 model = reload(model)
 
 
-initial_learning_rate = 3e-4
+initial_learning_rate = 1e-3
 lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
     initial_learning_rate,
     decay_steps=1000,
     decay_rate=0.8,
     staircase=True)
 
-m1 = model.Gmvae(
-    components=len(set(y_train)),
-    input_dimension=X_train.shape[1],
-    embedding_dimensions=[512, 256, 128,],
-    latent_dimensions=64,
-    mixture_embedding_dimensions = [512, 256, 128, 64,],
-    mixture_latent_dimensions=32,
-    embedding_activations=tf.nn.tanh,
-    kind="binary",
-    learning_rate=initial_learning_rate,
-    gradient_clip=1e10,
-    bn_before=True,
-    bn_after=False,
-    categorical_epsilon=1e-12,
-    reconstruction_epsilon=1e-12,
-    latent_epsilon=1e-12,
-    latent_prior_epsilon=1e-0,
-    z_kl_lambda=1.0,
-    c_kl_lambda=1.0,
-    cat_latent_bias_initializer=None,
-    optimizer=tf.keras.optimizers.Adam(initial_learning_rate)
+
+
+
+params = {
+    "components":len(set(y_train)),
+    "input_dimension":X_train.shape[1],
+    "embedding_dimensions":[512, 512, ],
+    "latent_dimensions":64,
+    "mixture_embedding_dimensions":[512, 512,  ],
+    "mixture_latent_dimensions":64,
+    "embedding_activations":tf.nn.relu,
+    "kind":"binary",
+    "learning_rate":initial_learning_rate,
+    "gradient_clip":None,
+    "bn_before":False,
+    "bn_after":False,
+    "categorical_epsilon":0.0,
+    "reconstruction_epsilon":0.0,
+    "latent_epsilon":0.0,
+    "latent_prior_epsilon":0.0,
+    "z_kl_lambda":1.0,
+    "c_kl_lambda":1.0,
+    "cat_latent_bias_initializer":None,
+    "optimizer":tf.keras.optimizers.Adam(initial_learning_rate),
+    "connected_weights": True,
     #optimizer = tf.keras.optimizers.SGD(
     #    initial_learning_rate, 
     #    #momentum=0.1
     #)
-)
+
+    "categorical_latent_embedding_dropout":0.2,
+    "mixture_latent_mu_embedding_dropout":0.2,
+    "mixture_latent_var_embedding_dropout":0.2,
+    "mixture_posterior_mu_dropout":0.2,
+    "mixture_posterior_var_dropout":0.2,
+    "recon_dropouut":0.2,
+    #'latent_fixed_var': 10.0,
+}
+
+param_string = "__".join([str(k)+"_"+str(v) for k,v in params.items()])
+
+
+
+
+
+m1 = model.Gmvae(**params)
+
 
 #m1.load_weights('model_w')
 
@@ -138,7 +161,7 @@ pretrain_with_clusters(
     X_test, y_test, 
     num=100, 
     samples=1,
-    epochs=10, 
+    epochs=5, 
     iter_train=1, 
     num_inference=1000, 
     save='model_w',
@@ -163,13 +186,20 @@ train_even(
     save='model_w',
     batch=True,
     temperature_function=lambda x: exponential_multiplicative_cooling(
-        x, 1., 0.5, 0.98),
+        x, 0.5, 0.5, 0.98),
     #temperature_function = lambda x: 0.1
     save_results='./gumble_results.txt'
 )
 
 
 
+#%% setup cooling for trainign loop constants
+
+#z_cooling = cooling.CyclicCoolingRegime(cooling.linear_cooling, 1e-1, 1, 25, 35)
+#y_cooling = cooling.CyclicCoolingRegime(cooling.linear_cooling, 10.0, 1.0, 25, 35)
+
+z_cooling = lambda: 1.0 
+y_cooling = lambda: 1.0
 
 
 #%% Train the model
@@ -186,9 +216,11 @@ train(
     save='model_w',
     batch=True,
     temperature_function=lambda x: exponential_multiplicative_cooling(
-        x, 1., 0.5, 0.98),
+        x, 0.5, .5, 0.98),
     #temperature_function = lambda x: 0.1
-    save_results='./gumble_results.txt'
+    save_results='./gumble_results.txt',
+    beta_z_method=z_cooling,
+    beta_y_method=y_cooling,
 )
 
 
@@ -285,20 +317,28 @@ latent_vectors = chain_call(m1.call, X_test, 1000)[5]
 # verify sklearn gaussian mixture?
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from matplotlib import pyplot as plt
+from sklearn.mixture import GaussianMixture
+
 pca = PCA(2)
+#pca = TSNE(2)
 X_pca = pca.fit_transform(latent_vectors)
-kmeans = KMeans(10)
+kmeans = GaussianMixture(10, tol=1e-6, max_iter = 1000)
 pred = kmeans.fit_predict(X_pca)
 print(purity_score(y_test, pred))
 
+#%%
 df_latent = pd.DataFrame({
     'x1':X_pca[:,0], 
     'x2':X_pca[:,1], 
-    'cat':['pred_{}'.format(i) for i in y_test]
+    'cat':['pred_{}'.format(i) for i in y_test],
+    'kmeans':['pred_{}'.format(i) for i in pred]
 })
 plt.figure(figsize=(10,10))
 sns.scatterplot(data=df_latent,x='x1',y='x2',hue='cat')
 
+plt.figure(figsize=(10,10))
+sns.scatterplot(data=df_latent,x='x1',y='x2',hue='kmeans')
 
 #%%
