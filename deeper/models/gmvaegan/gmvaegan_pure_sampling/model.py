@@ -79,6 +79,15 @@ class GmvaeGan(Model, Scope):
         optimizer=tf.keras.optimizers.SGD(0.001),
 
         connected_weights=True,
+
+        categorical_latent_embedding_dropout=0.0,
+        mixture_latent_mu_embedding_dropout=0.0,
+        mixture_latent_var_embedding_dropout=0.0,
+        mixture_posterior_mu_dropout=0.0,
+        mixture_posterior_var_dropout=0.0,
+        recon_dropouut=0.0,
+
+        latent_fixed_var=None,
     ):
         self.var_scope = 'gmvaegan'
         self.kind = kind
@@ -166,7 +175,16 @@ class GmvaeGan(Model, Scope):
             z_kl_lambda=z_kl_lambda,
             c_kl_lambda=c_kl_lambda,
             optimizer=optimizer,
-            connected_weights=connected_weights
+            connected_weights=connected_weights,
+
+            categorical_latent_embedding_dropout=categorical_latent_embedding_dropout,
+            mixture_latent_mu_embedding_dropout=mixture_latent_mu_embedding_dropout,
+            mixture_latent_var_embedding_dropout=mixture_latent_var_embedding_dropout,
+            mixture_posterior_mu_dropout=mixture_posterior_mu_dropout,
+            mixture_posterior_var_dropout=mixture_posterior_var_dropout,
+            recon_dropouut=recon_dropouut,
+
+            latent_fixed_var=latent_fixed_var,
         )
         self.descriminator = SigmoidEncoder(
             latent_dimension=1, 
@@ -192,6 +210,7 @@ class GmvaeGan(Model, Scope):
 
         # Sample from the generator
         (
+            q_g_x__logit
             qy_g_x__prob,
             qz_g_xy__sample,
             qz_g_xy__logprob,
@@ -209,7 +228,7 @@ class GmvaeGan(Model, Scope):
         # gmvae Loss parameters
         # y_entropy
         dkl_y = y_entropy = tf.reduce_sum(
-            qy_g_x__prob * (tf.math.log(py) - tf.math.log(qy_g_x__prob)),
+            qy_g_x__prob * (tf.math.log(py) - tf.nn.log_softmax(qy_g_x__logit)),
             axis=-1,
         )
 
@@ -240,6 +259,7 @@ class GmvaeGan(Model, Scope):
 
         return (
             py,
+            q_g_x__logit,
             qy_g_x__prob,
             qz_g_xy__sample,
             qz_g_xy__logprob,
@@ -296,6 +316,7 @@ class GmvaeGan(Model, Scope):
     def loss_fn(self, inputs, training=False, samples=1, temperature=1.0):
         (
             py,
+            q_g_x__logit,
             qy_g_x__prob,
             qz_g_xy__sample,
             qz_g_xy__logprob,
@@ -325,6 +346,7 @@ class GmvaeGan(Model, Scope):
     def entropy_fn(self, inputs, training=False, samples=1, temperature=1.0):
         (
             py,
+            q_g_x__logit,
             qy_g_x__prob,
             qz_g_xy__sample,
             qz_g_xy__logprob,
