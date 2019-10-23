@@ -200,7 +200,7 @@ class GmvaeGan(Model, Scope):
         )
 
 
-    def sample_one(self, x, training=False, temperature=1.0):
+    def sample_one(self, x, training=False, temperature=1.0, beta_z=1.0, beta_y=1.0):
 
         y_ = tf.cast(
             tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
@@ -233,7 +233,11 @@ class GmvaeGan(Model, Scope):
         )
 
         elbo = px_g_zy__logprob + dkl_z_g_xy + dkl_y
-        gmvae_loss = - elbo
+        gmvae_loss = - (
+            px_g_zy__logprob
+            + beta_z * dkl_z_g_xy
+            + beta_y * dkl_y
+        )
 
 
         # get the prob from the descriminator for the true distribution
@@ -286,9 +290,9 @@ class GmvaeGan(Model, Scope):
 
 
     @tf.function(experimental_relax_shapes=True)
-    def sample(self, samples, x, training=False, temperature=1.0):
+    def sample(self, samples, x, training=False, temperature=1.0, beta_z=1.0, beta_y=1.0):
         with tf.device("/gpu:0"):
-            result = [self.sample_one(x, training, temperature) for j in range(samples)]
+            result = [self.sample_one(x, training, temperature, beta_z, beta_y) for j in range(samples)]
             result_pivot = list(zip(*result))
         return result_pivot
 
@@ -300,20 +304,20 @@ class GmvaeGan(Model, Scope):
 
 
     @tf.function(experimental_relax_shapes=True)
-    def monte_carlo_estimate(self, samples, x, training=False, temperature=1.0):
+    def monte_carlo_estimate(self, samples, x, training=False, temperature=1.0, beta_z=1.0, beta_y=1.0):
         return [
             self.mc_stack_mean(z)
-            for z in self.sample(samples, x, training=False, temperature=temperature)
+            for z in self.sample(samples, x, training=False, temperature=temperature, beat_z=beta_z, beta_y=beta_y)
         ]
 
 
     @tf.function 
-    def call(self, x, training=False, samples=1, temperature=1.0):
-         return self.monte_carlo_estimate( samples, x, training, temperature)
+    def call(self, x, training=False, samples=1, temperature=1.0, beta_z=1.0, beta_y=1.0):
+         return self.monte_carlo_estimate( samples, x, training, temperature, beta_z, beta_y)
 
 
     @tf.function
-    def loss_fn(self, inputs, training=False, samples=1, temperature=1.0):
+    def loss_fn(self, inputs, training=False, samples=1, temperature=1.0, beta_z=1.0, beta_y=1.0):
         (
             py,
             q_g_x__logit,
@@ -339,11 +343,11 @@ class GmvaeGan(Model, Scope):
             descr__prob,
             descriminator_entropy,
             loss
-        ) = self.call(inputs, training, samples, temperature)
+        ) = self.call(inputs, training, samples, temperature, beat_z, beta_y)
 
         return loss
     
-    def entropy_fn(self, inputs, training=False, samples=1, temperature=1.0):
+    def entropy_fn(self, inputs, training=False, samples=1, temperature=1.0, beta_z=1.0, beta_y=1.0):
         (
             py,
             q_g_x__logit,
@@ -369,7 +373,7 @@ class GmvaeGan(Model, Scope):
             descr__prob,
             descriminator_entropy,
             loss
-        ) = self.call(inputs, training, samples, temperature)
+        ) = self.call(inputs, training, samples, temperature, beta_z, beta_y)
 
         return px_g_zy__logprob, dkl_z_g_xy, dkl_y, descriminator_entropy
 
@@ -380,7 +384,9 @@ class GmvaeGan(Model, Scope):
         samples=1, 
         tenorboard=False, 
         batch=False, 
-        temperature=1.0
+        temperature=1.0,
+        beta_z=1.0,
+        beta_y=1.0
     ):
 
         if tenorboard:
@@ -394,7 +400,7 @@ class GmvaeGan(Model, Scope):
         # Tensorflow dataset is iterable in eager mode
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
-                loss = tf.reduce_mean(self.loss_fn(x, True, samples, temperature))
+                loss = tf.reduce_mean(self.loss_fn(x, True, samples, temperature, beta_z, beta_y))
             # Update ops for batch normalization
             # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             # with tf.control_dependencies(update_ops):
