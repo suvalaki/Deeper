@@ -17,8 +17,8 @@ import io
 
 
 def plot_latent(latent_vectors, y_test, y_pred):
-    pca = PCA(2)
-    #pca = TSNE(2)
+    #pca = PCA(2)
+    pca = TSNE(2)
     X_pca = pca.fit_transform(latent_vectors)
     kmeans = GaussianMixture(10, tol=1e-6, max_iter = 1000)
     pred = kmeans.fit_predict(X_pca)
