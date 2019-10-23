@@ -199,7 +199,7 @@ class GmvaeGan(Model, Scope):
             latent_bias_initializer=descr_latent_bias_initializer,
         )
 
-
+    @tf.function
     def sample_one(self, x, training=False, temperature=1.0, beta_z=1.0, beta_y=1.0):
 
         y_ = tf.cast(
@@ -318,7 +318,7 @@ class GmvaeGan(Model, Scope):
 
     @tf.function
     def latent_sample(self, inputs, training=False, samples=1 ):
-        return self.gmvae.latent(inputs, training, samples)
+        return self.gmvae.latent_sample(inputs, training, samples)
 
 
     @tf.function
@@ -352,6 +352,7 @@ class GmvaeGan(Model, Scope):
 
         return loss
     
+    @tf.function
     def entropy_fn(self, inputs, training=False, samples=1, temperature=1.0, beta_z=1.0, beta_y=1.0):
         (
             py,
