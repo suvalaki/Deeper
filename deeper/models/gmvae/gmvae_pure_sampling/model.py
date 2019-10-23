@@ -366,6 +366,30 @@ class Gmvae(Model, Scope):
             mc_px_g_zy__prob,
         )
 
+
+    @tf.function
+    def latent_sample(self, inputs, training=False, samples=1 ):
+        (
+            py,
+            mc_qy_g_x__logit,
+            mc_qy_g_x__prob,
+            mc_qz_g_xy__sample,
+            mc_qz_g_xy__logprob,
+            mc_qz_g_xy__prob,
+            mc_pz_g_y__sample,
+            mc_pz_g_y__logprob,
+            mc_pz_g_y__prob,
+            mc_dkl_z_g_xy,
+            mc_px_g_zy__sample,
+            mc_px_g_zy__logprob,
+            mc_px_g_zy__prob,
+        ) = self.call(inputs, training=training, samples=samples)
+
+        latent = mc_pz_g_y__sample
+
+        return latent
+
+
     @tf.function 
     def call_even(self, x, training=False, samples=1):
 
