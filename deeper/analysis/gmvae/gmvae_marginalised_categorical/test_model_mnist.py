@@ -50,8 +50,8 @@ mnist = tf.keras.datasets.mnist
 X_train, X_test = X_train / 255.0, X_test / 255.0
 X_train = X_train.reshape(X_train.shape[0], 28 * 28)
 X_test = X_test.reshape(X_test.shape[0], 28 * 28)
-#X_train = (X_train > 0.5).astype(float)
-#X_test = (X_test > 0.5).astype(float)
+X_train = (X_train > 0.5).astype(float)
+X_test = (X_test > 0.5).astype(float)
 
 
 
@@ -70,25 +70,25 @@ lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
 params = {
     "components":len(set(y_train)),
     "input_dimension":X_train.shape[1],
-    "embedding_dimensions":[512, 512, ],
-    "latent_dimensions":256,
-    "mixture_embedding_dimensions":[512, 512, ],
-    "mixture_latent_dimensions":24,
+    "embedding_dimensions":[512, 512,  ],
+    "latent_dimensions":64,
+    "mixture_embedding_dimensions":[512, 512,],
+    "mixture_latent_dimensions":64,
     "embedding_activations":tf.nn.relu,
-    "kind":"regression",
+    "kind":"binary",
     "learning_rate":initial_learning_rate,
     "gradient_clip":1e10,
-    "bn_before":True,
+    "bn_before":False,
     "bn_after":False,
-    "categorical_epsilon":0.0,
-    "reconstruction_epsilon":0.0,
-    "latent_epsilon":0.0,
-    "latent_prior_epsilon":0.0,
+    "categorical_epsilon":1e-12,
+    "reconstruction_epsilon":1e-12,
+    "latent_epsilon":1e-12,
+    "latent_prior_epsilon":1e-12,
     "z_kl_lambda":1.0,
     "c_kl_lambda":1.0,
     "cat_latent_bias_initializer":None,
-    "optimizer":tf.keras.optimizers.Adam(1e-3, epsilon=1e-12),
-    "connected_weights": True,
+    "optimizer":tf.keras.optimizers.Adam(1e-3, epsilon=1e-16),
+    "connected_weights": False,
     #"optimizer":tf.keras.optimizers.SGD(
     #    1e-3, 
     #    #momentum=0.99
@@ -99,7 +99,7 @@ params = {
     "mixture_posterior_mu_dropout":0.2,
     "mixture_posterior_var_dropout":0.2,
     "recon_dropouut":0.2,
-    'latent_fixed_var': 1.0,
+    #'latent_fixed_var': 10.0,
 }
 
 param_string = "__".join([str(k)+"_"+str(v) for k,v in params.items()])

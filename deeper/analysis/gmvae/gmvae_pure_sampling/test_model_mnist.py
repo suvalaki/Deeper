@@ -1,7 +1,10 @@
 #%%
 
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+import logging, os
+
+logging.disable(logging.WARNING)
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 
 from pathlib import Path
 import tensorflow as tf
@@ -11,7 +14,6 @@ import json
 
 #tf.enable_eager_execution()
 
-tf.random.set_seed(1234)
 tf.keras.backend.set_floatx('float64')
 
 import numpy as np
@@ -27,6 +29,7 @@ from deeper.models.gmvae.gmvae_pure_sampling.train import (
     pretrain_with_clusters
 )
 from deeper.utils.cooling import exponential_multiplicative_cooling
+import deeper.utils.cooling as cooling
 
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.cluster import MiniBatchKMeans
@@ -64,9 +67,9 @@ X_test = X_test.reshape(X_test.shape[0], 28 * 28)
 X_train = (X_train > 0.5).astype(float)
 X_test = (X_test > 0.5).astype(float)
 
-y_ohe = OneHotEncoder()
-y_train_ohe = np.array(y_ohe.fit_transform(y_train.reshape(-1,1)).todense())
-y_test_ohe = np.array(y_ohe.transform(y_test.reshape(-1,1)).todense())
+#y_ohe = OneHotEncoder()
+#y_train_ohe = np.array(y_ohe.fit_transform(y_train.reshape(-1,1)).todense())
+#y_test_ohe = np.array(y_ohe.transform(y_test.reshape(-1,1)).todense())
 
 
 #%% Instantiate the model
@@ -75,15 +78,17 @@ from importlib import reload
 model = reload(model)
 
 
-initial_learning_rate = 1e-3
+initial_learning_rate = 1e-2
 lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
     initial_learning_rate,
-    decay_steps=1000,
-    decay_rate=0.8,
-    staircase=True)
+    decay_steps=5000,
+    decay_rate=0.5,
+    staircase=True
+)
 
+seed=12345
 
-
+tf.random.set_seed(seed)
 
 params = {
     "components":len(set(y_train)),
@@ -98,36 +103,35 @@ params = {
     "gradient_clip":None,
     "bn_before":False,
     "bn_after":False,
-    "categorical_epsilon":0.0,
+    "categorical_epsilon":1e-3,
     "reconstruction_epsilon":0.0,
     "latent_epsilon":0.0,
     "latent_prior_epsilon":0.0,
     "z_kl_lambda":1.0,
     "c_kl_lambda":1.0,
     "cat_latent_bias_initializer":None,
-    "optimizer":tf.keras.optimizers.Adam(initial_learning_rate),
-    "connected_weights": True,
-    #optimizer = tf.keras.optimizers.SGD(
-    #    initial_learning_rate, 
-    #    #momentum=0.1
-    #)
-
+    "connected_weights": False,
+    #"optimizer":tf.keras.optimizers.Adam(lr_schedule, epsilon=1e-16),
+    "optimizer": tf.keras.optimizers.SGD(
+        1e-2, 
+        momentum=0.9
+    ),
     "categorical_latent_embedding_dropout":0.2,
     "mixture_latent_mu_embedding_dropout":0.2,
     "mixture_latent_var_embedding_dropout":0.2,
     "mixture_posterior_mu_dropout":0.2,
     "mixture_posterior_var_dropout":0.2,
     "recon_dropouut":0.2,
-    #'latent_fixed_var': 10.0,
+    #'latent_fixed_var': 0.01,
 }
 
-param_string = "__".join([str(k)+"_"+str(v) for k,v in params.items()])
-
-
-
-
-
 m1 = model.Gmvae(**params)
+
+params['embedding_activations'] = "tanh"
+params["optimizer"] = "adam_1e-3_1e-9"
+
+param_string = "/seed__"+str(seed)+"/"+ "/".join([str(k)+"_"+str(v) for k,v in params.items()])
+
 
 
 #m1.load_weights('model_w')
@@ -155,41 +159,38 @@ confusion_matrix(y_test, np.argmax(m1.predict(X_test),1))
 
 
 #%% Pretrain the model with some known clusters
-pretrain_with_clusters(
-    m1, 
-    X_train, y_train, 
-    X_test, y_test, 
-    num=100, 
-    samples=1,
-    epochs=5, 
-    iter_train=1, 
-    num_inference=1000, 
-    save='model_w',
-)
+if False:
+    pretrain_with_clusters(
+        m1, 
+        X_train, y_train, 
+        X_test, y_test, 
+        num=100, 
+        samples=1,
+        epochs=5, 
+        iter_train=1, 
+        num_inference=1000, 
+        save='model_w',
+    )
 
 #%%
-import logging, os
-
-logging.disable(logging.WARNING)
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
-# Pretraining with even mixture losses
-train_even(
-    m1, 
-    X_train, y_train, 
-    X_test, y_test, 
-    num=100, 
-    samples=1,
-    epochs=10, 
-    iter_train=1, 
-    num_inference=1000, 
-    save='model_w',
-    batch=True,
-    temperature_function=lambda x: exponential_multiplicative_cooling(
-        x, 0.5, 0.5, 0.98),
-    #temperature_function = lambda x: 0.1
-    save_results='./gumble_results.txt'
-)
+if False:
+    # Pretraining with even mixture losses
+    train_even(
+        m1, 
+        X_train, y_train, 
+        X_test, y_test, 
+        num=100, 
+        samples=1,
+        epochs=10, 
+        iter_train=1, 
+        num_inference=1000, 
+        save='model_w_2',
+        batch=True,
+        temperature_function=lambda x: exponential_multiplicative_cooling(
+            x, 0.5, 0.5, 0.98),
+        #temperature_function = lambda x: 0.1
+        save_results='./gumble_results.txt'
+    )
 
 
 
@@ -198,7 +199,7 @@ train_even(
 #z_cooling = cooling.CyclicCoolingRegime(cooling.linear_cooling, 1e-1, 1, 25, 35)
 #y_cooling = cooling.CyclicCoolingRegime(cooling.linear_cooling, 10.0, 1.0, 25, 35)
 
-z_cooling = lambda: 1.0 
+z_cooling = lambda: 2.0 
 y_cooling = lambda: 1.0
 
 
@@ -210,17 +211,18 @@ train(
     X_test, y_test, 
     num=100, 
     samples=1,
-    epochs=1000, 
+    epochs=1500, 
     iter_train=1, 
     num_inference=1000, 
-    save='model_w',
+    save='model_w_5',
     batch=True,
     temperature_function=lambda x: exponential_multiplicative_cooling(
-        x, 0.5, .5, 0.98),
+        x, 1.0, .5, 0.95),
     #temperature_function = lambda x: 0.1
     save_results='./gumble_results.txt',
     beta_z_method=z_cooling,
     beta_y_method=y_cooling,
+    tensorboard='./logs/'+param_string+"/samples__"+str(1)
 )
 
 
@@ -310,7 +312,11 @@ plt.show()
 #%%
 # Plot the latent space
 
-latent_vectors = chain_call(m1.call, X_test, 1000)[5]
+latent_vectors = chain_call(
+    m1.latent_sample, 
+    X_test, 
+    1000
+)
 
 
 #%%
@@ -319,12 +325,12 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from matplotlib import pyplot as plt
-from sklearn.mixture import GaussianMixture
+from sklearn.mixture import BayesianGaussianMixture
 
 pca = PCA(2)
 #pca = TSNE(2)
 X_pca = pca.fit_transform(latent_vectors)
-kmeans = GaussianMixture(10, tol=1e-6, max_iter = 1000)
+kmeans = BayesianGaussianMixture(10, tol=1e-6, max_iter = 1000)
 pred = kmeans.fit_predict(X_pca)
 print(purity_score(y_test, pred))
 
