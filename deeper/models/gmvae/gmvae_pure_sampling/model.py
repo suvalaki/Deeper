@@ -243,8 +243,10 @@ class Gmvae(Model, Scope):
             px_g_zy__prob,
         )
 
-    @tf.function 
-    def sample_one_even(self, inputs, training=False):
+
+
+    @tf.function(experimental_relax_shapes=True)
+    def sample_one_even(self, inputs, training=False, temperature=0.5):
         x = inputs
 
         y_ = tf.cast(
@@ -252,10 +254,42 @@ class Gmvae(Model, Scope):
             dtype=x.dtype
         )
 
-        qy_g_x__prob = tf.cast(
-            tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
-            dtype=x.dtype
+        qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
+        qy_g_x_ohe = self.graph_qy_g_x_ohe(
+            qy_g_x__logit, 
+            temperature
         )
+
+        marginals = [self.marginal_autoencoder(
+                x, 
+                tf.add(
+                    y_,
+                    tf.constant(
+                        np.eye(self.k)[i],
+                        dtype=x.dtype,
+                        name="y_one_hot_{}".format(i),
+                    ),
+                    name="hot_at_{}".format(i),
+                ), training
+            )
+            for i in range(self.k)
+        ]
+        marginals_pivot = list(zip(*marginals))
+
+        elbos = [
+            marginals_pivot[8][i] + marginals_pivot[1][i] - marginals_pivot[4][i]
+            for i in range(self.k)
+        ]
+
+        best_idx = tf.clip_by_value(
+            tf.cast(
+                tf.one_hot(tf.math.argmax(elbos, axis=0),  depth=self.k),
+                x.dtype 
+            ),
+            np.log(1/self.k),
+            np.log(1-1/self.k)
+        )
+
 
         (
             qz_g_xy__sample,
@@ -268,11 +302,15 @@ class Gmvae(Model, Scope):
             px_g_zy__sample,
             px_g_zy__logprob,
             px_g_zy__prob,
-        ) = self.marginal_autoencoder(
-            x, y_, training
-        )
+        ) = [
+            self.mc_stack_mean(el) 
+            for el in marginals_pivot
+        ]
+
 
         return (
+            best_idx,
+            qy_g_x__logit,
             qy_g_x__prob,
             qz_g_xy__sample,
             qz_g_xy__logprob,
@@ -383,6 +421,7 @@ class Gmvae(Model, Scope):
             mc_px_g_zy__sample,
             mc_px_g_zy__logprob,
             mc_px_g_zy__prob,
+
         ) = self.call(inputs, training=training, samples=samples)
 
         latent = mc_pz_g_y__sample
@@ -400,6 +439,8 @@ class Gmvae(Model, Scope):
         py = tf.cast(tf.fill(tf.shape(y_), 1 / self.k, name="prob"), x.dtype)
 
         (
+            mc_best_idx,
+            mc_qy_g_x__logit,
             mc_qy_g_x__prob,
             mc_qz_g_xy__sample,
             mc_qz_g_xy__logprob,
@@ -418,7 +459,8 @@ class Gmvae(Model, Scope):
 
 
         return (
-            py,
+            mc_best_idx, #py
+            mc_qy_g_x__logit,
             mc_qy_g_x__prob,
             mc_qz_g_xy__sample,
             mc_qz_g_xy__logprob,
@@ -476,9 +518,10 @@ class Gmvae(Model, Scope):
         return -self.elbo(inputs, training, samples, temperature, beta_z, beta_y)
     
     @tf.function
-    def even_mixture_loss(self, inputs, training=False, samples=1):
+    def even_mixture_loss(self, inputs, training=False, samples=1, beta_z=1.0):
         (
             py,
+            qy_g_x__logit,
             qy_g_x,
             mc_qz_g_xy__sample,
             mc_qz_g_xy__logprob,
@@ -495,9 +538,18 @@ class Gmvae(Model, Scope):
         # reconstruction
         recon = mc_px_g_zy__logprob
         # z_entropy
-        z_entropy = mc_dkl_z_g_xy
+        z_entropy = beta_z * mc_dkl_z_g_xy
 
-        return -(recon + z_entropy)
+        # y_entropy
+        y_entropy = - tf.nn.softmax_cross_entropy_with_logits(
+            labels=py, logits=qy_g_x__logit
+        )
+        #tf.reduce_sum(
+        #    qy_g_x * (tf.math.log(py) - tf.nn.log_softmax(qy_g_x__logit)),
+        #    axis=-1,
+        #)
+
+        return -(recon + z_entropy + y_entropy)
 
     @tf.function#(autograph=False)
     def train_step(self, x, samples=1, tenorboard=False, batch=False, temperature=1.0, beta_z=1.0, beta_y=1.0):
@@ -555,7 +607,7 @@ class Gmvae(Model, Scope):
             )
 
     #@tf.function
-    def pretrain_step(self, x, samples=1, batch=False):
+    def pretrain_step(self, x, samples=1, batch=False, beta_z=1.0):
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
         target_vars = [
@@ -567,7 +619,7 @@ class Gmvae(Model, Scope):
                 #tape.watch(target_vars)
 
                 if batch:
-                    loss = tf.reduce_mean(self.even_mixture_loss(x, True, samples))
+                    loss = tf.reduce_mean(self.even_mixture_loss(x, True, samples, beta_z))
                 else:
                     loss = (self.even_mixture_loss(x, True, samples))
                 # Update ops for batch normalization
@@ -579,12 +631,15 @@ class Gmvae(Model, Scope):
                 gradients = [
                     None
                     if gradient is None
-                    #else tf.clip_by_value(
-                    #    gradient, -self.gradient_clip, self.gradient_clip
-                    #)
-                    else tf.clip_by_norm(
-                        gradient, self.gradient_clip
+                    else tf.clip_by_value(
+                        gradient, -self.gradient_clip, self.gradient_clip
                     )
+                    if self.gradient_clip is not None
+                    else 
+                    gradient
+                    #else tf.clip_by_norm(
+                    #    gradient, self.gradient_clip
+                    #)
                     for gradient in gradients
                 ]
 
