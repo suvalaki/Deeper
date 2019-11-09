@@ -7,6 +7,9 @@ import os
 
 from sklearn.preprocessing import OneHotEncoder
 
+from deeper.utils.tensorboard import plot_to_image
+from deeper.models.gmvae.utils import plot_latent
+
 def train(
     model, 
     X_train, 
@@ -22,20 +25,25 @@ def train(
     verbose=1, 
     save=None,
     temperature_function=None,
-    save_results=None
+    save_results=None,
+    beta_z_method=lambda: 1.0,
+    beta_y_method=lambda: 1.0,
+    tensorboard='./logs',
 ):
 
     #t1 = tqdm(total=epochs, position=0)
     #t2 = tqdm(total=int(X_train.shape[0] // num), position=1, leave=False)
 
+    summary_writer = tf.summary.create_file_writer(tensorboard)
+
     if save_results is not None:
 
         header_str = ((
-            "{:<10}\t{:<10}\t{:<10}\t{:<10}\t"
+            "{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t"
             "{:<10}\t{:<10}\t{:<10}\t{:<10}\t"
             "{:<10}\t{:<10}\t{:<10}"
             ).format(
-                "epoch",
+                "epoch","beta_z", "beta_y",
                 "loss",
                 "likelih",
                 "z-prior",
@@ -71,11 +79,23 @@ def train(
             .batch(num)
         )
 
+
+        iter = model.cooling_distance
+        beta_z = beta_z_method()
+        beta_y = beta_y_method()
         if temperature_function is not None:
-            temp = temperature_function(model.cooling_distance)
+            temp = temperature_function(iter)
 
         for x in dataset_train:
-            model.train_step(x,samples=samples, batch=batch, temperature=temp)
+            model.train_step(
+                # random sampling
+                tf.cast(tf.greater(tf.cast(x, tf.float64), tf.cast(tf.random.uniform(tf.shape(x), 0, 1), tf.float64)), tf.float64),
+                samples=samples, 
+                batch=batch, 
+                beta_z=beta_z, 
+                beta_y=beta_y,
+                temperature=temp
+            )
         
         #for i in range(iter):
         #    idx=np.random.choice(len(X_train), num)
@@ -85,7 +105,8 @@ def train(
 
         if i % verbose == 0:
             # Evaluate training metrics
-            recon, z_ent, y_ent = chain_call(model.entropy_fn, X_train, num_inference)
+            ##recon, z_ent, y_ent = chain_call(model.entropy_fn, X_train, num_inference)
+            recon, z_ent, y_ent = chain_call(model.entropy_fn, (X_train > 0.5).astype(float), num_inference)
 
             recon = np.array(recon).mean()
             z_ent = np.array(z_ent).mean()
@@ -112,11 +133,14 @@ def train(
             purity_test = purity_score(y_test, idx_te)
 
             value_str = (
-                "{:d}\t{:10.5f}\t{:10.5f}\t{:10.5f}\t{:10.5f}\t"
+                "{:d}\t{:10.5f}\t{:10.5f}\t"
+                "{:10.5f}\t{:10.5f}\t{:10.5f}\t{:10.5f}\t"
                 "{:10.5f}\t{:10.5f}\t"
                 "{:10.5f}\t{:10.5f}\t"
                 "{:10.2f}\t{:10.5f}".format(
                     int(model.cooling_distance),
+                    beta_z, 
+                    beta_y,
                     loss,
                     recon,
                     z_ent,
@@ -142,6 +166,37 @@ def train(
                 model.save_weights(save, save_format='tf')
 
             model.increment_cooling()
+
+
+            #plot latent space 
+            latent_vectors = chain_call(
+                model.latent_sample, 
+                X_test, 
+                num_inference
+            )
+            plt_latent_true  = plot_latent(
+                latent_vectors, 
+                y_test,
+                idx_te
+            )
+
+            with summary_writer.as_default():
+                tf.summary.scalar('beta_z', beta_z, step=iter)
+                tf.summary.scalar('beta_y', beta_y, step=iter)
+                tf.summary.scalar('loss', loss, step=iter)
+                tf.summary.scalar('likelihood', recon, step=iter)
+                tf.summary.scalar('z_prior_entropy', z_ent, step=iter)
+                tf.summary.scalar('y_prior_entropy', y_ent, step=iter)
+                tf.summary.scalar('ami_train', ami_tr, step=iter)
+                tf.summary.scalar('ami_test', ami_te, step=iter)
+                tf.summary.scalar('purity_train', purity_train, step=iter)
+                tf.summary.scalar('purity_test', purity_test, step=iter)
+                tf.summary.scalar('max_cluster_attachment_test', attch_te, step=iter)
+                tf.summary.scalar('beta_z', beta_z, step=iter)
+                tf.summary.image(
+                    "latent", plot_to_image(plt_latent_true), step=iter
+                )
+
 
         #t1.update(1)
         #t2.n = 0
