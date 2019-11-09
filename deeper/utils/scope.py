@@ -11,4 +11,4 @@ class Scope():
         pass
     
     def v_name(self, x):
-        return self.var_scope + '/' + x
+        return str(self.var_scope) + '/' + str(x)
