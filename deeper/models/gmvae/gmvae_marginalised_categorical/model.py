@@ -12,6 +12,9 @@ from deeper.probability_layers.normal import (
     lognormal_kl
 )
 from deeper.utils.scope import Scope
+from deeper.utils.function_helpers.decorators import inits_args
+from deeper.utils.function_helpers.collectors import get_local_tensors
+from deeper.utils.sampling import mc_stack_mean_dict
 from deeper.models.gmvae.marginalautoencoder import MarginalAutoEncoder
 
 tfk = tf.keras
@@ -20,6 +23,8 @@ Model = tfk.Model
 
 
 class Gmvae(Model, Scope):
+
+    @inits_args
     def __init__(
         self,
         components,
@@ -41,35 +46,35 @@ class Gmvae(Model, Scope):
         gradient_clip=None,
         var_scope='gmvae',
 
-        cat_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
-        cat_embedding_bias_initializer=tf.initializers.zeros(),
-        cat_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        cat_latent_bias_initializer=None,
+        cat_embedding_kernel_initializer="glorot_uniform",
+        cat_embedding_bias_initializer="zeros",
+        cat_latent_kernel_initialiazer="glorot_uniform",
+        cat_latent_bias_initializer="zeros",
 
-        latent_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
-        latent_mu_embedding_bias_initializer=tf.initializers.zeros(),
-        latent_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        latent_mu_latent_bias_initializer=tf.initializers.zeros(),
+        latent_mu_embedding_kernel_initializer="glorot_uniform",
+        latent_mu_embedding_bias_initializer="zeros",
+        latent_mu_latent_kernel_initialiazer="glorot_uniform",
+        latent_mu_latent_bias_initializer="zeros",
 
-        latent_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
-        latent_var_embedding_bias_initializer=tf.initializers.zeros(),
-        latent_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        latent_var_latent_bias_initializer=tf.initializers.zeros(),
+        latent_var_embedding_kernel_initializer="glorot_uniform",
+        latent_var_embedding_bias_initializer="zeros",
+        latent_var_latent_kernel_initialiazer="glorot_uniform",
+        latent_var_latent_bias_initializer="zeros",
 
-        posterior_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
-        posterior_mu_embedding_bias_initializer=tf.initializers.zeros(),
-        posterior_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        posterior_mu_latent_bias_initializer=tf.initializers.zeros(),
+        posterior_mu_embedding_kernel_initializer="glorot_uniform",
+        posterior_mu_embedding_bias_initializer="zeros",
+        posterior_mu_latent_kernel_initialiazer="glorot_uniform",
+        posterior_mu_latent_bias_initializer="zeros",
 
-        posterior_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
-        posterior_var_embedding_bias_initializer=tf.initializers.zeros(),
-        posterior_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        posterior_var_latent_bias_initializer=tf.initializers.zeros(),
+        posterior_var_embedding_kernel_initializer="glorot_uniform",
+        posterior_var_embedding_bias_initializer="zeros",
+        posterior_var_latent_kernel_initialiazer="glorot_uniform",
+        posterior_var_latent_bias_initializer="zeros",
 
-        recon_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
-        recon_embedding_bias_initializer=tf.initializers.zeros(),
-        recon_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        recon_latent_bias_initializer=tf.initializers.zeros(),
+        recon_embedding_kernel_initializer="glorot_uniform",
+        recon_embedding_bias_initializer="zeros",
+        recon_latent_kernel_initialiazer="glorot_uniform",
+        recon_latent_bias_initializer="zeros",
 
         z_kl_lambda=1.0,
         c_kl_lambda=1.0,
@@ -92,74 +97,52 @@ class Gmvae(Model, Scope):
         Model.__init__(self)
         Scope.__init__(self, var_scope)
 
-        self.kind = kind
-        self.k = components
-        self.in_dim = input_dimension
-        self.em_dim = embedding_dimensions
-        self.la_dim = latent_dimensions
-        self.em_act = embedding_activations
-
         self.mem_dim = (
             mixture_embedding_dimensions 
             if mixture_embedding_dimensions is not None
-            else self.em_dim
+            else self.embedding_dimensions
         )
         self.mem_act = (
             mixture_embedding_activations
             if mixture_embedding_activations is not None
-            else self.em_act
+            else self.embedding_activations
         )
         self.mem_lat = (
             mixture_latent_dimensions
             if mixture_latent_dimensions is not None 
-            else self.la_dim
+            else self.latent_dimensions
         )
 
-        self.bn_before = bn_before
-        self.bn_after = bn_after
-
-        self.cat_eps = categorical_epsilon
-        self.lat_eps = latent_epsilon
-        self.rec_eps = reconstruction_epsilon
-
-        self.kind = kind
-        self.gradient_clip = gradient_clip
-        self.learning_rate = learning_rate
         self.cooling_distance = 0
 
         if cat_latent_bias_initializer is None:
             cat_latent_bias_initializer = tf.initializers.constant(
-                np.log((1/self.k)/(1-1/self.k))
+                np.log((1/self.components)/(1-1/self.components))
             )
-        # instantiate all variables in the graph
 
-        self.z_kl_lambda = z_kl_lambda
-        self.c_kl_lambda = c_kl_lambda
-        # 
         with tf.name_scope('categorical'):
             self.graph_qy_g_x = CategoricalEncoder(
-                latent_dimension=self.k, 
-                embedding_dimensions=self.em_dim, 
-                embedding_activation=self.em_act,
+                latent_dimension=components, 
+                embedding_dimensions=embedding_dimensions, 
+                embedding_activation=embedding_activations,
                 var_scope=self.v_name('categorical_encoder'),
-                bn_before=self.bn_before,
-                bn_after=self.bn_after,
-                epsilon=self.cat_eps,
+                bn_before=bn_before,
+                bn_after=bn_after,
+                epsilon=categorical_epsilon,
                 embedding_kernel_initializer=cat_embedding_kernel_initializer,
                 embedding_bias_initializer=cat_embedding_bias_initializer,
                 latent_kernel_initialiazer=cat_latent_kernel_initialiazer,
                 latent_bias_initializer=cat_latent_bias_initializer,
                 embedding_dropout=categorical_latent_embedding_dropout
-
             )
             
 
         self.marginal_autoencoder = \
             MarginalAutoEncoder(
-                self.in_dim, self.mem_dim, self.mem_lat, kind=self.kind,
+                self.input_dimension, self.mem_dim, self.mem_lat, kind=self.kind,
                 var_scope=self.v_name('marginal_autoencoder'),
-                latent_epsilon=self.lat_eps,
-                reconstruction_epsilon=self.rec_eps,
+                latent_epsilon=self.latent_epsilon,
+                reconstruction_epsilon=self.reconstruction_epsilon,
                 embedding_activations=self.mem_act,
                 latent_prior_epsilon=latent_prior_epsilon,
 
@@ -199,7 +182,6 @@ class Gmvae(Model, Scope):
                 latent_fixed_var=latent_fixed_var,
             )
 
-        input_dropout=tf.keras.layers.Dropout(0.2)
 
         #self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
         self.optimizer = optimizer
@@ -209,74 +191,55 @@ class Gmvae(Model, Scope):
         self.cooling_distance += 1
 
 
-    @tf.function
+    #@tf.function
     def sample_one(self, inputs, training=False):
-        x = inputs
+        x = tf.cast(inputs, dtype=self.dtype)
 
+        x = tf.cast(tf.where(
+            tf.math.is_nan(x), 
+            tf.ones_like(x) * 0.0, 
+            x
+        ), dtype=self.dtype)
         #x = tf.cast(tf.greater(tf.cast(x,tf.float32), tf.random_uniform(tf.shape(x), 0, 1)), tf.float32)
         #Add random binarizer
 
         y_ = tf.cast(
-            tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
+            tf.fill(tf.stack([tf.shape(x)[0], self.components]), 0.0),
             x.dtype
         )
-        py = tf.cast(tf.fill((tf.shape(x)[0], self.k,), 1 / self.k, name="prob"), x.dtype)
-        qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
+        py = tf.cast(tf.fill((tf.shape(x)[0], self.components,), 1 / self.components, name="prob"), x.dtype)
+        qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training=training)
 
-        qz_g_xy__sample = [None] * self.k
-        qz_g_xy__logprob = [None] * self.k
-        qz_g_xy__prob = [None] * self.k
-
-        pz_g_y__sample = [None] * self.k
-        pz_g_y__logprob = [None] * self.k
-        pz_g_y__prob = [None] * self.k
-        dkl_z_g_xy = [None] * self.k
-
-        px_g_zy__sample = [None] * self.k
-        px_g_zy__logprob = [None] * self.k
-        px_g_zy__prob = [None] * self.k
-
-        for i in range(self.k):
+        mres = {} # marginal encoder results
+        for i in range(self.components):
             with tf.name_scope('mixture_{}'.format(i)):
                 y = tf.add(
                     y_,
                     tf.constant(
-                        np.eye(self.k)[i],
+                        np.eye(self.components)[i],
                         dtype=x.dtype,
                         name="y_one_hot_{}".format(i),
                     ),
                     name="hot_at_{}".format(i),
                 )
-
-                (
-                    qz_g_xy__sample[i],
-                    qz_g_xy__logprob[i],
-                    qz_g_xy__prob[i],
-                    pz_g_y__sample[i],
-                    pz_g_y__logprob[i],
-                    pz_g_y__prob[i],
-                    dkl_z_g_xy[i],
-                    px_g_zy__sample[i],
-                    px_g_zy__logprob[i],
-                    px_g_zy__prob[i],
-                ) = self.marginal_autoencoder(
-                    x, y, training
-                )
-
+                mres[i] = self.marginal_autoencoder(x, y, training)
+                
         # Losses
         # reconstruction
         recon = tf.add_n(
             [
-                qy_g_x__prob[:, i] * (px_g_zy__logprob[i])
-                for i in range(self.k)
+                qy_g_x__prob[:, i] * (mres[i]['px_g_zy__logprob'])
+                for i in range(self.components)
             ]
         )
 
         # z_entropy
         z_entropy = tf.add_n(
             [
-                qy_g_x__prob[:, i] * (dkl_z_g_xy[i])
-                for i in range(self.k)
+                qy_g_x__prob[:, i] * (
+                    mres[i]['pz_g_y__logprob'] - mres[i]['qz_g_xy__logprob']
+                )
+                for i in range(self.components)
             ]
         )
 
@@ -289,272 +252,51 @@ class Gmvae(Model, Scope):
                 labels=qy_g_x__prob
             )
         )
-        #tf.reduce_sum(
-        #    qy_g_x__prob * (tf.math.log(py) - tf.math.log(qy_g_x__prob)),
-        #    axis=-1,
-        #)
 
         # elbo
         elbo = recon + self.z_kl_lambda * z_entropy + self.c_kl_lambda * y_entropy
 
-        return (
-            qy_g_x__prob,
-            qz_g_xy__sample,
-            qz_g_xy__logprob,
-            qz_g_xy__prob,
-            pz_g_y__sample,
-            pz_g_y__logprob,
-            pz_g_y__prob,
-            dkl_z_g_xy,
-            px_g_zy__sample,
-            px_g_zy__logprob,
-            px_g_zy__prob,
-            recon,
-            z_entropy,
-            y_entropy,
-            elbo
-        )
-
-    @tf.function 
-    def sample_one_even(self, inputs, training=False):
-        x = inputs
-
-        y_ = tf.cast(
-            tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
-            x.dtype
-        )
-
-        qz_g_xy__sample = [None] * self.k
-        qz_g_xy__logprob = [None] * self.k
-        qz_g_xy__prob = [None] * self.k
-
-        pz_g_y__sample = [None] * self.k
-        pz_g_y__logprob = [None] * self.k
-        pz_g_y__prob = [None] * self.k
-        dkl_z_g_xy = [None] * self.k
-
-        px_g_zy__sample = [None] * self.k
-        px_g_zy__logprob = [None] * self.k
-        px_g_zy__prob = [None] * self.k
-
-        for i in range(self.k):
-            with tf.name_scope('mixture_{}'.format(i)):
-                y = tf.add(
-                    y_,
-                    tf.constant(
-                        np.eye(self.k)[i],
-                        dtype=x.dtype,
-                        name="y_one_hot_{}".format(i),
-                    ),
-                    name="hot_at_{}".format(i),
-                )
-
-                (
-                    qz_g_xy__sample[i],
-                    qz_g_xy__logprob[i],
-                    qz_g_xy__prob[i],
-                    pz_g_y__sample[i],
-                    pz_g_y__logprob[i],
-                    pz_g_y__prob[i],
-                    dkl_z_g_xy[i],
-                    px_g_zy__sample[i],
-                    px_g_zy__logprob[i],
-                    px_g_zy__prob[i],
-                ) = self.marginal_autoencoder(
-                    x, y, training
-                )
-
-        # Losses
-        # reconstruction
-        recon = tf.add_n(
-            [
-                qy_g_x[:, i] * (px_g_zy__logprob[i])
-                for i in range(self.k)
-            ]
-        )
-
-        # z_entropy
-        z_entropy = tf.add_n(
-            [
-                qy_g_x[:, i] * (pz_g_y__logprob[i] - qz_g_xy__logprob[i])
-                for i in range(self.k)
-            ]
-        )
-
-        # y_entropy
-        y_entropy = 0.0
-
-        # elbo
-        elbo = recon + z_entropy + y_entropy
-
-
-        return (
-            qz_g_xy__sample,
-            qz_g_xy__logprob,
-            qz_g_xy__prob,
-            pz_g_y__sample,
-            pz_g_y__logprob,
-            pz_g_y__prob,
-            dkl_z_g_xy,
-            px_g_zy__sample,
-            px_g_zy__logprob,
-            px_g_zy__prob,
-            recon,
-            z_entropy,
-            y_entropy,
-            elbo
-        )
+        output = {
+            'py': py ,
+            'qy_g_x__logit':qy_g_x__logit,
+            'qy_g_x__prob':qy_g_x__prob,
+            'recon':recon,
+            'z_entropy':z_entropy,
+            'y_entropy': y_entropy,
+            'autoencoder': mres
+        }
+        #return {**get_local_tensors(locals()), **{'autoencoder': mres}}
+        return output
 
 
     @tf.function(experimental_relax_shapes=True)
     def sample(self, samples, x, training=False):
         with tf.device("/gpu:0"):
             result = [self.sample_one(x, training) for j in range(samples)]
-            result_pivot = list(zip(*result))
-        return result_pivot
-
-
-    @staticmethod
-    @tf.function
-    def mc_stack_mean(x):
-        return tf.reduce_sum(tf.stack(x, 0), 0) / len(x)
+        return result
 
 
     @tf.function(experimental_relax_shapes=True)
     def monte_carlo_estimate(self, samples, x, training=False):
-        return [
-            self.mc_stack_mean(z)
-            for z in self.sample(samples, x, training=False)
-        ]
+        return mc_stack_mean_dict(self.sample(samples, x, training))
 
 
     @tf.function
     def call(self, x, training=False, samples=1):
-
-
-        y_ = tf.cast(
-            tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
-            dtype=x.dtype
-        )
-        py = tf.cast(tf.fill(tf.shape(y_), 1 / self.k, name="prob"), x.dtype)
-
-        (
-            mc_qy_g_x__prob,
-            mc_qz_g_xy__sample,
-            mc_qz_g_xy__logprob,
-            mc_qz_g_xy__prob,
-            mc_pz_g_y__sample,
-            mc_pz_g_y__logprob,
-            mc_pz_g_y__prob,
-            mc_dkl_z_g_xy,
-            mc_px_g_zy__sample,
-            mc_px_g_zy__logprob,
-            mc_px_g_zy__prob,
-            recon,
-            z_entropy,
-            y_entropy,
-            elbo
-        ) = self.monte_carlo_estimate(samples, x, training)
-
-
-        #recon = qy_g_x[:, i] * tf.cast(mc_px_g_zy__logprob
-
-
-        return (
-            py,                     #0
-            mc_qy_g_x__prob,        #1
-            mc_qz_g_xy__sample,     #2
-            mc_qz_g_xy__logprob,    #3
-            mc_qz_g_xy__prob,       #4
-            mc_pz_g_y__sample,      #5
-            mc_pz_g_y__logprob,     #6
-            mc_pz_g_y__prob,        #7
-            mc_dkl_z_g_xy,          #8
-            mc_px_g_zy__sample,     #9
-            mc_px_g_zy__logprob,    #10
-            mc_px_g_zy__prob,       #11
-            recon,                  #12
-            z_entropy,              #13
-            y_entropy,              #14
-            elbo                    #15
-        )
-
-    @tf.function 
-    def call_even(self, x, training=False, samples=1):
-
-        y_ = tf.cast(
-            tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
-            dtype=x.dtype
-        )
-        py = tf.cast(tf.fill(tf.shape(y_), 1/k, name="prob"), x.dtype)
-
-        (
-            mc_qy_g_x__prob,
-            mc_qz_g_xy__sample,
-            mc_qz_g_xy__logprob,
-            mc_qz_g_xy__prob,
-            mc_pz_g_y__sample,
-            mc_pz_g_y__logprob,
-            mc_pz_g_y__prob,
-            mc_dkl_z_g_xy,
-            mc_px_g_zy__sample,
-            mc_px_g_zy__logprob,
-            mc_px_g_zy__prob,
-            recon,
-            z_entropy,
-            y_entropy,
-            elbo
-        ) = self.monte_carlo_estimate_even(samples, x, training, )
-
-
-        #recon = qy_g_x[:, i] * tf.cast(mc_px_g_zy__logprob
-
-
-        return (
-            py,
-            mc_qy_g_x__prob,
-            mc_qz_g_xy__sample,
-            mc_qz_g_xy__logprob,
-            mc_qz_g_xy__prob,
-            mc_pz_g_y__sample,
-            mc_pz_g_y__logprob,
-            mc_pz_g_y__prob,
-            mc_dkl_z_g_xy,
-            mc_px_g_zy__sample,
-            mc_px_g_zy__logprob,
-            mc_px_g_zy__prob,
-            recon,
-            z_entropy,
-            y_entropy,
-            elbo
-        )
+        output = self.monte_carlo_estimate(samples, x, training)
+        return output
 
 
     @tf.function
     def latent_sample(self, inputs, training=False, samples=1 ):
-        (
-            py,
-            qy_g_x,
-            mc_qz_g_xy__sample,
-            mc_qz_g_xy__logprob,
-            mc_qz_g_xy__prob,
-            mc_pz_g_y__sample,
-            mc_pz_g_y__logprob,
-            mc_pz_g_y__prob,
-            mc_dkl_z_g_xy,
-            mc_px_g_zy__sample,
-            mc_px_g_zy__logprob,
-            mc_px_g_zy__prob,
-            recon,
-            z_entropy,
-            y_entropy,
-            elbo
-        ) = self.call(inputs, training=training, samples=samples)
+        vals = self.call(inputs, training=training, samples=samples)
 
         latent = tf.add_n(
             [
-                qy_g_x[:, i, None] * (mc_pz_g_y__sample[i])
-                for i in range(self.k)
+                vals['qy_g_x__prob'][:, i, None] * (
+                    vals['autoencoder'][i]['qz_g_xy__sample']
+                )
+                for i in range(self.components)
             ]
         )
 
@@ -563,35 +305,17 @@ class Gmvae(Model, Scope):
 
     @tf.function
     def entropy_fn(self, inputs, training=False, samples=1 ):
-        (
-            py,
-            qy_g_x,
-            mc_qz_g_xy__sample,
-            mc_qz_g_xy__logprob,
-            mc_qz_g_xy__prob,
-            mc_pz_g_y__sample,
-            mc_pz_g_y__logprob,
-            mc_pz_g_y__prob,
-            mc_dkl_z_g_xy,
-            mc_px_g_zy__sample,
-            mc_px_g_zy__logprob,
-            mc_px_g_zy__prob,
-            recon,
-            z_entropy,
-            y_entropy,
-            elbo
-        ) = self.call(inputs, training=training, samples=samples)
+        output = self.call(inputs, training=training, samples=samples)
+        return output['recon'], output['z_entropy'], output['y_entropy']
 
-        # elbo = recon + z_entropy + y_entropy
-        return recon, z_entropy, y_entropy
 
-    @tf.function#(autograph=False)
+    @tf.function
     def elbo(self, inputs, training=False, samples=1, beta_z=1.0, beta_y=1.0):
         recon, z_entropy, y_entropy = self.entropy_fn(inputs, training, samples)
         return recon + beta_z * z_entropy + beta_y * y_entropy
 
 
-    @tf.function#(autograph=False)
+    @tf.function
     def loss_fn(self, inputs, training=False, samples=1, beta_z=1.0, beta_y=1.0):
         return -self.elbo(inputs, training, samples, beta_z, beta_y)
     
@@ -685,7 +409,7 @@ class Gmvae(Model, Scope):
 
     @tf.function
     def predict(self, x, training=False):
-        qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
+        qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training=training)
         return qy_g_x__prob
 
 
@@ -695,7 +419,7 @@ class Gmvae(Model, Scope):
         nent = - tf.add_n(
             [
                 y[:,i] * (tf.math.log(qy_g_x__prob[:,i]) - tf.math.log(y[:,i]))
-                for i in range(self.k)
+                for i in range(self.components)
             ]
         )
         return nent

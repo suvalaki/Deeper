@@ -85,15 +85,16 @@ def train(
             idx_tr = chain_call(model.predict, X_train, num_inference).argmax(1)
             idx_te = chain_call(model.predict, X_test, num_inference).argmax(1)
 
+            
             ami_tr = adjusted_mutual_info_score(
                 y_train, idx_tr, average_method="arithmetic"
-            )
+            ) if y_train is not None else 0.0
             ami_te = adjusted_mutual_info_score(
                 y_test, idx_te, average_method="arithmetic"
-            )
+            ) if y_train is not None else 0.0
 
-            purity_train = purity_score(y_train, idx_tr)
-            purity_test = purity_score(y_test, idx_te)
+            purity_train = purity_score(y_train, idx_tr) if y_train is not None else 0.0
+            purity_test = purity_score(y_test, idx_te) if y_test is not None else 0.0
 
             attch_te = (
                 np.array(np.unique(idx_te, return_counts=True)[1]).max()
@@ -114,16 +115,17 @@ def train(
                 model.save_weights(save, save_format='tf')
 
             #plot latent space 
-            latent_vectors = chain_call(
-                model.latent_sample, 
-                X_test, 
-                num_inference
-            )
-            plt_latent_true  = plot_latent(
-                latent_vectors, 
-                y_test,
-                idx_te
-            )
+            if y_test is not None:
+                latent_vectors = chain_call(
+                    model.latent_sample, 
+                    X_test, 
+                    num_inference
+                ) 
+                plt_latent_true  = plot_latent(
+                    latent_vectors, 
+                    y_test,
+                    idx_te
+                ) 
 
             with summary_writer.as_default():
                 tf.summary.scalar('beta_z', beta_z, step=iter)
@@ -138,9 +140,10 @@ def train(
                 tf.summary.scalar('purity_test', purity_test, step=iter)
                 tf.summary.scalar('max_cluster_attachment_test', attch_te, step=iter)
                 tf.summary.scalar('beta_z', beta_z, step=iter)
-                tf.summary.image(
-                    "latent", plot_to_image(plt_latent_true), step=iter
-                )
+                if y_test is not None:
+                    tf.summary.image(
+                        "latent", plot_to_image(plt_latent_true), step=iter
+                    )
 
         #t1.update(1)
         #t2.n = 0

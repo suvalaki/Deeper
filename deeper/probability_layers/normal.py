@@ -141,7 +141,7 @@ class RandomNormalEncoder(Layer, Scope):
         var = tf.exp(logvar, name=self.v_name('var'))
 
         if self.fixed_var is not None:
-            var = tf.cast(tf.fill(tf.shape(mu), self.fixed_var), mu.dtype)
+            var = tf.cast(tf.fill(tf.shape(mu), self.fixed_var), inputs.dtype)
             logvar = tf.math.log(var)
 
         return mu, logvar, var
@@ -243,7 +243,7 @@ class RandomNormalEncoder(Layer, Scope):
         #)
 
         kernel = - 0.5 * (
-            tf.math.log(2 * tf.cast(np.pi, mu.dtype)) 
+            tf.math.log(2 * tf.cast(np.pi, x.dtype)) 
             + tf.math.log(var) 
             + tf.math.divide_no_nan(tf.square(x - mu), var)
         )
