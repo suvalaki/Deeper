@@ -6,5 +6,5 @@ def get_local_tensors(x):
     function is intended to to be used as the return of internal tfk.Model 
     call methods.
     """
-    tensors = {k:v for k,v in x.items() if tf.is_tensor(v) }
+    tensors = {k: v for k, v in x.items() if tf.is_tensor(v)}
     return tensors

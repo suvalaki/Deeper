@@ -1,4 +1,3 @@
-
 from itertools import chain
 from itertools import islice
 
@@ -10,8 +9,9 @@ class NestedDict(dict):
 
     Allows data access via extended slice notation.                           
     """
+
     def __getitem__(self, keys):
-        # Let's assume *keys* is a list or tuple.                             
+        # Let's assume *keys* is a list or tuple.
         if not isinstance(keys, str):
             try:
                 node = self
@@ -19,14 +19,15 @@ class NestedDict(dict):
                     node = dict.__getitem__(node, key)
                 return node
             except TypeError:
-            # *keys* is not a list or tuple.                              
+                # *keys* is not a list or tuple.
                 pass
         try:
             return dict.__getitem__(self, keys)
         except KeyError:
             raise KeyError(keys)
+
     def __setitem__(self, keys, value):
-        # Let's assume *keys* is a list or tuple.                             
+        # Let's assume *keys* is a list or tuple.
         if not isinstance(keys, str):
             try:
                 node = self
@@ -38,7 +39,7 @@ class NestedDict(dict):
                         node = node[key]
                 return dict.__setitem__(node, keys[-1], value)
             except TypeError:
-                # *keys* is not a list or tuple.                              
+                # *keys* is not a list or tuple.
                 pass
         dict.__setitem__(self, keys, value)
 
@@ -51,4 +52,3 @@ def iter_leafs(d, keys=[], types=[]):
             yield from iter_leafs(val, keys + [key], types + [type(val)])
         else:
             yield keys + [key], types + [type(val)], val
-

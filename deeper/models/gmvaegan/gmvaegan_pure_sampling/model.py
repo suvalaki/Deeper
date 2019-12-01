@@ -14,6 +14,7 @@ tfk = tf.keras
 
 Model = tfk.Model
 
+
 class GmvaeGan(Model, Scope):
     def __init__(
         self,
@@ -35,61 +36,48 @@ class GmvaeGan(Model, Scope):
         kind="binary",
         learning_rate=0.01,
         gradient_clip=None,
-        var_scope='gmvaegan',
-
+        var_scope="gmvaegan",
         descr_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         descr_embedding_bias_initializer=tf.initializers.zeros(),
         descr_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         descr_latent_bias_initializer=tf.initializers.zeros(),
-
-
         cat_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         cat_embedding_bias_initializer=tf.initializers.zeros(),
         cat_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         cat_latent_bias_initializer=None,
-
         latent_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         latent_mu_embedding_bias_initializer=tf.initializers.zeros(),
         latent_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         latent_mu_latent_bias_initializer=tf.initializers.zeros(),
-
         latent_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         latent_var_embedding_bias_initializer=tf.initializers.zeros(),
         latent_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         latent_var_latent_bias_initializer=tf.initializers.constant(1.0),
-
         posterior_mu_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         posterior_mu_embedding_bias_initializer=tf.initializers.zeros(),
         posterior_mu_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         posterior_mu_latent_bias_initializer=tf.initializers.zeros(),
-
         posterior_var_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         posterior_var_embedding_bias_initializer=tf.initializers.zeros(),
         posterior_var_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         posterior_var_latent_bias_initializer=tf.initializers.constant(1.0),
-
         recon_embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         recon_embedding_bias_initializer=tf.initializers.zeros(),
         recon_latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         recon_latent_bias_initializer=tf.initializers.zeros(),
-
         z_kl_lambda=1.0,
         c_kl_lambda=1.0,
-
         optimizer=tf.keras.optimizers.SGD(0.001),
-
         connected_weights=True,
-
         categorical_latent_embedding_dropout=0.0,
         mixture_latent_mu_embedding_dropout=0.0,
         mixture_latent_var_embedding_dropout=0.0,
         mixture_posterior_mu_dropout=0.0,
         mixture_posterior_var_dropout=0.0,
         recon_dropouut=0.0,
-
         latent_fixed_var=None,
     ):
-        self.var_scope = 'gmvaegan'
+        self.var_scope = "gmvaegan"
         self.kind = kind
         self.k = components
         self.in_dim = input_dimension
@@ -98,7 +86,7 @@ class GmvaeGan(Model, Scope):
         self.em_act = embedding_activations
 
         self.mem_dim = (
-            mixture_embedding_dimensions 
+            mixture_embedding_dimensions
             if mixture_embedding_dimensions is not None
             else self.em_dim
         )
@@ -109,7 +97,7 @@ class GmvaeGan(Model, Scope):
         )
         self.mem_lat = (
             mixture_latent_dimensions
-            if mixture_latent_dimensions is not None 
+            if mixture_latent_dimensions is not None
             else self.la_dim
         )
 
@@ -128,7 +116,6 @@ class GmvaeGan(Model, Scope):
 
         Model.__init__(self)
         Scope.__init__(self, var_scope)
-        
 
         self.gmvae = Gmvae(
             components=components,
@@ -147,7 +134,7 @@ class GmvaeGan(Model, Scope):
             kind=kind,
             learning_rate=learning_rate,
             gradient_clip=gradient_clip,
-            var_scope=self.v_name('gmvae'),
+            var_scope=self.v_name("gmvae"),
             cat_embedding_kernel_initializer=cat_embedding_kernel_initializer,
             cat_embedding_bias_initializer=cat_embedding_bias_initializer,
             cat_latent_kernel_initialiazer=cat_latent_kernel_initialiazer,
@@ -176,20 +163,18 @@ class GmvaeGan(Model, Scope):
             c_kl_lambda=c_kl_lambda,
             optimizer=optimizer,
             connected_weights=connected_weights,
-
             categorical_latent_embedding_dropout=categorical_latent_embedding_dropout,
             mixture_latent_mu_embedding_dropout=mixture_latent_mu_embedding_dropout,
             mixture_latent_var_embedding_dropout=mixture_latent_var_embedding_dropout,
             mixture_posterior_mu_dropout=mixture_posterior_mu_dropout,
             mixture_posterior_var_dropout=mixture_posterior_var_dropout,
             recon_dropouut=recon_dropouut,
-
             latent_fixed_var=latent_fixed_var,
         )
         self.descriminator = SigmoidEncoder(
-            latent_dimension=1, 
-            embedding_dimensions=descriminator_dimensions, 
-            var_scope=self.v_name('graph_descriminator'),
+            latent_dimension=1,
+            embedding_dimensions=descriminator_dimensions,
+            var_scope=self.v_name("graph_descriminator"),
             bn_before=bn_before,
             bn_after=bn_after,
             epsilon=0.0,
@@ -200,11 +185,12 @@ class GmvaeGan(Model, Scope):
         )
 
     @tf.function
-    def sample_one(self, x, training=False, temperature=1.0, beta_z=1.0, beta_y=1.0):
+    def sample_one(
+        self, x, training=False, temperature=1.0, beta_z=1.0, beta_y=1.0
+    ):
 
         y_ = tf.cast(
-            tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0),
-            dtype=x.dtype
+            tf.fill(tf.stack([tf.shape(x)[0], self.k]), 0.0), dtype=x.dtype
         )
         py = tf.cast(tf.fill(tf.shape(y_), 1 / self.k, name="prob"), x.dtype)
 
@@ -224,39 +210,32 @@ class GmvaeGan(Model, Scope):
             px_g_zy__prob,
         ) = self.gmvae.sample_one(x, training, temperature)
 
-
         # gmvae Loss parameters
         # y_entropy
         dkl_y = y_entropy = tf.reduce_sum(
-            qy_g_x__prob * (tf.math.log(py) - tf.nn.log_softmax(qy_g_x__logit)),
+            qy_g_x__prob
+            * (tf.math.log(py) - tf.nn.log_softmax(qy_g_x__logit)),
             axis=-1,
         )
 
         elbo = px_g_zy__logprob + dkl_z_g_xy + dkl_y
-        gmvae_loss = - (
-            px_g_zy__logprob
-            + beta_z * dkl_z_g_xy
-            + beta_y * dkl_y
-        )
-
+        gmvae_loss = -(px_g_zy__logprob + beta_z * dkl_z_g_xy + beta_y * dkl_y)
 
         # get the prob from the descriminator for the true distribution
         (
             descr_true__sample,
             descr_true__logprob,
-            descr_true__prob
+            descr_true__prob,
         ) = self.descriminator.call(x, training)
 
         # get the prob from the descriminator for the true distribution
-        (
-            descr__sample,
-            descr__logprob,
-            descr__prob
-        ) = self.descriminator.call(px_g_zy__sample, training)
+        (descr__sample, descr__logprob, descr__prob) = self.descriminator.call(
+            px_g_zy__sample, training
+        )
 
         # desciminator loss
-        descriminator_entropy = (
-            descr_true__logprob + tf.math.log(1-descr__prob)
+        descriminator_entropy = descr_true__logprob + tf.math.log(
+            1 - descr__prob
         )
 
         loss = tf.reduce_mean(gmvae_loss - descriminator_entropy, axis=-1)
@@ -285,44 +264,82 @@ class GmvaeGan(Model, Scope):
             descr__logprob,
             descr__prob,
             descriminator_entropy,
-            loss
+            loss,
         )
 
-
     @tf.function(experimental_relax_shapes=True)
-    def sample(self, samples, x, training=False, temperature=1.0, beta_z=1.0, beta_y=1.0):
+    def sample(
+        self,
+        samples,
+        x,
+        training=False,
+        temperature=1.0,
+        beta_z=1.0,
+        beta_y=1.0,
+    ):
         with tf.device("/gpu:0"):
-            result = [self.sample_one(x, training, temperature, beta_z, beta_y) for j in range(samples)]
+            result = [
+                self.sample_one(x, training, temperature, beta_z, beta_y)
+                for j in range(samples)
+            ]
             result_pivot = list(zip(*result))
         return result_pivot
-
 
     @staticmethod
     @tf.function
     def mc_stack_mean(x):
         return tf.reduce_sum(tf.stack(x, 0), 0) / len(x)
 
-
     @tf.function(experimental_relax_shapes=True)
-    def monte_carlo_estimate(self, samples, x, training=False, temperature=1.0, beta_z=1.0, beta_y=1.0):
+    def monte_carlo_estimate(
+        self,
+        samples,
+        x,
+        training=False,
+        temperature=1.0,
+        beta_z=1.0,
+        beta_y=1.0,
+    ):
         return [
             self.mc_stack_mean(z)
-            for z in self.sample(samples, x, training=False, temperature=temperature, beta_z=beta_z, beta_y=beta_y)
+            for z in self.sample(
+                samples,
+                x,
+                training=False,
+                temperature=temperature,
+                beta_z=beta_z,
+                beta_y=beta_y,
+            )
         ]
 
-
-    @tf.function 
-    def call(self, x, training=False, samples=1, temperature=1.0, beta_z=1.0, beta_y=1.0):
-         return self.monte_carlo_estimate( samples, x, training, temperature, beta_z, beta_y)
-
+    @tf.function
+    def call(
+        self,
+        x,
+        training=False,
+        samples=1,
+        temperature=1.0,
+        beta_z=1.0,
+        beta_y=1.0,
+    ):
+        return self.monte_carlo_estimate(
+            samples, x, training, temperature, beta_z, beta_y
+        )
 
     @tf.function
-    def latent_sample(self, inputs, training=False, samples=1 ):
+    def latent_sample(self, inputs, training=False, samples=1):
         return self.gmvae.latent_sample(inputs, training, samples)
 
-
     @tf.function
-    def loss_fn(self, inputs, training=False, samples=1, temperature=1.0, beta_z=1.0, beta_y=1.0):
+    def loss_fn(
+        self,
+        inputs,
+        training=False,
+        samples=1,
+        temperature=1.0,
+        beta_z=1.0,
+        beta_y=1.0,
+    ):
         (
             py,
             qy_g_x__logit,
@@ -347,13 +364,21 @@ class GmvaeGan(Model, Scope):
             descr__logprob,
             descr__prob,
             descriminator_entropy,
-            loss
+            loss,
         ) = self.call(inputs, training, samples, temperature, beta_z, beta_y)
 
         return loss
-    
+
     @tf.function
-    def entropy_fn(self, inputs, training=False, samples=1, temperature=1.0, beta_z=1.0, beta_y=1.0):
+    def entropy_fn(
+        self,
+        inputs,
+        training=False,
+        samples=1,
+        temperature=1.0,
+        beta_z=1.0,
+        beta_y=1.0,
+    ):
         (
             py,
             qy_g_x__logit,
@@ -378,35 +403,36 @@ class GmvaeGan(Model, Scope):
             descr__logprob,
             descr__prob,
             descriminator_entropy,
-            loss
+            loss,
         ) = self.call(inputs, training, samples, temperature, beta_z, beta_y)
 
         return px_g_zy__logprob, dkl_z_g_xy, dkl_y, descriminator_entropy
 
     @tf.function
     def train_step(
-        self, 
-        x, 
-        samples=1, 
-        tenorboard=False, 
-        batch=False, 
+        self,
+        x,
+        samples=1,
+        tenorboard=False,
+        batch=False,
         temperature=1.0,
         beta_z=1.0,
-        beta_y=1.0
+        beta_y=1.0,
     ):
 
         if tenorboard:
             current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-            train_log_dir = 'logs/gradient_tape/train'
+            train_log_dir = "logs/gradient_tape/train"
 
             writer = tf.summary.create_file_writer(train_log_dir)
-
 
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
         with tf.device("/gpu:0"):
             with tf.GradientTape() as tape:
-                loss = tf.reduce_mean(self.loss_fn(x, True, samples, temperature, beta_z, beta_y))
+                loss = tf.reduce_mean(
+                    self.loss_fn(x, True, samples, temperature, beta_z, beta_y)
+                )
             # Update ops for batch normalization
             # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             # with tf.control_dependencies(update_ops):
@@ -421,20 +447,30 @@ class GmvaeGan(Model, Scope):
                 else tf.clip_by_value(
                     gradient, -self.gradient_clip, self.gradient_clip
                 )
-                #else tf.clip_by_norm(
+                # else tf.clip_by_norm(
                 #    gradient, self.gradient_clip
-                #)
+                # )
                 for gradient in gradients
             ]
 
             if tenorboard:
                 with writer.as_default():
-                    for gradient, variable in zip(gradients, self.trainable_variables):
+                    for gradient, variable in zip(
+                        gradients, self.trainable_variables
+                    ):
                         steps = steps + 1
                         tf.summary.experimental.set_step(steps)
                         stp = tf.summary.experimental.get_step()
-                        tf.summary.histogram("gradients/" + variable.name, tf.nn.l2_normalize(gradient), step=stp)
-                        tf.summary.histogram("variables/" + variable.name, tf.nn.l2_normalize(variable), step=stp)
+                        tf.summary.histogram(
+                            "gradients/" + variable.name,
+                            tf.nn.l2_normalize(gradient),
+                            step=stp,
+                        )
+                        tf.summary.histogram(
+                            "variables/" + variable.name,
+                            tf.nn.l2_normalize(variable),
+                            step=stp,
+                        )
                     writer.flush()
 
         with tf.device("/gpu:0"):
@@ -449,4 +485,3 @@ class GmvaeGan(Model, Scope):
 
     def increment_cooling(self):
         self.cooling_distance += 1
-

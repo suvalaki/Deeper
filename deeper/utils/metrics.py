@@ -1,5 +1,7 @@
+from tensorflow import Tensor
 import numpy as np
 from sklearn import metrics
+
 
 def purity_score(y_true, y_pred):
     # compute contingency matrix (also called confusion matrix)

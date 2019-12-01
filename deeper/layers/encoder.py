@@ -1,24 +1,25 @@
-import tensorflow as tf 
-import numpy as np 
+import tensorflow as tf
+import numpy as np
 from deeper.utils.scope import Scope
 
 tfk = tf.keras
 Layer = tfk.layers.Layer
 
+
 class Encoder(Layer, Scope):
     def __init__(
-        self, 
-        latent_dim, 
-        embedding_dimensions, 
+        self,
+        latent_dim,
+        embedding_dimensions,
         activation,
-        var_scope='encoder', 
+        var_scope="encoder",
         bn_before=False,
         bn_after=False,
         embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         embedding_bias_initializer=tf.initializers.zeros(),
         latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         latent_bias_initializer=tf.initializers.zeros(),
-        embedding_dropout=0.0
+        embedding_dropout=0.0,
     ):
         Layer.__init__(self)
         Scope.__init__(self, var_scope)
@@ -35,7 +36,7 @@ class Encoder(Layer, Scope):
         self.dropout_rate = embedding_dropout
         self.dropout = []
 
-        for i,em in enumerate(self.em_dim):
+        for i, em in enumerate(self.em_dim):
             self.embeddings.append(
                 tfk.layers.Dense(
                     units=em,
@@ -43,15 +44,15 @@ class Encoder(Layer, Scope):
                     use_bias=True,
                     kernel_initializer=embedding_kernel_initializer,
                     bias_initializer=embedding_bias_initializer,
-                    name=self.v_name('embedding_{}_dense'.format(i))
+                    name=self.v_name("embedding_{}_dense".format(i)),
                 )
             )
             if self.bn_before:
                 self.embeddings_bn_before.append(
                     tfk.layers.BatchNormalization(
-                        axis=-1, 
-                        name=self.v_name('embedding_{}_bn_before'.format(i)),
-                        renorm=True
+                        axis=-1,
+                        name=self.v_name("embedding_{}_bn_before".format(i)),
+                        renorm=True,
                     )
                 )
             else:
@@ -61,21 +62,18 @@ class Encoder(Layer, Scope):
                 self.embeddings_bn_after.append(
                     tfk.layers.BatchNormalization(
                         axis=-1,
-                        name=self.v_name('embedding_{}_bn_after'.format(i)),
-                        renorm=True
+                        name=self.v_name("embedding_{}_bn_after".format(i)),
+                        renorm=True,
                     )
                 )
             else:
                 self.embeddings_bn_after.append(None)
 
             if self.dropout_rate > 0.0:
-                self.dropout.append(
-                    tfk.layers.Dropout(self.dropout_rate)
-                )
+                self.dropout.append(tfk.layers.Dropout(self.dropout_rate))
 
         self.latent_bn = tfk.layers.BatchNormalization(
-            axis=-1, 
-            name=self.v_name('latent_bn')
+            axis=-1, name=self.v_name("latent_bn")
         )
         self.latent = tfk.layers.Dense(
             units=self.latent_dim,
@@ -83,7 +81,7 @@ class Encoder(Layer, Scope):
             use_bias=True,
             kernel_initializer=latent_kernel_initialiazer,
             bias_initializer=latent_bias_initializer,
-            name=self.v_name('latent_dense')
+            name=self.v_name("latent_dense"),
         )
 
     @tf.function
@@ -91,10 +89,10 @@ class Encoder(Layer, Scope):
         """Define the computational flow"""
         x = inputs
         for em, bnb, bna, drp in zip(
-            self.embeddings, 
-            self.embeddings_bn_before, 
+            self.embeddings,
+            self.embeddings_bn_before,
             self.embeddings_bn_after,
-            self.dropout
+            self.dropout,
         ):
             x = em(x)
             if self.bn_before:
@@ -106,4 +104,3 @@ class Encoder(Layer, Scope):
                 x = drp(x, training=training)
         x = self.latent(x)
         return x
-

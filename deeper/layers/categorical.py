@@ -2,19 +2,21 @@ import tensorflow as tf
 from tensorflow.keras import initializers
 
 from deeper.layers.encoder import Encoder
-#from deeper.layers.conv2d_encoder import Conv2dEncoder, Conv2dDecoder
+
+# from deeper.layers.conv2d_encoder import Conv2dEncoder, Conv2dDecoder
 from deeper.utils.scope import Scope
 from deeper.utils.function_helpers.decorators import inits_args
 
 Layer = tf.keras.layers.Layer
 
+
 class CategoricalEncoder(Layer, Scope):
     def __init__(
-        self, 
-        latent_dimension, 
-        embedding_dimensions, 
+        self,
+        latent_dimension,
+        embedding_dimensions,
         embedding_activation=tf.nn.relu,
-        var_scope='cat_encoder',
+        var_scope="cat_encoder",
         bn_before=False,
         bn_after=False,
         epsilon=0.0,
@@ -22,7 +24,7 @@ class CategoricalEncoder(Layer, Scope):
         embedding_bias_initializer=tf.initializers.zeros(),
         latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         latent_bias_initializer=tf.initializers.zeros(),
-        embedding_dropout=0.0
+        embedding_dropout=0.0,
     ):
         Layer.__init__(self)
         Scope.__init__(self, var_scope)
@@ -38,16 +40,15 @@ class CategoricalEncoder(Layer, Scope):
             latent_dim=self.latent_dimension,
             embedding_dimensions=self.embedding_dimensions,
             activation=self.embedding_activation,
-            var_scope=self.v_name('logits_encoder'), 
+            var_scope=self.v_name("logits_encoder"),
             bn_before=self.bn_before,
             bn_after=self.bn_after,
             embedding_kernel_initializer=embedding_kernel_initializer,
             embedding_bias_initializer=embedding_bias_initializer,
             latent_kernel_initialiazer=latent_kernel_initialiazer,
             latent_bias_initializer=latent_bias_initializer,
-            embedding_dropout=embedding_dropout
+            embedding_dropout=embedding_dropout,
         )
-
 
     @tf.function
     def call_logits(self, inputs, training=False):
@@ -55,38 +56,38 @@ class CategoricalEncoder(Layer, Scope):
         if self.epsilon > 0.0:
             maxval = np.log(1.0 - self.epsilon) - np.log(self.epsilon)
             logits = tf.compat.v2.clip_by_value(
-                logits, -maxval, maxval, self.v_name("clipped"))
+                logits, -maxval, maxval, self.v_name("clipped")
+            )
         return logits
 
     @tf.function
     def _prob(self, logits):
-        prob = tf.nn.softmax(logits, axis=-1, name='prob')
+        prob = tf.nn.softmax(logits, axis=-1, name="prob")
         if self.epsilon > 0.0:
             prob = tf.compat.v2.clip_by_value(
-                prob, self.epsilon, 1-self.epsilon, self.v_name('prob_clipepd')
+                prob,
+                self.epsilon,
+                1 - self.epsilon,
+                self.v_name("prob_clipepd"),
             )
         return prob
 
-    @tf.function 
+    @tf.function
     def call(self, inputs, y=None, training=False, return_dict=False):
         logits = self.logits_encoder(inputs, training)
         probs = self._prob(logits)
         if y is not None:
             ent = tf.nn.softmax_cross_entropy_with_logits(
-                labels=y, 
-                logits=logits, 
-                name='entropy'
+                labels=y, logits=logits, name="entropy"
             )
         else:
             ent = tf.nn.softmax_cross_entropy_with_logits(
-                labels=probs, 
-                logits=logits, 
-                name='entropy'
+                labels=probs, logits=logits, name="entropy"
             )
         if not return_dict:
             return logits, probs
-        else: 
-            return {'logits': logits, 'probs':probs, 'entropy': ent}
+        else:
+            return {"logits": logits, "probs": probs, "entropy": ent}
 
     @tf.function
     def prob(self, inputs, training=False):
@@ -97,9 +98,7 @@ class CategoricalEncoder(Layer, Scope):
     def entropy(self, x, y, training=False):
         logits = self.call_logits(x, training)
         ent = tf.nn.softmax_cross_entropy_with_logits(
-            labels=y, 
-            logits=logits,
-            name='entropy'
+            labels=y, logits=logits, name="entropy"
         )
         return ent
 

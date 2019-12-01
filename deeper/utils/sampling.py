@@ -5,6 +5,7 @@ from deeper.utils.dict import NestedDict, iter_leafs
 
 Tensor = tf.Tensor
 
+
 def all_same(items):
     return all(x == items[0] for x in items)
 
@@ -15,11 +16,10 @@ def mc_stack_mean_dict(x: List[Dict[str, Tensor]]):
     Assume equal keys and shapes
     """
     mcx = NestedDict()
-    for k,t,v in list(iter_leafs(x[0])):
+    for k, t, v in list(iter_leafs(x[0])):
         mcx[tuple(k)] = tf.reduce_sum(
-            tf.stack([NestedDict(y)[tuple(k)] / len(x) for y in x], axis =-1), axis=-1
+            tf.stack([NestedDict(y)[tuple(k)] / len(x) for y in x], axis=-1),
+            axis=-1,
         )
 
     return mcx
-
-

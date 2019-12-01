@@ -7,13 +7,14 @@ tfk = tf.keras
 
 Layer = tfk.layers.Layer
 
+
 class SigmoidEncoder(Layer, Scope):
     def __init__(
         self,
-        latent_dimension, 
-        embedding_dimensions, 
+        latent_dimension,
+        embedding_dimensions,
         embedding_activation=tf.nn.relu,
-        var_scope='binary_encoder',
+        var_scope="binary_encoder",
         bn_before=False,
         bn_after=False,
         epsilon=0.0,
@@ -21,7 +22,7 @@ class SigmoidEncoder(Layer, Scope):
         embedding_bias_initializer=tf.initializers.zeros(),
         latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         latent_bias_initializer=tf.initializers.zeros(),
-        embedding_dropout=0.0
+        embedding_dropout=0.0,
     ):
         Layer.__init__(self)
         Scope.__init__(self, var_scope)
@@ -37,14 +38,14 @@ class SigmoidEncoder(Layer, Scope):
             latent_dim=self.latent_dimension,
             embedding_dimensions=self.embedding_dimensions,
             activation=self.embedding_activation,
-            var_scope=self.v_name('logits_encoder'), 
+            var_scope=self.v_name("logits_encoder"),
             bn_before=self.bn_before,
             bn_after=self.bn_after,
             embedding_kernel_initializer=embedding_kernel_initializer,
             embedding_bias_initializer=embedding_bias_initializer,
             latent_kernel_initialiazer=latent_kernel_initialiazer,
             latent_bias_initializer=latent_bias_initializer,
-            embedding_dropout=embedding_dropout
+            embedding_dropout=embedding_dropout,
         )
 
     @tf.function
@@ -53,12 +54,13 @@ class SigmoidEncoder(Layer, Scope):
         if self.epsilon > 0.0:
             maxval = np.log(1.0 - self.epsilon) - np.log(self.epsilon)
             logits = tf.compat.v2.clip_by_value(
-                logits, -maxval, maxval, "clipped")
+                logits, -maxval, maxval, "clipped"
+            )
         return logits
 
     @tf.function
     def _prob(self, logits):
-        prob = tf.nn.sigmoid(logits, name='probs')
+        prob = tf.nn.sigmoid(logits, name="probs")
         return prob
 
     @tf.function
@@ -70,28 +72,31 @@ class SigmoidEncoder(Layer, Scope):
     def entropy(self, x, y, training=False):
         logits = self.call_logits(x, training)
         ent = tf.nn.sigmoid_cross_entropy_with_logits(
-            labels=y, 
-            logits=logits,
-            name='entropy'
+            labels=y, logits=logits, name="entropy"
         )
         return ent
 
-    @tf.function 
-    def call(self, inputs, training=False, y=None):
+    @tf.function
+    def call(self, inputs, training=False, y=None, return_dict=False):
         logits = self.logits_encoder(inputs, training)
         probs = self._prob(logits)
         if y is not None:
             ent = tf.nn.sigmoid_cross_entropy_with_logits(
-                labels=y, 
-                logits=logits,
-                name='entropy'
+                labels=y, logits=logits, name="entropy"
             )
         else:
             ent = tf.nn.sigmoid_cross_entropy_with_logits(
-                labels=probs,
-                logits=logits,
-                name='entropy'
+                labels=probs, logits=logits, name="entropy"
             )
-        logprob = - tf.reduce_sum(ent, -1, name='logprob')
-        prob = tf.math.exp(logprob, name='prob')
-        return ent, logprob, prob 
+        logprob = -tf.reduce_sum(ent, -1, name="logprob")
+        prob = tf.math.exp(logprob, name="prob")
+
+        if not return_dict:
+            return ent, logprob, prob
+        else:
+            return {
+                "logits": logits,
+                "entropy": ent,
+                "logprob": logprob,
+                "prob": prob,
+            }
