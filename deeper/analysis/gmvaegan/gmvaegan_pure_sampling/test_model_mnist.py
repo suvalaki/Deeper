@@ -79,7 +79,7 @@ lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
 
 
 params = {
-    "descriminator_dimensions": [512, 512],
+    "descriminator_dimensions": [12, 12],
     "components": len(set(y_train)),
     "input_dimension": X_train.shape[1],
     "embedding_dimensions": [512, 512],
@@ -99,7 +99,13 @@ params = {
     "z_kl_lambda": 1.0,
     "c_kl_lambda": 1.0,
     "cat_latent_bias_initializer": None,
-    "optimizer": tf.keras.optimizers.Adam(
+    "vae_optimizer": tf.keras.optimizers.Adam(
+        initial_learning_rate, epsilon=1e-16
+    ),
+    "dec_optimizer": tf.keras.optimizers.Adam(
+        initial_learning_rate, epsilon=1e-16
+    ),
+    "gan_optimizer": tf.keras.optimizers.Adam(
         initial_learning_rate, epsilon=1e-16
     ),
     "categorical_latent_embedding_dropout": 0.2,
@@ -118,6 +124,9 @@ m1 = model.GmvaeGan(**params)
 
 
 # m1.load_weights('model_w')
+
+#%%
+res = m1.call(X_test)
 
 #%% Examine SOftmax Distribution
 import pandas as pd
@@ -158,6 +167,15 @@ if False:
     )
 
 
+#%%
+
+
+#%%
+
+if False:
+    with tf.GradientTape(persistent=False) as tape:
+        r = m1.loss_fn(X_train[0:1000])
+
 #%% setup cooling for trainign loop constants
 
 # z_cooling = cooling.CyclicCoolingRegime(cooling.linear_cooling, 1e-1, 1, 25, 35)
@@ -165,6 +183,7 @@ if False:
 
 z_cooling = lambda: 1.0
 y_cooling = lambda: 1.0
+d_cooling = lambda: 1.0
 
 #%% Train the model
 # with tf.device('/gpu:0'):
@@ -178,15 +197,16 @@ train(
     samples=1,
     epochs=1000,
     iter_train=1,
-    num_inference=1000,
+    num_inference=100,
     save="model_w",
     batch=True,
     temperature_function=lambda x: exponential_multiplicative_cooling(
-        x, 0.5, 0.5, 0.98
+        x, 1.0, 0.5, 0.99
     ),
     save_results="./gumblevae_results.txt",
     beta_z_method=z_cooling,
     beta_y_method=y_cooling,
+    beta_d_method=d_cooling,
 )
 
 

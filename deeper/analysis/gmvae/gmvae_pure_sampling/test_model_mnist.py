@@ -131,7 +131,7 @@ param_string = (
 )
 
 #%%
-# m1.load_weights("model_w_5")
+m1.load_weights("model_w_5")
 
 #%%
 res = m1.call(X_test)

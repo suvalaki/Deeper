@@ -25,10 +25,11 @@ def train(
     batch=False,
     verbose=1,
     save=None,
-    temperature_function=None,
+    temperature_function=lambda: 0.5,
     save_results=None,
     beta_z_method=lambda: 1.0,
     beta_y_method=lambda: 1.0,
+    beta_d_method=lambda: 1.0,
     tensorboard="./logs",
 ):
 
@@ -75,17 +76,21 @@ def train(
         iter = model.cooling_distance
         beta_z = beta_z_method()
         beta_y = beta_y_method()
+        beta_d = beta_d_method()
         if temperature_function is not None:
             temp = temperature_function(iter)
+        else:
+            temp = 1.0
 
         for x in dataset_train:
             model.train_step(
                 x,
                 samples=samples,
-                batch=batch,
                 temperature=temp,
                 beta_z=beta_z,
                 beta_y=beta_y,
+                beta_d=beta_d,
+                gradient_clip=model.gradient_clip,
             )
 
         # for i in range(iter):
