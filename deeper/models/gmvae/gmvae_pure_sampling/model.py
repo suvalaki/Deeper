@@ -9,6 +9,8 @@ from deeper.layers.binary import SigmoidEncoder
 from deeper.layers.categorical import CategoricalEncoder
 from deeper.utils.scope import Scope
 from deeper.models.gmvae.marginalautoencoder import MarginalAutoEncoder
+from deeper.utils.function_helpers.decorators import inits_args
+from deeper.utils.sampling import mc_stack_mean_dict
 
 tfk = tf.keras
 
@@ -180,10 +182,10 @@ class Gmvae(Model, Scope):
             x.dtype,
         )
 
-        qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
+        qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training=training)
         qy_g_x_ohe = self.graph_qy_g_x_ohe(qy_g_x__logit, temperature)
 
-        msres = self.marginal_autoencoder(x, qy_g_x_ohe, training)
+        mres = self.marginal_autoencoder(x, qy_g_x_ohe, training)
 
         # Losses
         # reconstruction
@@ -218,7 +220,7 @@ class Gmvae(Model, Scope):
 
         return output
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function
     def sample(self, samples, x, training=False, temperature=1.0):
         with tf.device("/gpu:0"):
             result = [
@@ -227,7 +229,7 @@ class Gmvae(Model, Scope):
             ]
         return result
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function
     def monte_carlo_estimate(
         self, samples, x, training=False, temperature=1.0
     ):
@@ -243,17 +245,21 @@ class Gmvae(Model, Scope):
     @tf.function
     def latent_sample(self, inputs, training=False, samples=1):
         outputs = self.call(inputs, training=training, samples=samples)
-        latent = outputs["px_g_zy__sample"]
+        latent = outputs["autoencoder"]["px_g_zy__sample"]
         return latent
 
     @tf.function
     def call_even(self, x, training=False, samples=1):
         pass
 
-    @tf.function
-    def entropy_fn(self, inputs, training=False, samples=1):
-        output = self.call(inputs, training=training, samples=samples)
-        return output["recon"], output["z_entropy"], output["y_entropy"]
+    def entropy_fn(self, inputs, training=False, samples=1, temperature=1.0):
+        # unclear why tf.function  doesnt work to decorate this
+        output = self.call(
+            inputs, training=training, samples=samples, temperature=temperature
+        )
+        # return output
+        out = [output["recon"], output["z_entropy"], output["y_entropy"]]
+        return out
 
     @tf.function  # (autograph=False)
     def elbo(
@@ -405,7 +411,14 @@ class Gmvae(Model, Scope):
 
     @tf.function  # (autograph=False)
     def predict(self, x, training=False):
-        qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
+
+        x = tf.cast(x, dtype=self.dtype)
+        x = tf.cast(
+            tf.where(tf.math.is_nan(x), tf.ones_like(x) * 0.0, x),
+            dtype=self.dtype,
+        )
+
+        qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training=training)
         return qy_g_x__prob
 
     @tf.function

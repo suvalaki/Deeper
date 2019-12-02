@@ -89,11 +89,9 @@ def train(
                 tf.cast(
                     tf.greater(
                         tf.cast(x, tf.float64),
-                        tf.cast(
-                            tf.random.uniform(tf.shape(x), 0, 1), tf.float64
-                        ),
+                        tf.cast(tf.random.uniform(tf.shape(x), 0, 1), x.dtype),
                     ),
-                    tf.float64,
+                    x.dtype,
                 ),
                 samples=samples,
                 batch=batch,
@@ -112,7 +110,7 @@ def train(
             # Evaluate training metrics
             ##recon, z_ent, y_ent = chain_call(model.entropy_fn, X_train, num_inference)
             recon, z_ent, y_ent = chain_call(
-                model.entropy_fn, (X_train > 0.5).astype(float), num_inference
+                model.entropy_fn, X_train, num_inference
             )
 
             recon = np.array(recon).mean()
@@ -268,7 +266,10 @@ def pretrain_with_clusters(
         if i % verbose == 0:
             # Evaluate training metrics
             recon, z_ent, y_ent = chain_call(
-                model.entropy_fn, X_train, num_inference
+                model.entropy_fn,
+                X_train,
+                num_inference,
+                scalar_dict={"temperature": 0.1},
             )
 
             recon = np.array(recon).mean()

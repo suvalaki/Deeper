@@ -97,24 +97,24 @@ params = {
     "kind": "binary",
     "learning_rate": initial_learning_rate,
     "gradient_clip": None,
-    "bn_before": False,
+    "bn_before": True,
     "bn_after": False,
-    "categorical_epsilon": 1e-3,
+    "categorical_epsilon": 0.0,
     "reconstruction_epsilon": 0.0,
     "latent_epsilon": 0.0,
     "latent_prior_epsilon": 0.0,
     "z_kl_lambda": 1.0,
     "c_kl_lambda": 1.0,
     "cat_latent_bias_initializer": None,
-    "connected_weights": False,
+    "connected_weights": True,
     # "optimizer":tf.keras.optimizers.Adam(lr_schedule, epsilon=1e-16),
-    "optimizer": tf.keras.optimizers.SGD(1e-2, momentum=0.9),
-    "categorical_latent_embedding_dropout": 0.2,
-    "mixture_latent_mu_embedding_dropout": 0.2,
-    "mixture_latent_var_embedding_dropout": 0.2,
-    "mixture_posterior_mu_dropout": 0.2,
-    "mixture_posterior_var_dropout": 0.2,
-    "recon_dropouut": 0.2,
+    "optimizer": tf.keras.optimizers.Adam(1e-3, epsilon=1e-16),
+    "categorical_latent_embedding_dropout": 0.0,
+    "mixture_latent_mu_embedding_dropout": 0.0,
+    "mixture_latent_var_embedding_dropout": 0.0,
+    "mixture_posterior_mu_dropout": 0.0,
+    "mixture_posterior_var_dropout": 0.0,
+    "recon_dropouut": 0.0,
     #'latent_fixed_var': 0.01,
 }
 
@@ -130,8 +130,12 @@ param_string = (
     + "/".join([str(k) + "_" + str(v) for k, v in params.items()])
 )
 
+#%%
+# m1.load_weights("model_w_5")
 
-# m1.load_weights('model_w')
+#%%
+res = m1.call(X_test)
+
 
 #%% Examine SOftmax Distribution
 import pandas as pd
@@ -188,7 +192,7 @@ if False:
         save="model_w_2",
         batch=True,
         temperature_function=lambda x: exponential_multiplicative_cooling(
-            x, 0.5, 0.5, 0.98
+            x, 0.5, 0.5, 0.99
         ),
         # temperature_function = lambda x: 0.1
         save_results="./gumble_results.txt",
@@ -220,7 +224,7 @@ train(
     save="model_w_5",
     batch=True,
     temperature_function=lambda x: exponential_multiplicative_cooling(
-        x, 1.0, 0.5, 0.95
+        x, 1.0, 0.5, 0.99
     ),
     # temperature_function = lambda x: 0.1
     save_results="./gumble_results.txt",
