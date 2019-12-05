@@ -5,4 +5,3 @@ pandas==0.24.2
 tqdm==4.32.2
 seaborn==0.9.0
 scikit_learn==0.22
-tensorflow==2.0.0
