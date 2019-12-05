@@ -6,6 +6,7 @@ from deeper.layers.encoder import Encoder
 
 tfk = tf.keras
 Layer = tfk.layers.Layer
+Tensor = tf.Tensor
 
 
 class RandomNormalEncoder(Layer, Scope):
@@ -260,15 +261,7 @@ def lognormal_pdf(x, mu, logvar, eps=0.0, axis=-1, clip=1e-18):
 
 
 def lognormal_kl(
-    x,
-    mu_x,
-    mu_y,
-    logvar_x,
-    logvar_y,
-    eps_x=0.0,
-    eps_y=0.0,
-    axis=-1,
-    clip=1e-24,
+    x, mu_x, mu_y, logvar_x, logvar_y, eps_x=0.0, eps_y=0.0, axis=-1, clip=0.0,
 ):
 
     var_x = tf.math.exp(logvar_x)

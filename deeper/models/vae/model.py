@@ -1,17 +1,21 @@
 import tensorflow as tf
 import numpy as np
 
-from deeper.utils.scope import Scope
-from deeper.layers.random_normal import NormalEncoder
+from deeper.probability_layers.ops.normal import std_normal_kl_divergence
 from deeper.layers.binary import SigmoidEncoder
-from deeper.ops.distance import std_normal_kl_divergence
+from deeper.probability_layers.gumble_softmax import GumbleSoftmaxLayer
+from deeper.probability_layers.normal import RandomNormalEncoder, lognormal_kl
+from deeper.utils.sampling import mc_stack_mean_dict
+from deeper.utils.function_helpers.decorators import inits_args
+from deeper.utils.function_helpers.collectors import get_local_tensors
+from deeper.utils.scope import Scope
 
 tfk = tf.keras
 Model = tfk.Model
 Layer = tfk.layers.Layer
 
 
-class VAE(Model):
+class VAE(Model, Scope):
     @inits_args
     def __init__(
         self,
@@ -20,7 +24,7 @@ class VAE(Model):
         latent_dim,
         embedding_activations=tf.nn.tanh,
         kind="binary",
-        var_scope="marginal_autoencoder",
+        var_scope="variational_autoencoder",
         bn_before=False,
         bn_after=False,
         latent_epsilon=0.0,
@@ -42,9 +46,13 @@ class VAE(Model):
         latent_var_embedding_dropout=0.0,
         recon_dropouut=0.0,
         latent_fixed_var=None,
+        optimizer=tf.keras.optimizers.Adam(1e-3),
+        gradient_clip=None,
     ):
         Model.__init__(self)
         Scope.__init__(self, var_scope)
+
+        self.cooling_distance = 0
 
         # Encoder
         self.graph_qz_g_x = RandomNormalEncoder(
@@ -54,14 +62,14 @@ class VAE(Model):
             bn_before=self.bn_before,
             bn_after=self.bn_after,
             epsilon=self.latent_epsilon,
-            embedding_mu_kernel_initializer=latent_mu_embedding_kernel_initializer,
-            embedding_mu_bias_initializer=latent_mu_embedding_bias_initializer,
-            latent_mu_kernel_initialiazer=latent_mu_latent_kernel_initialiazer,
-            latent_mu_bias_initializer=latent_mu_latent_bias_initializer,
-            embedding_var_kernel_initializer=latent_var_embedding_kernel_initializer,
-            embedding_var_bias_initializer=latent_var_embedding_bias_initializer,
-            latent_var_kernel_initialiazer=latent_var_latent_kernel_initialiazer,
-            latent_var_bias_initializer=latent_var_latent_bias_initializer,
+            embedding_mu_kernel_initializer=enc_mu_embedding_kernel_initializer,
+            embedding_mu_bias_initializer=enc_mu_embedding_bias_initializer,
+            latent_mu_kernel_initialiazer=enc_mu_latent_kernel_initialiazer,
+            latent_mu_bias_initializer=enc_mu_latent_bias_initializer,
+            embedding_var_kernel_initializer=enc_var_embedding_kernel_initializer,
+            embedding_var_bias_initializer=enc_var_embedding_bias_initializer,
+            latent_var_kernel_initialiazer=enc_var_latent_kernel_initialiazer,
+            latent_var_bias_initializer=enc_var_latent_bias_initializer,
             connected_weights=connected_weights,
             embedding_mu_dropout=latent_mu_embedding_dropout,
             embedding_var_dropout=latent_var_embedding_dropout,
@@ -100,41 +108,136 @@ class VAE(Model):
                 latent_mu_bias_initializer=recon_latent_bias_initializer,
             )
 
-    # @tf.function#
-    def call(self, x, training=False):
+    def increment_cooling(self):
+        self.cooling_distance += 1
+
+    @tf.function
+    def sample_one(self, x, training=False):
         x = tf.cast(x, dtype=self.dtype)
         (
-            qz_g_xy__sample,
-            qz_g_xy__logprob,
-            qz_g_xy__prob,
-            qz_g_xy__mu,
-            qz_g_xy__logvar,
-            qz_g_xy__var,
+            qz_g_x__sample,
+            qz_g_x__logprob,
+            qz_g_x__prob,
+            qz_g_x__mu,
+            qz_g_x__logvar,
+            qz_g_x__var,
         ) = self.graph_qz_g_x.call(x, training)
 
         (
-            px_g_zy__sample,
-            px_g_zy__logprob,
-            px_g_zy__prob,
+            px_g_z__sample,
+            px_g_z__logprob,
+            px_g_z__prob,
         ) = self.graph_px_g_z.call(qz_g_x__sample, training, x)[0:3]
 
-        recon = px_g_zy__logprob
-        z_entropy = std_normal_kl_divergence(qz_g_xy__mu, qz_g_xy__logvar)
+        recon = px_g_z__logprob
+        z_entropy = std_normal_kl_divergence(qz_g_x__mu, qz_g_x__logvar)
         elbo = recon + z_entropy
 
         output = {
-            "qz_g_xy__sample": qz_g_xy__sample,
-            "qz_g_xy__logprob": qz_g_xy__logprob,
-            "qz_g_xy__prob": qz_g_xy__prob,
-            "qz_g_xy__mu": qz_g_xy__mu,
-            "qz_g_xy__logvar": qz_g_xy__logvar,
-            "qz_g_xy__var": qz_g_xy__var,
-            "px_g_zy__sample": px_g_zy__sample,
-            "px_g_zy__logprob": px_g_zy__logprob,
-            "px_g_zy__prob": px_g_zy__prob,
+            "qz_g_x__sample": qz_g_x__sample,
+            "qz_g_x__logprob": qz_g_x__logprob,
+            "qz_g_x__prob": qz_g_x__prob,
+            "qz_g_x__mu": qz_g_x__mu,
+            "qz_g_x__logvar": qz_g_x__logvar,
+            "qz_g_x__var": qz_g_x__var,
+            "px_g_z__sample": px_g_z__sample,
+            "px_g_z__logprob": px_g_z__logprob,
+            "px_g_z__prob": px_g_z__prob,
             "recon": recon,
             "z_entropy": z_entropy,
             "elbo": elbo,
         }
 
         return output
+
+    @tf.function
+    def sample(self, samples, x, training=False):
+        # with tf.device("/gpu:0"):
+        result = [self.sample_one(x, training) for j in range(samples)]
+        return result
+
+    @tf.function
+    def monte_carlo_estimate(self, samples, x, training=False):
+        return mc_stack_mean_dict(self.sample(samples, x, training))
+
+    @tf.function
+    def call(self, x, training=False, samples=1):
+        output = self.monte_carlo_estimate(samples, x, training)
+        return output
+
+    @tf.function
+    def latent_sample(self, inputs, training=False, samples=1):
+        outputs = self.call(inputs, training=training, samples=samples)
+        latent = outputs["px_g_z__sample"]
+        return latent
+
+    @tf.function
+    def entropy_fn(self, inputs, training=False, samples=1):
+        output = self.call(inputs, training=training, samples=samples)
+        return output["recon"], output["z_entropy"]
+
+    @tf.function
+    def elbo(
+        self, inputs, training=False, samples=1, beta_z=1.0,
+    ):
+        recon, z_entropy = self.entropy_fn(inputs, training, samples)
+        return recon + beta_z * z_entropy
+
+    @tf.function
+    def loss_fn(self, inputs, training=False, samples=1, beta_z=1.0):
+        return -self.elbo(inputs, training, samples, beta_z)
+
+    @tf.function
+    def train_step(
+        self, x, samples=1, tenorboard=False, batch=False, beta_z=1.0,
+    ):
+
+        if tenorboard:
+            current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            train_log_dir = "logs/gradient_tape/train"
+
+            writer = tf.summary.create_file_writer(train_log_dir)
+
+        with tf.GradientTape() as tape:
+            loss = tf.reduce_mean(self.loss_fn(x, True, samples, beta_z), 0)
+
+        gradients = tape.gradient(loss, self.trainable_variables)
+
+        # Clipping
+        gradients = [
+            None
+            if gradient is None
+            else tf.clip_by_value(
+                gradient, -self.gradient_clip, self.gradient_clip
+            )
+            if self.gradient_clip is not None
+            else gradient
+            # else tf.clip_by_norm(
+            #    gradient, self.gradient_clip
+            # )
+            for gradient in gradients
+        ]
+
+        if tenorboard:
+            with writer.as_default():
+                for gradient, variable in zip(
+                    gradients, self.trainable_variables
+                ):
+                    steps = steps + 1
+                    tf.summary.experimental.set_step(steps)
+                    stp = tf.summary.experimental.get_step()
+                    tf.summary.histogram(
+                        "gradients/" + variable.name,
+                        tf.nn.l2_normalize(gradient),
+                        step=stp,
+                    )
+                    tf.summary.histogram(
+                        "variables/" + variable.name,
+                        tf.nn.l2_normalize(variable),
+                        step=stp,
+                    )
+                writer.flush()
+
+        self.optimizer.apply_gradients(
+            zip(gradients, self.trainable_variables)
+        )

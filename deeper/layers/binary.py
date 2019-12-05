@@ -90,9 +90,10 @@ class SigmoidEncoder(Layer, Scope):
             )
         logprob = -tf.reduce_sum(ent, -1, name="logprob")
         prob = tf.math.exp(logprob, name="prob")
+        lab = tf.nn.sigmoid(logits)
 
         if not return_dict:
-            return ent, logprob, prob
+            return lab, logprob, prob
         else:
             return {
                 "logits": logits,
