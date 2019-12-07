@@ -29,13 +29,14 @@ def train(
     save_results=None,
     beta_z_method=lambda: 1.0,
     beta_y_method=lambda: 1.0,
-    tensorboard="./logs",
+    tensorboard=None,
 ):
 
     # t1 = tqdm(total=epochs, position=0)
     # t2 = tqdm(total=int(X_train.shape[0] // num), position=1, leave=False)
 
-    summary_writer = tf.summary.create_file_writer(tensorboard)
+    if tensorboard is not None:
+        summary_writer = tf.summary.create_file_writer(tensorboard)
 
     if save_results is not None:
 
@@ -171,30 +172,31 @@ def train(
 
             model.increment_cooling()
 
-            # plot latent space
-            latent_vectors = chain_call(
-                model.latent_sample, X_test, num_inference
-            )
-            plt_latent_true = plot_latent(latent_vectors, y_test, idx_te)
+            if tensorboard is not None:
+                # plot latent space
+                latent_vectors = chain_call(
+                    model.latent_sample, X_test, num_inference
+                )
+                plt_latent_true = plot_latent(latent_vectors, y_test, idx_te)
 
-            with summary_writer.as_default():
-                tf.summary.scalar("beta_z", beta_z, step=iter)
-                tf.summary.scalar("beta_y", beta_y, step=iter)
-                tf.summary.scalar("loss", loss, step=iter)
-                tf.summary.scalar("likelihood", recon, step=iter)
-                tf.summary.scalar("z_prior_entropy", z_ent, step=iter)
-                tf.summary.scalar("y_prior_entropy", y_ent, step=iter)
-                tf.summary.scalar("ami_train", ami_tr, step=iter)
-                tf.summary.scalar("ami_test", ami_te, step=iter)
-                tf.summary.scalar("purity_train", purity_train, step=iter)
-                tf.summary.scalar("purity_test", purity_test, step=iter)
-                tf.summary.scalar(
-                    "max_cluster_attachment_test", attch_te, step=iter
-                )
-                tf.summary.scalar("beta_z", beta_z, step=iter)
-                tf.summary.image(
-                    "latent", plot_to_image(plt_latent_true), step=iter
-                )
+                with summary_writer.as_default():
+                    tf.summary.scalar("beta_z", beta_z, step=iter)
+                    tf.summary.scalar("beta_y", beta_y, step=iter)
+                    tf.summary.scalar("loss", loss, step=iter)
+                    tf.summary.scalar("likelihood", recon, step=iter)
+                    tf.summary.scalar("z_prior_entropy", z_ent, step=iter)
+                    tf.summary.scalar("y_prior_entropy", y_ent, step=iter)
+                    tf.summary.scalar("ami_train", ami_tr, step=iter)
+                    tf.summary.scalar("ami_test", ami_te, step=iter)
+                    tf.summary.scalar("purity_train", purity_train, step=iter)
+                    tf.summary.scalar("purity_test", purity_test, step=iter)
+                    tf.summary.scalar(
+                        "max_cluster_attachment_test", attch_te, step=iter
+                    )
+                    tf.summary.scalar("beta_z", beta_z, step=iter)
+                    tf.summary.image(
+                        "latent", plot_to_image(plt_latent_true), step=iter
+                    )
 
         # t1.update(1)
         # t2.n = 0
