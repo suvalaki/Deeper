@@ -198,6 +198,7 @@ def train(
                         "latent", plot_to_image(plt_latent_true), step=iter
                     )
 
+        tf.keras.backend.clear_graph()
         # t1.update(1)
         # t2.n = 0
         # t2.last_print_n = 0
