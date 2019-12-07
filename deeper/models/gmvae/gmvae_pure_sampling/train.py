@@ -4,6 +4,7 @@ from tqdm.autonotebook import tqdm
 from sklearn.metrics import adjusted_mutual_info_score
 from .utils import chain_call, purity_score
 import os
+import gc
 
 from sklearn.preprocessing import OneHotEncoder
 
@@ -198,7 +199,8 @@ def train(
                         "latent", plot_to_image(plt_latent_true), step=iter
                     )
 
-        tf.keras.backend.clear_graph()
+        # tf.keras.backend.clear_graph()
+        gc.collect()
         # t1.update(1)
         # t2.n = 0
         # t2.last_print_n = 0
