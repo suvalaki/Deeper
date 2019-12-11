@@ -5,6 +5,7 @@ from sklearn.metrics import adjusted_mutual_info_score
 from .utils import chain_call, purity_score
 import os
 import gc
+from memory_profiler import profile
 
 from sklearn.preprocessing import OneHotEncoder
 
@@ -69,32 +70,28 @@ def train(
 
     tqdm.write(header_str)
 
+    dataset_train = (
+        tf.data.Dataset.from_tensor_slices(X_train)
+        .repeat(iter_train)
+        .shuffle(X_train.shape[0], reshuffle_each_iteration=True)
+        .batch(num)
+    )
+
     for i in range(epochs):
 
         # Setup datasets
-        dataset_train = (
-            tf.data.Dataset.from_tensor_slices(X_train)
-            .repeat(iter_train)
-            .shuffle(X_train.shape[0])
-            .batch(num)
-        )
-
         iter = model.cooling_distance
         beta_z = beta_z_method()
         beta_y = beta_y_method()
+
         if temperature_function is not None:
             temp = temperature_function(iter)
 
         for x in dataset_train:
+            # for id in range(X_train.shape[0] // num):
+            # idx = dataset_train[num * id : (num* (id+1))]
             model.train_step(
-                # random sampling
-                tf.cast(
-                    tf.greater(
-                        tf.cast(x, tf.float64),
-                        tf.cast(tf.random.uniform(tf.shape(x), 0, 1), x.dtype),
-                    ),
-                    x.dtype,
-                ),
+                x,
                 samples=samples,
                 batch=batch,
                 beta_z=beta_z,
@@ -110,15 +107,12 @@ def train(
 
         if i % verbose == 0:
             # Evaluate training metrics
-            ##recon, z_ent, y_ent = chain_call(model.entropy_fn, X_train, num_inference)
             recon, z_ent, y_ent = chain_call(
                 model.entropy_fn, X_train, num_inference
             )
-
             recon = np.array(recon).mean()
             z_ent = np.array(z_ent).mean()
             y_ent = np.array(y_ent).mean()
-
             loss = -(recon + z_ent + y_ent)
 
             idx_tr = chain_call(model.predict, X_train, num_inference).argmax(
@@ -162,16 +156,14 @@ def train(
                 )
             )
 
-            if save_results is not None:
+            if save_results is not None and False:
                 with open(save_results, "a") as results_file:
                     results_file.write("\n" + value_str)
 
             tqdm.write(value_str)
 
-            if save is not None:
+            if save is not None and False:
                 model.save_weights(save, save_format="tf")
-
-            model.increment_cooling()
 
             if tensorboard is not None:
                 # plot latent space
@@ -199,7 +191,10 @@ def train(
                         "latent", plot_to_image(plt_latent_true), step=iter
                     )
 
+        model.increment_cooling()
+
         # tf.keras.backend.clear_graph()
+
         gc.collect()
         # t1.update(1)
         # t2.n = 0
