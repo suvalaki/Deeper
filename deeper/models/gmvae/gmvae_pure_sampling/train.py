@@ -5,7 +5,6 @@ from sklearn.metrics import adjusted_mutual_info_score
 from .utils import chain_call, purity_score
 import os
 import gc
-from memory_profiler import profile
 
 from sklearn.preprocessing import OneHotEncoder
 
