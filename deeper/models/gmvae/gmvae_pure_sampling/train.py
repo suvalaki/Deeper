@@ -39,27 +39,27 @@ def train(
     if tensorboard is not None:
         summary_writer = tf.summary.create_file_writer(tensorboard)
 
-    if save_results is not None:
+    header_str = (
+        "{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t"
+        "{:<10}\t{:<10}\t{:<10}\t{:<10}\t"
+        "{:<10}\t{:<10}\t{:<10}"
+    ).format(
+        "epoch",
+        "beta_z",
+        "beta_y",
+        "loss",
+        "likelih",
+        "z-prior",
+        "y-prior",
+        "trAMI",
+        "teAMI",
+        "trPUR",
+        "tePUR",
+        "attch_te",
+        "temp",
+    )
 
-        header_str = (
-            "{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t"
-            "{:<10}\t{:<10}\t{:<10}\t{:<10}\t"
-            "{:<10}\t{:<10}\t{:<10}"
-        ).format(
-            "epoch",
-            "beta_z",
-            "beta_y",
-            "loss",
-            "likelih",
-            "z-prior",
-            "y-prior",
-            "trAMI",
-            "teAMI",
-            "trPUR",
-            "tePUR",
-            "attch_te",
-            "temp",
-        )
+    if save_results is not None:
 
         save_results = os.path.join(os.path.abspath(save_results))
 
@@ -79,7 +79,7 @@ def train(
     for i in range(epochs):
 
         # Setup datasets
-        iter = model.cooling_distance
+        iter = int(model.cooling_distance)
         beta_z = beta_z_method()
         beta_y = beta_y_method()
 
