@@ -93,9 +93,9 @@ def train(
                 x,
                 samples=samples,
                 batch=batch,
-                beta_z=beta_z,
-                beta_y=beta_y,
-                temperature=temp,
+                beta_z=tf.constant(beta_z),
+                beta_y=tf.constant(beta_y),
+                temperature=tf.constant(temp),
             )
 
         # for i in range(iter):

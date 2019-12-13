@@ -165,7 +165,7 @@ class Gmvae(Model, Scope):
         self.cooling_distance += 1.0
 
     @tf.function
-    def sample_one(self, inputs, training=False, temperature=1.0):
+    def sample_one(self, inputs, training=False, temperature=tf.constant(1.0)):
 
         x = inputs
         # x = tf.cast(inputs, dtype=self.dtype)
@@ -222,7 +222,7 @@ class Gmvae(Model, Scope):
         return output
 
     @tf.function
-    def sample(self, samples, x, training=False, temperature=1.0):
+    def sample(self, samples, x, training=False, temperature=tf.constant(1.0)):
         result = [
             self.sample_one(x, training, temperature) for j in range(samples)
         ]
@@ -230,14 +230,14 @@ class Gmvae(Model, Scope):
 
     @tf.function
     def monte_carlo_estimate(
-        self, samples, x, training=False, temperature=1.0
+        self, samples, x, training=False, temperature=tf.constant(1.0)
     ):
         return mc_stack_mean_dict(
             self.sample(samples, x, training, temperature)
         )
 
     @tf.function
-    def call(self, x, training=False, samples=1, temperature=1.0):
+    def call(self, x, training=False, samples=1, temperature=tf.constant(1.0)):
         output = self.monte_carlo_estimate(samples, x, training, temperature)
         return output
 
@@ -251,7 +251,7 @@ class Gmvae(Model, Scope):
         pass
 
     @tf.function
-    def entropy_fn(self, inputs, training=False, samples=1, temperature=1.0):
+    def entropy_fn(self, inputs, training=False, samples=1, temperature=tf.constant(1.0)):
         # unclear why tf.function  doesnt work to decorate this
         output = self.call(
             inputs, training=training, samples=samples, temperature=temperature
@@ -265,13 +265,17 @@ class Gmvae(Model, Scope):
         inputs,
         training=False,
         samples=1,
-        temperature=1.0,
-        beta_z=1.0,
-        beta_y=1.0,
+        temperature=tf.constant(1.0),
+        beta_z=tf.constant(1.0),
+        beta_y=tf.constant(1.0),
     ):
         recon, z_entropy, y_entropy = self.entropy_fn(
             inputs, training, samples, temperature
         )
+
+        beta_z = tf.cast(beta_z, z_entropy.dtype)
+        beta_y = tf.cast(beta_y, y_entropy.dtype)
+
         return recon + beta_z * z_entropy + beta_y * y_entropy
 
     @tf.function
@@ -280,16 +284,17 @@ class Gmvae(Model, Scope):
         inputs,
         training=False,
         samples=1,
-        temperature=1.0,
-        beta_z=1.0,
-        beta_y=1.0,
+        temperature=tf.constant(1.0),
+        beta_z=tf.constant(1.0),
+        beta_y=tf.constant(1.0),
     ):
         loss = -tf.reduce_mean(
             self.elbo(inputs, training, samples, temperature, beta_z, beta_y)
         )
         return loss
 
-    def even_mixture_loss(self, inputs, training=False, samples=1, beta_z=1.0):
+    @tf.function
+    def even_mixture_loss(self, inputs, training=False, samples=1, beta_z=tf.constant(1.0)):
         pass
 
     @tf.function
@@ -299,9 +304,9 @@ class Gmvae(Model, Scope):
         samples=1,
         tenorboard=False,
         batch=False,
-        temperature=1.0,
-        beta_z=1.0,
-        beta_y=1.0,
+        temperature=tf.constant(1.0),
+        beta_z=tf.constant(1.0),
+        beta_y=tf.constant(1.0),
     ):
 
         if tenorboard:
@@ -362,7 +367,7 @@ class Gmvae(Model, Scope):
         )
 
     # @tf.function
-    def pretrain_step(self, x, samples=1, batch=False, beta_z=1.0):
+    def pretrain_step(self, x, samples=1, batch=False, beta_z=tf.constant(1.0)):
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
         target_vars = [
