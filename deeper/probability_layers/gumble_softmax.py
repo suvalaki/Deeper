@@ -19,12 +19,12 @@ class GumbleSoftmaxLayer(Layer, Scope):
 
     @tf.function
     def _gumble_softmax(self, logits, gumble_sample, temperature):
-        adjusted_logits = (logits + gumble_sample) / temperature
+        adjusted_logits = (logits + gumble_sample) / tf.cast(temperature, logits.dtype)
         adjusted_softmax = tf.nn.softmax(adjusted_logits)
         return adjusted_softmax
 
     @tf.function
-    def _sample_one(self, logits, temperature=None):
+    def _sample_one(self, logits, temperature=tf.constant(1.0)):
         uniform_sample = tf.random.uniform(
             shape=tf.shape(logits),
             dtype=self.dtype,
@@ -37,7 +37,7 @@ class GumbleSoftmaxLayer(Layer, Scope):
         return softmax_trick
 
     @tf.function
-    def call(self, logits, temperature=None, samples=1):
+    def call(self, logits, temperature=tf.constant(1.0), samples=1):
         with tf.name_scope(self.name):
             if samples > 1:
                 output = tf.stack(
