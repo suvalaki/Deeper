@@ -1,0 +1,26 @@
+{
+    "num": 100,
+    "samples": 1,
+    "epochs": 100,
+    "iter_train": 1,
+    "num_inference": 1000,
+    "batch": true, 
+    "temperature_function": {
+        "class_name": "static",
+        "method": "exponential_multiplicative",
+        "start": 1.0,
+        "end": 0.5,
+        "alpha": 0.99
+    },
+    "beta_z_method": {
+        "class_name": "constant",
+        "const": 1.0
+    },
+    "beta_y_method": {
+        "class_name": "constant",
+        "const": 1.0
+    },
+    "save": null, 
+    "save_results": null,
+    "tensorboard": null
+}
