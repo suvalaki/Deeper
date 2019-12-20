@@ -12,8 +12,10 @@ from deeper.utils.tensorboard import plot_to_image
 from deeper.models.gmvae.utils import plot_latent
 
 
-def train(
+
+def train_base(
     model,
+    train_method,
     X_train,
     y_train,
     X_test,
@@ -33,8 +35,8 @@ def train(
 
     # t1 = tqdm(total=epochs, position=0)
     # t2 = tqdm(total=int(X_train.shape[0] // num), position=1, leave=False)
-
-    summary_writer = tf.summary.create_file_writer(tensorboard)
+    if tensorboard is not None:
+        summary_writer = tf.summary.create_file_writer(tensorboard)
 
     tqdm.write(
         "{:>10} {:>10} {:>10} "
@@ -70,8 +72,8 @@ def train(
 
         # Train over the dataset
         for x in dataset_train:
-            model.train_step(
-                x, samples=samples, batch=batch, beta_z=beta_z, beta_y=beta_y
+            train_method(
+                x, samples=samples, batch=batch, beta_z=tf.constant(beta_z), beta_y=tf.constant(beta_y)
             )
         model.increment_cooling()
 
@@ -139,35 +141,110 @@ def train(
             if save is not None:
                 model.save_weights(save, save_format="tf")
 
-            # plot latent space
-            if y_test is not None:
-                latent_vectors = chain_call(
-                    model.latent_sample, X_test, num_inference
-                )
-                plt_latent_true = plot_latent(latent_vectors, y_test, idx_te)
-
-            with summary_writer.as_default():
-                tf.summary.scalar("beta_z", beta_z, step=iter)
-                tf.summary.scalar("beta_y", beta_y, step=iter)
-                tf.summary.scalar("loss", loss, step=iter)
-                tf.summary.scalar("likelihood", recon, step=iter)
-                tf.summary.scalar("z_prior_entropy", z_ent, step=iter)
-                tf.summary.scalar("y_prior_entropy", y_ent, step=iter)
-                tf.summary.scalar("ami_train", ami_tr, step=iter)
-                tf.summary.scalar("ami_test", ami_te, step=iter)
-                tf.summary.scalar("purity_train", purity_train, step=iter)
-                tf.summary.scalar("purity_test", purity_test, step=iter)
-                tf.summary.scalar(
-                    "max_cluster_attachment_test", attch_te, step=iter
-                )
-                tf.summary.scalar("beta_z", beta_z, step=iter)
+            if tensorboard is not None:
+                # plot latent space
                 if y_test is not None:
-                    tf.summary.image(
-                        "latent", plot_to_image(plt_latent_true), step=iter
+                    latent_vectors = chain_call(
+                        model.latent_sample, X_test, num_inference
                     )
+                    plt_latent_true = plot_latent(latent_vectors, y_test, idx_te)
 
-        # t1.update(1)
-        # t2.n = 0
-        # t2.last_print_n = 0
-        # t2.refresh()
-    # t1.close()
+                with summary_writer.as_default():
+                    tf.summary.scalar("beta_z", beta_z, step=iter)
+                    tf.summary.scalar("beta_y", beta_y, step=iter)
+                    tf.summary.scalar("loss", loss, step=iter)
+                    tf.summary.scalar("likelihood", recon, step=iter)
+                    tf.summary.scalar("z_prior_entropy", z_ent, step=iter)
+                    tf.summary.scalar("y_prior_entropy", y_ent, step=iter)
+                    tf.summary.scalar("ami_train", ami_tr, step=iter)
+                    tf.summary.scalar("ami_test", ami_te, step=iter)
+                    tf.summary.scalar("purity_train", purity_train, step=iter)
+                    tf.summary.scalar("purity_test", purity_test, step=iter)
+                    tf.summary.scalar(
+                        "max_cluster_attachment_test", attch_te, step=iter
+                    )
+                    tf.summary.scalar("beta_z", beta_z, step=iter)
+                    if y_test is not None:
+                        tf.summary.image(
+                            "latent", plot_to_image(plt_latent_true), step=iter
+                        )
+
+
+
+def train(
+    model,
+    X_train,
+    y_train,
+    X_test,
+    y_test,
+    num,
+    samples,
+    epochs,
+    iter_train,
+    num_inference,
+    batch=False,
+    verbose=1,
+    save=None,
+    beta_z_method=lambda: 1.0,
+    beta_y_method=lambda: 1.0,
+    tensorboard=None,
+):
+    train_base(
+        model,
+        model.train_step,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        num,
+        samples,
+        epochs,
+        iter_train,
+        num_inference,
+        batch,
+        verbose,
+        save,
+        beta_z_method,
+        beta_y_method,
+        tensorboard,
+        )
+
+
+
+def train_even(
+    model,
+    X_train,
+    y_train,
+    X_test,
+    y_test,
+    num,
+    samples,
+    epochs,
+    iter_train,
+    num_inference,
+    batch=False,
+    verbose=1,
+    save=None,
+    beta_z_method=lambda: 1.0,
+    beta_y_method=lambda: 1.0,
+    tensorboard=None,
+):
+    train_base(
+        model,
+        model.pretrain_step,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        num,
+        samples,
+        epochs,
+        iter_train,
+        num_inference,
+        batch,
+        verbose,
+        save,
+        beta_z_method,
+        beta_y_method,
+        tensorboard,
+    )
