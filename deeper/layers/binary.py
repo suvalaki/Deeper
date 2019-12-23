@@ -50,6 +50,7 @@ class SigmoidEncoder(Layer, Scope):
 
     @tf.function
     def call_logits(self, inputs, training=False):
+        inputs = tf.cast(inputs, self.dtype)
         logits = self.logits_encoder(x, training)
         if self.epsilon > 0.0:
             maxval = np.log(1.0 - self.epsilon) - np.log(self.epsilon)
@@ -65,11 +66,15 @@ class SigmoidEncoder(Layer, Scope):
 
     @tf.function
     def prob(self, inputs, training=False):
+        inputs = tf.cast(inputs, self.dtype)
         logits, probs = self.call(inputs, training)
         return probs
 
     @tf.function
     def entropy(self, x, y, training=False):
+        x = tf.cast(x, self.dtype)
+        if y is not None:
+            y = tf.cast(y, self.dtype)
         logits = self.call_logits(x, training)
         ent = tf.nn.sigmoid_cross_entropy_with_logits(
             labels=y, logits=logits, name="entropy"
@@ -78,6 +83,9 @@ class SigmoidEncoder(Layer, Scope):
 
     @tf.function
     def call(self, inputs, training=False, y=None, return_dict=False):
+        inputs = tf.cast(inputs, self.dtype)
+        if y is not None:
+            y = tf.cast(y, self.dtype)
         logits = self.logits_encoder(inputs, training)
         probs = self._prob(logits)
         if y is not None:
