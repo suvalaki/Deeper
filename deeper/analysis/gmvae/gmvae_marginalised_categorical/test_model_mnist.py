@@ -1,6 +1,22 @@
 #%%
 from pathlib import Path
 import tensorflow as tf
+
+gpu_devices = tf.config.experimental.list_physical_devices('GPU')
+for device in gpu_devices:
+    #tf.config.experimental.set_per_process_memory_fraction(device, 0.5)
+    if False:
+        tf.config.experimental.set_virtual_device_configuration(
+            device, 
+            [
+                tf.config.experimental.VirtualDeviceConfiguration(memory_limit=124),
+                tf.config.experimental.VirtualDeviceConfiguration(memory_limit=124)
+            ]
+        )
+    else:
+        tf.config.experimental.set_memory_growth(device, True)
+
+
 import numpy as np
 from tqdm import tqdm
 
@@ -16,7 +32,7 @@ from deeper.models.gmvae.gmvae_marginalised_categorical.utils import (
     chain_call_dataset,
     purity_score,
 )
-from deeper.models.gmvae.gmvae_marginalised_categorical.train import train
+from deeper.models.gmvae.gmvae_marginalised_categorical.train import train, train_even
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.preprocessing import OneHotEncoder
@@ -170,6 +186,27 @@ for i in tqdm(range(10)):
 
 z_cooling = lambda: 1.0
 y_cooling = lambda: 1.0
+
+
+#%% Pretrain the encoder-decoders
+if True:
+    train_even(
+    m1,
+    X_train,
+    y_train,
+    X_test,
+    y_test,
+    num=100,
+    samples=1,
+    epochs=25,
+    iter_train=1,
+    num_inference=1000,
+    save="model_w",
+    batch=True,
+    beta_z_method=z_cooling,
+    beta_y_method=y_cooling,
+)
+
 
 #%% Train the model
 # with tf.device('/gpu:0'):
