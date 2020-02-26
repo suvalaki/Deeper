@@ -72,7 +72,7 @@ class CategoricalEncoder(Layer, Scope):
             )
         return prob
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function  # (experimental_relax_shapes=True)
     def call(self, inputs, y=None, training=False):
         logits = self.logits_encoder(inputs, training)
         probs = self._prob(logits)

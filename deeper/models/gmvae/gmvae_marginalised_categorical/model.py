@@ -294,6 +294,20 @@ class Gmvae(Model, Scope):
     ):
         return -self.elbo(inputs, training, samples, beta_z, beta_y)
 
+
+    @tf.function
+    def loss_fn_even(
+        self, inputs, training=False, samples=1, beta_z=1.0, beta_y=1.0
+    ):
+        vals = self.call(inputs, training=training, samples=samples)
+        recon = tf.add_n([
+            vals["autoencoder"][i]["px_g_zy__logprob"] 
+            for i in range(self.components)
+        ]) / self.components
+
+        return recon
+
+
     @tf.function
     def loss_fn_with_known_clusters(
         self, x, y, training=False, samples=1, beta_z=1.0, beta_y=1.0
@@ -304,9 +318,11 @@ class Gmvae(Model, Scope):
 
         return -even_elbo + beta_y * cluster_loss
 
-    @tf.function  # (autograph=False)
-    def train_step(
-        self,
+
+    @tf.function
+    def train_base(
+        self, 
+        loss_fn, 
         x,
         samples=1,
         tenorboard=False,
@@ -323,61 +339,75 @@ class Gmvae(Model, Scope):
 
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
-        with tf.device("/gpu:0"):
-            with tf.GradientTape() as tape:
-                if batch:
-                    loss = tf.reduce_mean(
-                        self.loss_fn(x, True, samples, beta_z, beta_y)
-                    )
-                else:
-                    loss = self.loss_fn(x, True, samples, beta_z, beta_y)
+        #with tf.device("/gpu:0"):
+        with tf.GradientTape() as tape:
+            if batch:
+                loss = tf.reduce_mean(
+                    loss_fn(x, True, samples, beta_z, beta_y)
+                )
+            else:
+                loss = loss_fn(x, True, samples, beta_z, beta_y)
             # Update ops for batch normalization
             # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             # with tf.control_dependencies(update_ops):
 
-        with tf.device("/gpu:0"):
-            gradients = tape.gradient(loss, self.trainable_variables)
+        #with tf.device("/gpu:0"):
+        gradients = tape.gradient(loss, self.trainable_variables)
 
-            # Clipping
-            gradients = [
-                None
-                if gradient is None
-                else tf.clip_by_value(
-                    gradient, -self.gradient_clip, self.gradient_clip
-                )
-                if self.gradient_clip is not None
-                else gradient
-                for gradient in gradients
-            ]
-
-            if tenorboard:
-                with writer.as_default():
-                    for gradient, variable in zip(
-                        gradients, self.trainable_variables
-                    ):
-                        steps = steps + 1
-                        tf.summary.experimental.set_step(steps)
-                        stp = tf.summary.experimental.get_step()
-                        tf.summary.histogram(
-                            "gradients/" + variable.name,
-                            tf.nn.l2_normalize(gradient),
-                            step=stp,
-                        )
-                        tf.summary.histogram(
-                            "variables/" + variable.name,
-                            tf.nn.l2_normalize(variable),
-                            step=stp,
-                        )
-                    writer.flush()
-
-        with tf.device("/gpu:0"):
-            self.optimizer.apply_gradients(
-                zip(gradients, self.trainable_variables)
+        # Clipping
+        gradients = [
+            None
+            if gradient is None
+            else tf.clip_by_value(
+                gradient, -self.gradient_clip, self.gradient_clip
             )
+            if self.gradient_clip is not None
+            else gradient
+            for gradient in gradients
+        ]
+
+        if tenorboard:
+            with writer.as_default():
+                for gradient, variable in zip(
+                    gradients, self.trainable_variables
+                ):
+                    steps = steps + 1
+                    tf.summary.experimental.set_step(steps)
+                    stp = tf.summary.experimental.get_step()
+                    tf.summary.histogram(
+                        "gradients/" + variable.name,
+                        tf.nn.l2_normalize(gradient),
+                        step=stp,
+                    )
+                    tf.summary.histogram(
+                        "variables/" + variable.name,
+                        tf.nn.l2_normalize(variable),
+                        step=stp,
+                    )
+                writer.flush()
+
+        #with tf.device("/gpu:0"):
+        self.optimizer.apply_gradients(
+            zip(gradients, self.trainable_variables)
+        )
+    
+
 
     @tf.function
-    def pretrain_step(self, x, samples=1, batch=False, beta_z=1.0):
-        self.train_step(self, x, samples, batch, beta_z, 0.0)
+    def train_step(
+        self,
+        x,
+        samples=1,
+        tenorboard=False,
+        batch=False,
+        beta_z=1.0,
+        beta_y=1.0,
+    ):
+        self.train_base(self.loss_fn, x, samples, tenorboard, batch, beta_z, beta_y)
+
+    @tf.function
+    def pretrain_step(self, x, samples=1, batch=False, beta_z=1.0, beta_y=1.0,):
+        self.train_base(self.loss_fn_even, x, samples, False, batch, beta_z, beta_y)
 
     @tf.function
     def predict(self, x, training=False):

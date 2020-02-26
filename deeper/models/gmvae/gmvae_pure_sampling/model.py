@@ -168,7 +168,7 @@ class Gmvae(Model, Scope):
     def sample_one(self, inputs, training=False, temperature=tf.constant(1.0)):
 
         x = inputs
-        # x = tf.cast(inputs, dtype=self.dtype)
+        x = tf.cast(inputs, dtype=self.dtype)
         # x = tf.cast(
         #    tf.where(tf.math.is_nan(x), tf.ones_like(x) * 0.0, x),
         #    dtype=self.dtype,
@@ -251,7 +251,9 @@ class Gmvae(Model, Scope):
         pass
 
     @tf.function
-    def entropy_fn(self, inputs, training=False, samples=1, temperature=tf.constant(1.0)):
+    def entropy_fn(
+        self, inputs, training=False, samples=1, temperature=tf.constant(1.0)
+    ):
         # unclear why tf.function  doesnt work to decorate this
         output = self.call(
             inputs, training=training, samples=samples, temperature=temperature
@@ -294,7 +296,9 @@ class Gmvae(Model, Scope):
         return loss
 
     @tf.function
-    def even_mixture_loss(self, inputs, training=False, samples=1, beta_z=tf.constant(1.0)):
+    def even_mixture_loss(
+        self, inputs, training=False, samples=1, beta_z=tf.constant(1.0)
+    ):
         pass
 
     @tf.function
@@ -367,7 +371,9 @@ class Gmvae(Model, Scope):
         )
 
     # @tf.function
-    def pretrain_step(self, x, samples=1, batch=False, beta_z=tf.constant(1.0)):
+    def pretrain_step(
+        self, x, samples=1, batch=False, beta_z=tf.constant(1.0)
+    ):
         # for x in dataset:
         # Tensorflow dataset is iterable in eager mode
         target_vars = [

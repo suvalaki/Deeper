@@ -1,0 +1,32 @@
+{
+    "components": 10,
+    "input_dimension": 784,
+    "embedding_dimensions": [512, 512],
+    "latent_dimensions": 64,
+    "mixture_embedding_dimensions": [512, 512],
+    "mixture_latent_dimensions": 64,
+    "embedding_activations": "relu",
+    "kind": "binary",
+    "learning_rate": 1.0,
+    "gradient_clip": null,
+    "bn_before": false,
+    "bn_after": false,
+    "categorical_epsilon": 0.0,
+    "reconstruction_epsilon": 0.0,
+    "latent_epsilon": 0.0,
+    "latent_prior_epsilon": 0.0,
+    "z_kl_lambda": 1.0,
+    "c_kl_lambda": 1.0,
+    "cat_latent_bias_initializer": null,
+    "connected_weights": false,
+    "optimizer":{
+        "class_name": "Adam"
+    },
+    "categorical_latent_embedding_dropout": 0.2,
+    "mixture_latent_mu_embedding_dropout": 0.2,
+    "mixture_latent_var_embedding_dropout": 0.2,
+    "mixture_posterior_mu_dropout": 0.2,
+    "mixture_posterior_var_dropout": 0.2,
+    "recon_dropouut": 0.2,
+    "latent_fixed_var": null
+}
