@@ -208,8 +208,8 @@ class Gmvae(Model, Scope):
         # reconstruction
         recon = tf.add_n(
             [
-                tf.math.exp(tf.nn.log_softmax(qy_g_x__logit[:, i]))
-                #qy_g_x__prob[:, i] 
+                #tf.math.exp(tf.nn.log_softmax(qy_g_x__logit[:, i]))
+                qy_g_x__prob[:, i] 
                 * (mres[i]["px_g_zy__logprob"])
                 for i in range(self.components)
             ]

@@ -203,7 +203,7 @@ class Gmvae(Model, Scope):
         #    logits=qy_g_x__logit, labels=qy_g_x__prob
         #)
         y_entropy = tf.reduce_sum(
-            tf.math.exp(tf.nn.log_softmax(qy_g_x__logit))
+            qy_g_x__prob
              * (tf.math.log(py) - tf.nn.log_softmax(qy_g_x__logit)), -1)
 
         # elbo
