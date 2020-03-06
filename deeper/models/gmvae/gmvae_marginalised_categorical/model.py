@@ -208,9 +208,7 @@ class Gmvae(Model, Scope):
         # reconstruction
         recon = tf.add_n(
             [
-                #tf.math.exp(tf.nn.log_softmax(qy_g_x__logit[:, i]))
-                qy_g_x__prob[:, i] 
-                * (mres[i]["px_g_zy__logprob"])
+                qy_g_x__prob[:, i] * (mres[i]["px_g_zy__logprob"])
                 for i in range(self.components)
             ]
         )
@@ -218,8 +216,7 @@ class Gmvae(Model, Scope):
         # z_entropy
         z_entropy = tf.add_n(
             [
-                tf.math.exp(tf.nn.log_softmax(qy_g_x__logit[:, i]))
-                #qy_g_x__prob[:, i]
+                qy_g_x__prob[:, i]
                 * (mres[i]["pz_g_y__logprob"] - mres[i]["qz_g_xy__logprob"])
                 for i in range(self.components)
             ]
