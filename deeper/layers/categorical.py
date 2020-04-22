@@ -23,11 +23,10 @@ class CategoricalEncoder(Layer, Scope):
         embedding_kernel_initializer=tf.initializers.glorot_uniform(),
         embedding_bias_initializer=tf.initializers.zeros(),
         latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        latent_bias_initializer=tf.initializers.ones(),
+        latent_bias_initializer=tf.initializers.zeros(),
         embedding_dropout=0.0,
-        **kwargs,
     ):
-        Layer.__init__(self, **kwargs)
+        Layer.__init__(self)
         Scope.__init__(self, var_scope)
 
         self.latent_dimension = latent_dimension
@@ -49,7 +48,6 @@ class CategoricalEncoder(Layer, Scope):
             latent_kernel_initialiazer=latent_kernel_initialiazer,
             latent_bias_initializer=latent_bias_initializer,
             embedding_dropout=embedding_dropout,
-            dtype=self.dtype
         )
 
     @tf.function
@@ -107,10 +105,10 @@ class CategoricalEncoder2DBase(Layer, Scope):
 
     @init_args
     def __init__(
-        self,
-        encoder,
+        self, 
+        encoder, 
         depth,
-        latent_dim,
+        latent_dim, 
         kernel_size,
         filters:list,
         strides=(3,3),
@@ -130,8 +128,8 @@ class CategoricalEncoder2DBase(Layer, Scope):
         Scope.__init__(self, var_scope)
 
         self.logits_encoder = encoder(
-            depth, latent_dim, kernel, filters, strides, padding,
-            embedding_activation, self.v_name('logits_encoder'),
+            depth, latent_dim, kernel, filters, strides, padding, 
+            embedding_activation, self.v_name('logits_encoder'), 
             bn_before, bn_after,
             embedding_kernel_initializer, embedding_bias_initializer,
             latent_kernel_initialiazer, latent_bias_initializer,
@@ -159,25 +157,25 @@ class CategoricalEncoder2DBase(Layer, Scope):
         return prob
 
 
-    @tf.function
+    @tf.function 
     def call(self, inputs, y=None, training=False, return_dict=False):
         logits = self.logits_encoder(inputs, training)
         probs = self._prob(logits)
         if y is not None:
             ent = tf.nn.softmax_cross_entropy_with_logits(
-                labels=y,
-                logits=logits,
+                labels=y, 
+                logits=logits, 
                 name='entropy'
             )
         else:
             ent = tf.nn.softmax_cross_entropy_with_logits(
-                labels=probs,
-                logits=logits,
+                labels=probs, 
+                logits=logits, 
                 name='entropy'
             )
         if not return_dict:
             return logits, probs
-        else:
+        else: 
             return {'logits': logits, 'probs':probs, 'entropy': ent}
 
 
@@ -191,7 +189,7 @@ class CategoricalEncoder2DBase(Layer, Scope):
     def entropy(self, x, y, training=False):
         logits = self.call_logits(x, training)
         ent = tf.nn.softmax_cross_entropy_with_logits(
-            labels=y,
+            labels=y, 
             logits=logits,
             name='entropy'
         )

@@ -138,7 +138,7 @@ class MarginalAutoEncoder(Model, Scope):
                     latent_mu_bias_initializer=recon_latent_bias_initializer,
                 )
 
-    # @tf.function#
+    @tf.function#
     def call(self, x, y, training=False):
         y = tf.cast(y, dtype=x.dtype)
         xy = tf.concat([x, y], axis=-1)
@@ -191,6 +191,6 @@ class MarginalAutoEncoder(Model, Scope):
             result = [self.call(x, y, training) for j in range(samples)]
         return result
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function
     def monte_carlo_estimate(self, samples, x, y, training=False):
         return mc_stack_mean_dict(self.sample(samples, x, y, training))

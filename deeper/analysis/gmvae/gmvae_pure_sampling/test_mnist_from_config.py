@@ -28,3 +28,6 @@ model = wrapper.ModelWrapper(config_dict)
 #%% Train the model from configuration file
 train_config_dict = json.loads(open(CONFIG_TRAIN_FILE).read())
 model.train_from_config(X_train, y_train, X_test, y_test, train_config_dict)
+
+
+# %%

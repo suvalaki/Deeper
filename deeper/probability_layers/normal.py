@@ -19,14 +19,14 @@ class RandomNormalEncoder(Layer, Scope):
         bn_before=False,
         bn_after=False,
         epsilon=0.0,
-        embedding_mu_kernel_initializer=None,#tf.initializers.glorot_normal(),
-        embedding_mu_bias_initializer=None,#tf.initializers.zeros(),
-        latent_mu_kernel_initialiazer=None,#tf.initializers.glorot_normal(),
-        latent_mu_bias_initializer=None,#tf.initializers.zeros(),
-        embedding_var_kernel_initializer=None,#tf.initializers.glorot_normal(),
-        embedding_var_bias_initializer=None,#tf.initializers.zeros(),
-        latent_var_kernel_initialiazer=None,#tf.initializers.glorot_normal(),
-        latent_var_bias_initializer=None,#tf.initializers.ones(),
+        embedding_mu_kernel_initializer=tf.initializers.glorot_normal(),
+        embedding_mu_bias_initializer=tf.initializers.zeros(),
+        latent_mu_kernel_initialiazer=tf.initializers.glorot_normal(),
+        latent_mu_bias_initializer=tf.initializers.zeros(),
+        embedding_var_kernel_initializer=tf.initializers.glorot_normal(),
+        embedding_var_bias_initializer=tf.initializers.zeros(),
+        latent_var_kernel_initialiazer=tf.initializers.glorot_normal(),
+        latent_var_bias_initializer=tf.initializers.ones(),
         fixed_mu=None,
         fixed_var=None,
         connected_weights=True,
@@ -40,16 +40,16 @@ class RandomNormalEncoder(Layer, Scope):
         latent_dimensions: int, Output dimension of the probabilistic layer
         embedding_dimensions: list, the dimension of each layer from input to
             output for the embedding layers of the encoder for mu and logvar
-        embedding_activation = the tensorflow activation function to apply to
+        embedding_activation = the tensorflow activation function to apply to 
             each layer of the embedding encoder for mu and logvar
         bn_before: bool, flag whether to apply batch normalisation before
             activation in the encoder for mu and logvar
-        bn_after: bool, glag whether to apply batch normalisation after
+        bn_after: bool, glag whether to apply batch normalisation after 
             activation in the encoder for mu and logvar
         fixed_mu: value (to be implemented) A fixed value for mu
         fixed_var: value (to be implemented) A fixed value for var
-        connected_weights: bool, whether to train mu and var as a fully
-            connected network.
+        connected_weights: bool, whether to train mu and var as a fully 
+            connected network. 
 
         """
         Layer.__init__(self)
@@ -108,22 +108,24 @@ class RandomNormalEncoder(Layer, Scope):
             )
 
     @tf.function
-    def call_parameters(self, inputs, training=False, apply_epsilon=True):
+    def call_parameters(
+        self, inputs, training=False, apply_epsilon=True,
+    ):
         """Return the parameters for this normal distribution
 
         Parameters:
         -----------
-        inputs: Input vector to the
+        inputs: Input vector to the Encoder`
         training: bool flag for whether the layer is training
         apply_epsilon: bool flag for whether toa djust the logvar by epsilon
 
         """
 
         if not self.connected_weights:
-            mu = self.mu(inputs, training)
-            logvar = self.logvar(inputs, training)
+            mu = self.mu(inputs, training, )
+            logvar = self.logvar(inputs, training, )
         else:
-            mu_logvar = self.mu_logvar(inputs, training)
+            mu_logvar = self.mu_logvar(inputs, training, )
             mu, logvar = tf.split(mu_logvar, 2, axis=-1)
 
         if apply_epsilon:
@@ -141,21 +143,67 @@ class RandomNormalEncoder(Layer, Scope):
         return mu, logvar, var
 
     @tf.function
-    def call_mu(self, inputs, training=False):
-        """Get the mean of the network given the inputs"""
-        mu, logvar, var = self.call_parameters(inputs, training)
+    def call_mu(
+        self, inputs, training=False, apply_epsilon=True, 
+    ):
+        """Get the mean of the network given the inputs
+
+        Parameters
+        ----------
+        inputs: Input vector to the Encoder`
+        training: bool flag for whether the layer is training
+        apply_epsilon: bool flag for whether toa djust the logvar by epsilon
+        ldr: allowable lower depth range. call through embedding layers will
+            include layers with a lesser than or equal to index value to this.
+            The embedding layers between aldr and audr will be skipped. 
+        audr: allowable upper depth range. call through embedding layers will
+            include layers with a higher than or equal to index value to this.
+        """
+        mu, logvar, var = self.call_parameters(inputs, training, )
         return mu
 
     @tf.function
-    def call_logvar(self, inputs, training=False, apply_epsilon=True):
-        """Get the logvar of the network given the inputs"""
-        mu, logvar, var = self.call_parameters(inputs, training, apply_epsilon)
+    def call_logvar(
+        self, inputs, training=False, apply_epsilon=True, 
+    ):
+        """Get the logvar of the network given the inputs
+
+        Parameters
+        ----------
+        inputs: Input vector to the Encoder`
+        training: bool flag for whether the layer is training
+        apply_epsilon: bool flag for whether toa djust the logvar by epsilon
+        ldr: allowable lower depth range. call through embedding layers will
+            include layers with a lesser than or equal to index value to this.
+            The embedding layers between aldr and audr will be skipped. 
+        audr: allowable upper depth range. call through embedding layers will
+            include layers with a higher than or equal to index value to this.
+        """
+        mu, logvar, var = self.call_parameters(
+            inputs, training, apply_epsilon, 
+        )
         return logvar
 
     @tf.function
-    def call_var(self, inputs, training=False, apply_epsilon=True):
-        """Get the var of the network given the inputs"""
-        mu, logvar, var = self.call_parameters(inputs, training, apply_epsilon)
+    def call_var(
+        self, inputs, training=False, apply_epsilon=True, 
+    ):
+        """Get the var of the network given the inputs
+        
+        Parameters
+        ----------
+        inputs: Input vector to the Encoder`
+        training: bool flag for whether the layer is training
+        apply_epsilon: bool flag for whether toa djust the logvar by epsilon
+        ldr: allowable lower depth range. call through embedding layers will
+            include layers with a lesser than or equal to index value to this.
+            The embedding layers between aldr and audr will be skipped. 
+        audr: allowable upper depth range. call through embedding layers will
+            include layers with a higher than or equal to index value to this.
+        """
+        mu, logvar, var = self.call_parameters(
+            inputs, training, apply_epsilon, 
+        )
         var = tf.exp(logvar)
         return var
 
@@ -180,26 +228,45 @@ class RandomNormalEncoder(Layer, Scope):
 
     @tf.function
     def sample(
-        self, inputs, training=False, apply_epsilon=False, name="sample"
+        self,
+        inputs,
+        training=False,
+        apply_epsilon=False,
+        name="sample",
     ):
-        """Sample from this distribution layer.
+        """Sample from this distribution layer. 
 
         Parameters:
         -----------
-        inputs: Input vector to the
+        inputs: Input vector to the 
         training: bool flag for whether the layer is training
         apply_epsilon: bool flag for whether toa djust the logvar by epsilon
+        ldr: allowable lower depth range. call through embedding layers will
+            include layers with a lesser than or equal to index value to this.
+            The embedding layers between aldr and audr will be skipped. 
+        audr: allowable upper depth range. call through embedding layers will
+            include layers with a higher than or equal to index value to this.
         name: name of output sample tensor
         """
 
-        mu, logvar, var = self.call_parameters(inputs, training, apply_epsilon)
+        mu, logvar, var = self.call_parameters(
+            inputs, training, apply_epsilon, 
+        )
         sample = self._sample_fn(mu, var)
         return sample
 
     @tf.function
-    def call(self, inputs, training=False, outputs=None, apply_epsilon=True):
+    def call(
+        self,
+        inputs,
+        training=False,
+        outputs=None,
+        apply_epsilon=True,
+    ):
 
-        mu, logvar, var = self.call_parameters(inputs, training, apply_epsilon)
+        mu, logvar, var = self.call_parameters(
+            inputs, training, apply_epsilon, 
+        )
 
         if outputs is not None:
             # Sample was given. We calc probs given these values
@@ -224,29 +291,11 @@ class RandomNormalEncoder(Layer, Scope):
         #    + tf.math.log(var) + tf.square(x - mu) / var
         # )
 
-        std_norm = tf.math.divide_no_nan(tf.square(x - mu), var)
-        std_norm = tf.clip_by_value(std_norm, -3, 3)
-
         kernel = -0.5 * (
             tf.math.log(2 * tf.cast(np.pi, x.dtype))
             + tf.math.log(var)
-            + std_norm
+            + tf.math.divide_no_nan(tf.square(x - mu), var)
         )
-
-
-
-        # Fill NULLS
-        kernel = tf.clip_by_value(kernel, 1e-12, 1-1e12)
-        kernel = tf.cast(
-            tf.where(
-                tf.math.is_nan(kernel),
-                tf.ones_like(kernel) * 0.0, kernel),
-            dtype=kernel.dtype,
-         )
-
-
-
-        #replace_nulls in kernel
 
         logprob = tf.reduce_sum(kernel, axis)
         return logprob
@@ -279,7 +328,7 @@ def lognormal_pdf(x, mu, logvar, eps=0.0, axis=-1, clip=1e-18):
 
 
 def lognormal_kl(
-    x, mu_x, mu_y, logvar_x, logvar_y, eps_x=0.0, eps_y=0.0, axis=-1, clip=0.0,
+    x, mu_x, mu_y, logvar_x, logvar_y, eps_x=0.0, eps_y=0.0, axis=-1, clip=0.0
 ):
 
     var_x = tf.math.exp(logvar_x)
@@ -290,15 +339,11 @@ def lognormal_kl(
     if eps_y > 0.0:
         var_y = tf.add(var_y, eps_y)
 
-
-    var_x = tf.clip_by_value(var_x, 1e-9, 1e4)
-    var_y = tf.clip_by_value(var_y, 1e-9, 1e4)
-
     entropy = 0.5 * tf.reduce_sum(
-        tf.math.log(var_x)
-        - tf.math.log(var_y)
-        + tf.math.divide_no_nan(var_x, var_y)
-        + tf.math.divide_no_nan(tf.square(mu_x - mu_y), var_y)
+        tf.log(var_x)
+        - tf.log(var_y)
+        + var_x / var_y
+        + tf.square(mu_x - mu_y) / var_y
         - 1,
         axis=-1,
     )

@@ -12,7 +12,7 @@ import numpy as np
 from tqdm import tqdm
 import json
 
-# tf.enable_eager_execution()
+#tf.enable_eager_execution()
 
 tf.keras.backend.set_floatx("float64")
 
@@ -97,7 +97,7 @@ params = {
     "kind": "binary",
     "learning_rate": initial_learning_rate,
     "gradient_clip": None,
-    "bn_before": True,
+    "bn_before": False,
     "bn_after": False,
     "categorical_epsilon": 0.0,
     "reconstruction_epsilon": 0.0,
@@ -106,15 +106,15 @@ params = {
     "z_kl_lambda": 1.0,
     "c_kl_lambda": 1.0,
     "cat_latent_bias_initializer": None,
-    "connected_weights": True,
+    "connected_weights": False,
     # "optimizer":tf.keras.optimizers.Adam(lr_schedule, epsilon=1e-16),
-    "optimizer": tf.keras.optimizers.Adam(1e-3, epsilon=1e-16),
-    "categorical_latent_embedding_dropout": 0.0,
-    "mixture_latent_mu_embedding_dropout": 0.0,
-    "mixture_latent_var_embedding_dropout": 0.0,
-    "mixture_posterior_mu_dropout": 0.0,
-    "mixture_posterior_var_dropout": 0.0,
-    "recon_dropouut": 0.0,
+    "optimizer": tf.keras.optimizers.Adam(1e-3, epsilon=1e-4),
+    "categorical_latent_embedding_dropout": 0.2,
+    "mixture_latent_mu_embedding_dropout": 0.2,
+    "mixture_latent_var_embedding_dropout": 0.2,
+    "mixture_posterior_mu_dropout": 0.2,
+    "mixture_posterior_var_dropout": 0.2,
+    "recon_dropouut": 0.2,
     #'latent_fixed_var': 0.01,
 }
 
@@ -202,7 +202,7 @@ if False:
 #%% setup cooling for trainign loop constants
 
 # z_cooling = cooling.CyclicCoolingRegime(cooling.linear_cooling, 1e-1, 1, 25, 35)
-# y_cooling = cooling.CyclicCoolingRegime(cooling.linear_cooling, 10.0, 1.0, 25, 35)
+y_cooling = cooling.CyclicCoolingRegime(cooling.linear_cooling, 5.0, 0.2, 25, 35)
 
 z_cooling = lambda: 1.0
 y_cooling = lambda: 1.0
@@ -221,17 +221,24 @@ train(
     epochs=1500,
     iter_train=1,
     num_inference=1000,
-    save="model_w_5",
+    save=None,#"model_w_5",
     batch=True,
     temperature_function=lambda x: exponential_multiplicative_cooling(
-        x, 1.0, 0.5, 0.99
+        x, 1.0, 0.5, 0.98
     ),
     # temperature_function = lambda x: 0.1
     save_results="./gumble_results.txt",
     beta_z_method=z_cooling,
     beta_y_method=y_cooling,
-    tensorboard="./logs/" + param_string + "/samples__" + str(1),
+    tensorboard=None,#"./logs/" + param_string + "/samples__" + str(1),
 )
+
+
+#%% 
+
+for i in tqdm(range(10000)):
+    #m1.loss_fn(X_test[np.random.choice(X_test.shape[0], X_test.shape[0])])
+    m1.train_step(X_test[np.random.choice(X_test.shape[0], X_test.shape[0])])
 
 
 #%%
@@ -358,3 +365,40 @@ plt.figure(figsize=(10, 10))
 sns.scatterplot(data=df_latent, x="x1", y="x2", hue="kmeans")
 
 #%%
+
+
+#%% 
+
+#%%
+
+
+
+for i in range(5):
+    print('\nIteration %d' % (i + 1))
+    train(
+        m1,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        num=100,
+        samples=1,
+        epochs=1500,
+        iter_train=1,
+        num_inference=1000,
+        save=None,#"model_w_5",
+        batch=True,
+        temperature_function=lambda x: exponential_multiplicative_cooling(
+            x, 1.0, 0.5, 0.98
+        ),
+        # temperature_function = lambda x: 0.1
+        save_results="./gumble_results.txt",
+        beta_z_method=z_cooling,
+        beta_y_method=y_cooling,
+        tensorboard=None,#"./logs/" + param_string + "/samples__" + str(1),
+    )
+
+    cleanup_memory()
+    report_memory()
+    # report_heapz_pprof()
+    new_ids = objgraph.get_new_ids(limit=30, sortby='new')

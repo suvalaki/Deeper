@@ -4,6 +4,7 @@ from deeper.utils.scope import Scope
 
 tfk = tf.keras
 Layer = tfk.layers.Layer
+Model = tfk.Model
 
 
 class Encoder(Layer, Scope):
@@ -15,66 +16,75 @@ class Encoder(Layer, Scope):
         var_scope="encoder",
         bn_before=False,
         bn_after=False,
-        embedding_kernel_initializer=None,#tf.initializers.glorot_uniform(),
-        embedding_bias_initializer=None,#tf.initializers.zeros(),
-        latent_kernel_initialiazer=None,#tf.initializers.glorot_uniform(),
-        latent_bias_initializer=None,#tf.initializers.zeros(),
+        embedding_kernel_initializer=tf.initializers.glorot_uniform(),
+        embedding_bias_initializer=tf.initializers.zeros(),
+        latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
+        latent_bias_initializer=tf.initializers.zeros(),
         embedding_dropout=0.0,
-        **kwargs
     ):
-        Layer.__init__(self, **kwargs)
+
+        # Activate V1 Type behaviour. Layer takes the dtype of its inputs
+        V1_PARMS = {"autocast": False}
+
+        Layer.__init__(self, **V1_PARMS)
         Scope.__init__(self, var_scope)
         self.latent_dim = latent_dim
         self.em_dim = embedding_dimensions
 
         # embeddings
-        self.embeddings = []
-        self.embeddings_bn_before = []
-        self.embeddings_bn_after = []
+        self.n_em = len(embedding_dimensions)
+        self.embeddings = [None] * self.n_em
+        self.embeddings_bn_before = [None] * self.n_em
+        self.embeddings_bn_after = [None] * self.n_em
         self.activation = activation
         self.bn_before = bn_before
         self.bn_after = bn_after
         self.dropout_rate = embedding_dropout
-        self.dropout = []
+        self.dropout = [None] * self.n_em
 
         for i, em in enumerate(self.em_dim):
-            self.embeddings.append(
-                tfk.layers.Dense(
-                    units=em,
-                    activation=None,
-                    use_bias=True,
-                    kernel_initializer=embedding_kernel_initializer,
-                    bias_initializer=embedding_bias_initializer,
-                    name=self.v_name("embedding_{}_dense".format(i)),
-                )
-            )
-            if self.bn_before:
-                self.embeddings_bn_before.append(
-                    tfk.layers.BatchNormalization(
-                        axis=-1,
-                        name=self.v_name("embedding_{}_bn_before".format(i)),
-                        renorm=False,
-                    )
-               )
-            else:
-                self.embeddings_bn_before.append(None)
-
-            if self.bn_after:
-                self.embeddings_bn_after.append(
-                    tfk.layers.BatchNormalization(
-                        axis=-1,
-                        name=self.v_name("embedding_{}_bn_after".format(i)),
-                        renorm=True,
+            with tf.name_scope('embedding_{}'.format(i)):
+                self.embeddings[i] = (
+                    tfk.layers.Dense(
+                        units=em,
+                        activation=None,
+                        use_bias=True,
+                        kernel_initializer=embedding_kernel_initializer,
+                        bias_initializer=embedding_bias_initializer,
+                        name='dense',
+                        **V1_PARMS,
                     )
                 )
-            else:
-                self.embeddings_bn_after.append(None)
+                if self.bn_before:
+                    self.embeddings_bn_before[i] = (
+                        tfk.layers.BatchNormalization(
+                            axis=-1,
+                            name='bn_before',
+                            renorm=True,
+                            **V1_PARMS,
+                        )
+                    )
 
-            if self.dropout_rate > 0.0:
-                self.dropout.append(tfk.layers.Dropout(self.dropout_rate))
+                if self.bn_after:
+                    self.embeddings_bn_after[i] = (
+                        tfk.layers.BatchNormalization(
+                            axis=-1,
+                            name="bn_after",
+                            renorm=True,
+                            **V1_PARMS,
+                        )
+                    )
+
+                if self.dropout_rate > 0.0:
+                    self.dropout[i] = (tfk.layers.Dropout(
+                        self.dropout_rate, 
+                        name='dropout',
+                        **V1_PARMS,
+                    ))
 
         self.latent_bn = tfk.layers.BatchNormalization(
-            axis=-1, name=self.v_name("latent_bn")
+            axis=-1, name=self.v_name("latent_bn"), 
+            **V1_PARMS,
         )
         self.latent = tfk.layers.Dense(
             units=self.latent_dim,
@@ -83,32 +93,36 @@ class Encoder(Layer, Scope):
             kernel_initializer=latent_kernel_initialiazer,
             bias_initializer=latent_bias_initializer,
             name=self.v_name("latent_dense"),
+            **V1_PARMS,
         )
 
     @tf.function
     def call(self, inputs, training=False):
-        """Define the computational flow"""
-        #inputs = tf.cast(inputs, self.dtype)
+        """Define the computational flow
+        
+        Parameters
+        ----------
+        inpits: Tensor, input
+        training: bool, whether to apply training calculation through batch 
+            normalisation.
+        ldr: allowable lower depth range. call through embedding layers will
+            include layers with a lesser than or equal to index value to this.
+            The embedding layers between aldr and audr will be skipped. 
+        audr: allowable upper depth range. call through embedding layers will
+            include layers with a higher than or equal to index value to this.
+
+        """
         x = inputs
-        for em, bnb, bna, drp in zip(
-            self.embeddings,
-            self.embeddings_bn_before,
-            self.embeddings_bn_after,
-            self.dropout,
-        ):
-            x = em(x)
-            x = tf.cast(x, inputs.dtype)
-            if self.bn_before:
-                x = tf.cast(x, inputs.dtype)
-                x = bnb(x, training=training)
-            x = tf.cast(x, inputs.dtype)
-            x = self.activation(x)
-            if self.bn_after:
-                x = tf.cast(x, inputs.dtype)
-                x = bna(x, training=training)
-            if self.dropout_rate > 0.0:
-                x = tf.cast(x, inputs.dtype)
-                x = drp(x, training=training)
-        x = tf.cast(x, inputs.dtype)
+
+        for i in range(self.n_em):
+            with tf.name_scope('embedding_{}'.format(i)):
+                x = self.embeddings[i](x)
+                if self.bn_before:
+                    x = self.embeddings_bn_before[i](x, training=training)
+                x = self.activation(x)
+                if self.bn_after:
+                    x = self.embeddings_bn_after[i](x, training=training)
+                if self.dropout_rate > 0.0:
+                    x = self.dropout[i](x, training=training)
         x = self.latent(x)
         return x

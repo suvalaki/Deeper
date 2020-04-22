@@ -32,7 +32,7 @@ from deeper.models.gmvae.gmvae_marginalised_categorical.utils import (
     chain_call_dataset,
     purity_score,
 )
-from deeper.models.gmvae.gmvae_marginalised_categorical.train import train, train_even
+from deeper.models.gmvae.gmvae_marginalised_categorical.train import train
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.preprocessing import OneHotEncoder
@@ -92,7 +92,7 @@ params = {
     "learning_rate": initial_learning_rate,
     "gradient_clip": 1e10,
     "bn_before": False,
-    "bn_after": True,
+    "bn_after": False,
     "categorical_epsilon": 1e-12,
     "reconstruction_epsilon": 1e-12,
     "latent_epsilon": 1e-12,
@@ -100,7 +100,7 @@ params = {
     "z_kl_lambda": 1.0,
     "c_kl_lambda": 1.0,
     "cat_latent_bias_initializer": None,
-    "optimizer": tf.keras.optimizers.Adam(1e-3, epsilon=1e-16),
+    "optimizer": tf.keras.optimizers.Adam(1e-2, epsilon=1e-16),
     "connected_weights": False,
     # "optimizer":tf.keras.optimizers.SGD(
     #    1e-3,
