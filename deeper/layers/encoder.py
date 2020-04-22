@@ -15,13 +15,14 @@ class Encoder(Layer, Scope):
         var_scope="encoder",
         bn_before=False,
         bn_after=False,
-        embedding_kernel_initializer=tf.initializers.glorot_uniform(),
-        embedding_bias_initializer=tf.initializers.zeros(),
-        latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
-        latent_bias_initializer=tf.initializers.zeros(),
+        embedding_kernel_initializer=None,#tf.initializers.glorot_uniform(),
+        embedding_bias_initializer=None,#tf.initializers.zeros(),
+        latent_kernel_initialiazer=None,#tf.initializers.glorot_uniform(),
+        latent_bias_initializer=None,#tf.initializers.zeros(),
         embedding_dropout=0.0,
+        **kwargs
     ):
-        Layer.__init__(self)
+        Layer.__init__(self, **kwargs)
         Scope.__init__(self, var_scope)
         self.latent_dim = latent_dim
         self.em_dim = embedding_dimensions
@@ -52,9 +53,9 @@ class Encoder(Layer, Scope):
                     tfk.layers.BatchNormalization(
                         axis=-1,
                         name=self.v_name("embedding_{}_bn_before".format(i)),
-                        renorm=True,
+                        renorm=False,
                     )
-                )
+               )
             else:
                 self.embeddings_bn_before.append(None)
 
@@ -87,6 +88,7 @@ class Encoder(Layer, Scope):
     @tf.function
     def call(self, inputs, training=False):
         """Define the computational flow"""
+        #inputs = tf.cast(inputs, self.dtype)
         x = inputs
         for em, bnb, bna, drp in zip(
             self.embeddings,
@@ -95,12 +97,18 @@ class Encoder(Layer, Scope):
             self.dropout,
         ):
             x = em(x)
+            x = tf.cast(x, inputs.dtype)
             if self.bn_before:
+                x = tf.cast(x, inputs.dtype)
                 x = bnb(x, training=training)
+            x = tf.cast(x, inputs.dtype)
             x = self.activation(x)
             if self.bn_after:
+                x = tf.cast(x, inputs.dtype)
                 x = bna(x, training=training)
             if self.dropout_rate > 0.0:
+                x = tf.cast(x, inputs.dtype)
                 x = drp(x, training=training)
+        x = tf.cast(x, inputs.dtype)
         x = self.latent(x)
         return x
