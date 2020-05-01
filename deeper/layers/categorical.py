@@ -76,14 +76,14 @@ class CategoricalEncoder(Layer, Scope):
     def call(self, inputs, y=None, training=False):
         logits = self.logits_encoder(inputs, training)
         probs = self._prob(logits)
-        if y is not None:
-            ent = tf.nn.softmax_cross_entropy_with_logits(
-                labels=y, logits=logits, name="entropy"
-            )
-        else:
-            ent = tf.nn.softmax_cross_entropy_with_logits(
-                labels=probs, logits=logits, name="entropy"
-            )
+        #if y is not None:
+        #ent = tf.nn.softmax_cross_entropy_with_logits(
+        #    labels=y, logits=logits, name="entropy"
+        #)
+        #else:
+        ent = tf.nn.softmax_cross_entropy_with_logits(
+            labels=probs, logits=logits, name="entropy"
+        )
         return logits, probs
 
     @tf.function

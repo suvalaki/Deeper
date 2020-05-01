@@ -1,5 +1,6 @@
 #%%
-
+import sys 
+sys.path.append("../../../..")
 import logging, os
 
 logging.disable(logging.WARNING)
@@ -14,7 +15,7 @@ import json
 
 #tf.enable_eager_execution()
 
-tf.keras.backend.set_floatx("float64")
+#tf.keras.backend.set_floatx("float64")
 
 import numpy as np
 from deeper.models.gmvae.gmvae_pure_sampling import model
@@ -89,14 +90,14 @@ tf.random.set_seed(seed)
 params = {
     "components": len(set(y_train)),
     "input_dimension": X_train.shape[1],
-    "embedding_dimensions": [512, 512],
-    "latent_dimensions": 64,
+    "embedding_dimensions": [512, 512, 64],
+    "latent_dimensions": 16,
     "mixture_embedding_dimensions": [512, 512],
     "mixture_latent_dimensions": 64,
     "embedding_activations": tf.nn.relu,
     "kind": "binary",
     "learning_rate": initial_learning_rate,
-    "gradient_clip": None,
+    "gradient_clip": 1e0,
     "bn_before": False,
     "bn_after": False,
     "categorical_epsilon": 0.0,
@@ -108,7 +109,7 @@ params = {
     "cat_latent_bias_initializer": None,
     "connected_weights": False,
     # "optimizer":tf.keras.optimizers.Adam(lr_schedule, epsilon=1e-16),
-    "optimizer": tf.keras.optimizers.Adam(1e-3, epsilon=1e-4),
+    "optimizer": tf.keras.optimizers.Adam(1e-3, epsilon=1e-16),
     "categorical_latent_embedding_dropout": 0.2,
     "mixture_latent_mu_embedding_dropout": 0.2,
     "mixture_latent_var_embedding_dropout": 0.2,
@@ -131,7 +132,7 @@ param_string = (
 )
 
 #%%
-m1.load_weights("model_w_5")
+#m1.load_weights("model_w_5")
 
 #%%
 res = m1.call(X_test)
@@ -189,13 +190,14 @@ if False:
         epochs=10,
         iter_train=1,
         num_inference=1000,
-        save="model_w_2",
+        save=None,#,"model_w_2",
         batch=True,
         temperature_function=lambda x: exponential_multiplicative_cooling(
             x, 0.5, 0.5, 0.99
         ),
         # temperature_function = lambda x: 0.1
-        save_results="./gumble_results.txt",
+        save_results=None,#"./gumble_results.txt",
+        #tensorboard=None,
     )
 
 
@@ -224,7 +226,7 @@ train(
     save=None,#"model_w_5",
     batch=True,
     temperature_function=lambda x: exponential_multiplicative_cooling(
-        x, 1.0, 0.5, 0.98
+        x, 1.0, 0.5, 0.999
     ),
     # temperature_function = lambda x: 0.1
     save_results="./gumble_results.txt",

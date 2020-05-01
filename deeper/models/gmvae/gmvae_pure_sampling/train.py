@@ -345,25 +345,28 @@ def train_even(
     # t1 = tqdm(total=epochs, position=0)
     # t2 = tqdm(total=int(X_train.shape[0] // num), position=1, leave=False)
 
-    if save_results is not None:
+    header_str = (
+        "{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t"
+        "{:<10}\t{:<10}\t{:<10}\t{:<10}\t"
+        "{:<10}\t{:<10}\t{:<10}"
+    ).format(
+        "epoch",
+        "beta_z",
+        "beta_y",
+        "loss",
+        "likelih",
+        "z-prior",
+        "y-prior",
+        "trAMI",
+        "teAMI",
+        "trPUR",
+        "tePUR",
+        "attch_te",
+        "temp",
+    )
 
-        header_str = (
-            "{:<10}\t{:<10}\t{:<10}\t{:<10}\t"
-            "{:<10}\t{:<10}\t{:<10}\t{:<10}\t"
-            "{:<10}\t{:<10}\t{:<10}"
-        ).format(
-            "epoch",
-            "loss",
-            "likelih",
-            "z-prior",
-            "y-prior",
-            "trAMI",
-            "teAMI",
-            "trPUR",
-            "tePUR",
-            "attch_te",
-            "temp",
-        )
+
+    if save_results is not None:
 
         save_results = os.path.join(os.path.abspath(save_results))
 

@@ -138,8 +138,8 @@ class MarginalAutoEncoder(Model, Scope):
                     latent_mu_bias_initializer=recon_latent_bias_initializer,
                 )
 
-    @tf.function#
-    def call(self, x, y, training=False):
+    # @tf.function#
+    def call(self, x, y, training=False, apply_random_latent=True):
         y = tf.cast(y, dtype=x.dtype)
         xy = tf.concat([x, y], axis=-1)
         (
@@ -159,11 +159,20 @@ class MarginalAutoEncoder(Model, Scope):
             pz_g_y__var,
         ) = self.graphs_pz_g_y.call(y, training, qz_g_xy__sample)
         dkl_z_g_xy = pz_g_y__logprob - qz_g_xy__logprob
-        (
-            px_g_zy__sample,
-            px_g_zy__logprob,
-            px_g_zy__prob,
-        ) = self.graphs_px_g_zy.call(qz_g_xy__sample, training, x)[0:3]
+
+        if apply_random_latent:
+            (
+                px_g_zy__sample,
+                px_g_zy__logprob,
+                px_g_zy__prob,
+            ) = self.graphs_px_g_zy.call(qz_g_xy__sample, training, x)[0:3]
+        else:
+            (
+                px_g_zy__sample,
+                px_g_zy__logprob,
+                px_g_zy__prob,
+            ) = self.graphs_px_g_zy.call(pz_g_y__mu, training, x)[0:3]
+
 
         output = {
             "qz_g_xy__sample": qz_g_xy__sample,

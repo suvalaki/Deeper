@@ -167,8 +167,8 @@ class Gmvae(Model, Scope):
     @tf.function
     def sample_one(self, inputs, training=False, temperature=tf.constant(1.0)):
 
-        x = inputs
-        x = tf.cast(inputs, dtype=self.dtype)
+        x = tf.cast(inputs, self.dtype)
+        # x = tf.cast(inputs, dtype=self.dtype)
         # x = tf.cast(
         #    tf.where(tf.math.is_nan(x), tf.ones_like(x) * 0.0, x),
         #    dtype=self.dtype,
@@ -244,7 +244,7 @@ class Gmvae(Model, Scope):
     @tf.function
     def latent_sample(self, inputs, training=False, samples=1):
         outputs = self.call(inputs, training=training, samples=samples)
-        latent = outputs["autoencoder"]["px_g_zy__sample"]
+        latent = outputs["autoencoder"]["qz_g_xy__sample"]
         return latent
 
     def call_even(self, x, training=False, samples=1):
@@ -296,10 +296,12 @@ class Gmvae(Model, Scope):
         return loss
 
     @tf.function
-    def even_mixture_loss(
-        self, inputs, training=False, samples=1, beta_z=tf.constant(1.0)
-    ):
-        pass
+    def even_mixture_loss(self, inputs, training=False, samples=1, beta_z=tf.constant(1.0)):
+        output = self.call(
+            inputs, training=training, samples=samples, temperature=tf.constant(0.5)
+        )
+        recon = output['recon']
+        return - recon
 
     @tf.function
     def train_step(

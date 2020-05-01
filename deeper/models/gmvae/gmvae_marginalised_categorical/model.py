@@ -299,13 +299,38 @@ class Gmvae(Model, Scope):
     def loss_fn_even(
         self, inputs, training=False, samples=1, beta_z=1.0, beta_y=1.0
     ):
-        vals = self.call(inputs, training=training, samples=samples)
-        recon = tf.add_n([
-            vals["autoencoder"][i]["px_g_zy__logprob"] 
-            for i in range(self.components)
-        ]) / self.components
+    
+        x = tf.cast(inputs, dtype=self.dtype)
+        x = tf.cast(
+            tf.where(tf.math.is_nan(x), tf.ones_like(x) * 0.0, x),
+            dtype=self.dtype,
+        )
 
-        return recon
+        y = tf.cast(
+            tf.fill(tf.stack([tf.shape(x)[0], self.components]), 0.0), x.dtype
+        )
+
+        mres = self.marginal_autoencoder(x, y, training)
+        recon = mres["px_g_zy__logprob"] 
+        z_entropy = (mres["pz_g_y__logprob"] - mres["qz_g_xy__logprob"])
+        elbo = recon + z_entropy
+        loss = -elbo
+        return loss
+
+
+    @tf.function
+    def cluster_loss(self, x, y, training=False):
+        if len(y.shape) == 1:
+            y = tf.one_hot(y, self.components)
+        qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
+        nent = -tf.add_n(
+            [
+                y[:, i]
+                * (tf.math.log(qy_g_x__prob[:, i]) - tf.math.log(y[:, i]))
+                for i in range(self.components)
+            ]
+        )
+        return nent
 
 
     @tf.function
@@ -313,10 +338,11 @@ class Gmvae(Model, Scope):
         self, x, y, training=False, samples=1, beta_z=1.0, beta_y=1.0
     ):
 
-        even_elbo = self.elbo(x, training, samples, beta_z, 0.0)
+        #even_elbo = self.elbo(x, training, samples, beta_z, 0.0)
+
         cluster_loss = self.cluster_loss(x, y, True)
 
-        return -even_elbo + beta_y * cluster_loss
+        return cluster_loss
 
 
     @tf.function
@@ -405,26 +431,40 @@ class Gmvae(Model, Scope):
     ):
         self.train_base(self.loss_fn, x, samples, tenorboard, batch, beta_z, beta_y)
 
+
     @tf.function
     def pretrain_step(self, x, samples=1, batch=False, beta_z=1.0, beta_y=1.0,):
-        self.train_base(self.loss_fn_even, x, samples, False, batch, beta_z, beta_y)
+        with tf.GradientTape() as tape:
+            loss = tf.reduce_mean(
+                self.loss_fn_even(x, True, samples, beta_z, beta_y)
+            )
+
+        gradients = tape.gradient(loss, self.marginal_autoencoder.trainable_variables)
+
+        # Clipping
+        gradients = [
+            None
+            if gradient is None
+            else tf.clip_by_value(
+                gradient, -self.gradient_clip, self.gradient_clip
+            )
+            if self.gradient_clip is not None
+            else gradient
+            for gradient in gradients
+        ]
+
+        #with tf.device("/gpu:0"):
+        self.optimizer.apply_gradients(
+            zip(gradients, self.marginal_autoencoder.trainable_variables)
+        )
+
 
     @tf.function
     def predict(self, x, training=False):
         qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training=training)
         return qy_g_x__prob
 
-    @tf.function
-    def cluster_loss(self, x, y, training=False):
-        qy_g_x__logit, qy_g_x__prob = self.graph_qy_g_x(x, training)
-        nent = -tf.add_n(
-            [
-                y[:, i]
-                * (tf.math.log(qy_g_x__prob[:, i]) - tf.math.log(y[:, i]))
-                for i in range(self.components)
-            ]
-        )
-        return nent
+
 
     def pretrain_categories_step(
         self, x, y, samples=1, beta_z=1.0, beta_y=1.0
@@ -432,30 +472,25 @@ class Gmvae(Model, Scope):
         # y = tf.clip_by_value(y, 0.05, 0.95)
 
         # Compute gradients
-        with tf.device("/gpu:0"):
-            with tf.GradientTape() as tape:
-                loss = tf.reduce_mean(
-                    self.loss_fn_with_known_clusters(
-                        x, y, True, samples, beta_z, beta_y
-                    )
+        with tf.GradientTape() as tape:
+            loss = tf.reduce_mean(
+                self.loss_fn_with_known_clusters(
+                    x, y, True, samples, beta_z, beta_y
                 )
-
-        # backprop and clippint
-        with tf.device("/gpu:0"):
-            gradients = tape.gradient(loss, self.trainable_variables)
-            gradients = [
-                None
-                if gradient is None
-                else tf.clip_by_value(
-                    gradient, -self.gradient_clip, self.gradient_clip
-                )
-                if self.gradient_clip is not None
-                else gradient
-                for gradient in gradients
-            ]
-
-        # update
-        with tf.device("/gpu:0"):
-            self.optimizer.apply_gradients(
-                zip(gradients, self.trainable_variables)
             )
+
+        gradients = tape.gradient(loss, self.graph_qy_g_x.trainable_variables)
+        gradients = [
+            None
+            if gradient is None
+            else tf.clip_by_value(
+                gradient, -self.gradient_clip, self.gradient_clip
+            )
+            if self.gradient_clip is not None
+            else gradient
+            for gradient in gradients
+        ]
+
+        self.optimizer.apply_gradients(
+            zip(gradients, self.graph_qy_g_x.trainable_variables)
+        )

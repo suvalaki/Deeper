@@ -1,5 +1,12 @@
 import tensorflow as tf
+
+
+gpu_devices = tf.config.experimental.list_physical_devices('GPU')
+for device in gpu_devices:
+    tf.config.experimental.set_memory_growth(device, True)
+
 from tensorboard.plugins.hparams import api as hp
+from tensorboard.plugins import projector
 
 
 import logging, os, json
@@ -28,6 +35,8 @@ from sklearn.model_selection import ParameterGrid
 from itertools import product
 
 
+
+
 #%% SET HYPER PARAMETERS
 HP_seed = hp.HParam('seed', hp.Discrete([123,456,789]))
 HP_components = hp.HParam('components', hp.Discrete([10,20,30]))
@@ -44,7 +53,7 @@ HP_mixture_dims = hp.HParam('mixture_dims', hp.Discrete([
 ]))
 HP_bn = hp.HParam('BatchNorm', hp.Discrete(['none', 'before', 'after']))
 HP_connected_weights = hp.HParam('connected_weights', hp.Discrete([False, True]))
-HP_samples = hp.HParam('samples', hp.Discrete([1, 5, 10, 20]))
+HP_samples = hp.HParam('samples', hp.Discrete([1]))
 
 METRIC_AMI_TRAIN = hp.Metric('ami_train', display_name='ami_train')
 METRIC_AMI_TEST = hp.Metric('ami_test', display_name='ami_test')
@@ -111,7 +120,7 @@ def train_test_model(run_id, hparams, X_train, y_train, X_test, y_test):
         "kind": "binary",
         "learning_rate": 1.0,
         "gradient_clip": None,
-        "bn_before": True if hparams[HP_bn]=='after' else False,
+        "bn_before": True if hparams[HP_bn]=='before' else False,
         "bn_after": True if hparams[HP_bn]=='after' else False,
         "categorical_epsilon": 0.0,
         "reconstruction_epsilon": 0.0,
@@ -155,7 +164,7 @@ def train_test_model(run_id, hparams, X_train, y_train, X_test, y_test):
         y_test,
         num=100,
         samples=hparams[HP_samples],
-        epochs=250,
+        epochs=110,
         iter_train=1,
         num_inference=1000,
         save="model_w_5",
@@ -202,43 +211,52 @@ X_test = (X_test > 0.5).astype(float)
 
 with open('gumple_result_search.csv' ,'w') as file:
     file.write(
-        'seed\tcomponents\tencoder_dims\tmixture_dims\tbn'
+        'run\tseed\tcomponents\tencoder_dims\tmixture_dims\tbn'
         '\tconnected_weights\tsamples'
         '\ttr_ami\tte_ami\ttr_pur\tte_pur'
     )
 
+
+import pandas as pd
+runs_done = pd.read_csv('gumple_result_search.csv', sep='\t')['run'].tolist()
+
 #%% Gridsearch
 session_num = 0
 for i, hparams in enumerate(param_grid):
+    if i not in runs_done:
+        print(f'\n--- Starting Trial {i}')
+        print({h: hparams[h] for h in hparams})
 
-    print(f'\n--- Starting Trial {i}')
-    print({h: hparams[h] for h in hparams})
+        run_name = f'run-{i}'
 
-    run_name = f'run-{i}'
-
-    ami_tr, ami_te, pur_tr, pur_te = train_test_model(
-            'logs/hparam_tuning/' + run_name, 
-            hparams, X_train, y_train, X_test, y_test
-        )
-
-    with tf.summary.create_file_writer('logs/hparam_tuning/' + run_name).as_default():
-
-        hp.hparams(hparams)
-
-        #tf.summary.scalar('ami_train', ami_tr, step=1)
-        #tf.summary.scalar('te_ami', ami_te, step=1)
-        #tf.summary.scalar('tr_pur', pur_tr, step=1)
-        #tf.summary.scalar('te_pur', pur_te, step=1)
-
-        with open('gumple_result_search.csv' ,'a') as file:
-            file.write(
-                f'\n{hparams[HP_seed]}'
-                f'\t{hparams[HP_components]}'
-                f'\t{hparams[HP_encoder_dims]}'
-                f'\t{hparams[HP_mixture_dims]}'
-                f'\t{hparams[HP_bn]}'
-                f'\t{hparams[HP_connected_weights]}'
-                f'\t{hparams[HP_samples]}'
+        ami_tr, ami_te, pur_tr, pur_te = train_test_model(
+                'logs/hparam_tuning/' + run_name, 
+                hparams, X_train, y_train, X_test, y_test
             )
 
-        session_num += 1
+        with tf.summary.create_file_writer('logs/hparam_tuning/' + run_name).as_default():
+
+            hp.hparams(hparams)
+
+            #tf.summary.scalar('ami_train', ami_tr, step=1)
+            #tf.summary.scalar('te_ami', ami_te, step=1)
+            #tf.summary.scalar('tr_pur', pur_tr, step=1)
+            #tf.summary.scalar('te_pur', pur_te, step=1)
+
+            with open('gumple_result_search.csv' ,'a') as file:
+                file.write(
+                    f'\n{i}'
+                    f'\t{hparams[HP_seed]}'
+                    f'\t{hparams[HP_components]}'
+                    f'\t{hparams[HP_encoder_dims]}'
+                    f'\t{hparams[HP_mixture_dims]}'
+                    f'\t{hparams[HP_bn]}'
+                    f'\t{hparams[HP_connected_weights]}'
+                    f'\t{hparams[HP_samples]}'
+                    f'\t{ami_tr}'
+                    f'\t{ami_te}'
+                    f'\t{pur_tr}'
+                    f'\t{pur_te}'
+                )
+
+    session_num += 1

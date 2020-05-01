@@ -27,6 +27,9 @@ class GumbleSoftmaxLayer(Layer, Scope):
 
     @tf.function
     def _sample_one(self, logits, temperature=tf.constant(1.0)):
+        
+        logits = tf.cast(logits, self.dtype)
+        
         uniform_sample = tf.random.uniform(
             shape=tf.shape(logits),
             dtype=self.dtype,
