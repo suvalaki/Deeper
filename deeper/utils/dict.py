@@ -47,8 +47,20 @@ class NestedDict(dict):
 def iter_leafs(d, keys=[], types=[]):
     """Iterate over a nested dict and surface leaf values with paths
     for reconstruction"""
+
+    """
+    # Generator Method
     for key, val in d.items():
         if isinstance(val, dict):
             yield from iter_leafs(val, keys + [key], types + [type(val)])
         else:
             yield keys + [key], types + [type(val)], val
+    """
+    accumulator = [] 
+    for key, val in d.items():
+        if isinstance(val, dict):
+            for x in iter_leafs(val, keys + [key], types + [type(val)]):
+                accumulator.append(x)
+        else:
+            accumulator.append(tuple([keys + [key], types + [type(val)], val]))
+    return accumulator
