@@ -88,7 +88,7 @@ def train(
             # Evaluate training metrics
             ##recon, z_ent, y_ent = chain_call(model.entropy_fn, X_train, num_inference)
             recon, logpx_reg, bin_xent, cat_xent, z_ent = chain_call(
-                model.entropy_fn, (X_train, X_train), num_inference
+                model.entropy_fn, (X_train, y_train), num_inference
             )
 
             recon = np.array(recon).mean()

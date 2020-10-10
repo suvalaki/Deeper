@@ -245,7 +245,7 @@ class VAE(Model, Scope):
         ]
 
         # Calculate reconstruction epsilon assuming independence between distributions
-        log_px_recon_regression = lognormal_pdf(x_recon_reg, y_reg, 1.0)
+        log_px_recon_regression = lognormal_pdf(x_recon_reg, y_reg, 1.0, 1e-6)
         x_bin_xent = tf.nn.sigmoid_cross_entropy_with_logits(
             labels=y_bin,
             logits=x_recon_bin_logit,
