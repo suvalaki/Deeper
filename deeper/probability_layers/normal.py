@@ -343,18 +343,16 @@ class RandomNormalEncoder(Layer, Scope):
 
 def lognormal_pdf(x, mu, logvar, eps=0.0, axis=-1, clip=1e-18):
 
-    var = tf.math.log(logvar)
+    var = tf.math.exp(logvar)
     if eps > 0.0:
         var = tf.add(var, eps)
 
-    logprob = -0.5 * tf.reduce_sum(
-        (
-            tf.cast(tf.math.log(2 * np.pi), x.dtype)
-            + tf.math.log(var)
-            + tf.square(x - mu) / var
-        ),
-        axis=axis,
+    logprob = -0.5 * (
+        x.shape[axis]
+        * (tf.math.log(var) + tf.cast(tf.math.log(2 * np.pi), x.dtype))
+        + tf.reduce_sum(tf.square(x - mu) / tf.math.sqrt(var), axis)
     )
+
     # logprob = tf.compat.v2.clip_by_value(logprob, np.log(clip), np.log(1-clip))
     return logprob
 
