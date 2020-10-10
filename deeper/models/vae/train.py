@@ -11,6 +11,8 @@ def train(
     model,
     X_train,
     X_test,
+    y_train,
+    y_test,
     num,
     samples,
     epochs,
@@ -30,11 +32,20 @@ def train(
     if tensorboard is not None:
         summary_writer = tf.summary.create_file_writer(tensorboard)
 
-    if save_results is not None:
+    header_str = (
+        "{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}"
+    ).format(
+        "epoch",
+        "beta_z",
+        "loss",
+        "likelih",
+        "like_reg",
+        "like_bin",
+        "like_cat",
+        "z-prior",
+    )
 
-        header_str = ("{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}").format(
-            "epoch", "beta_z", "loss", "likelih", "z-prior",
-        )
+    if save_results is not None:
 
         save_results = os.path.join(os.path.abspath(save_results))
 
@@ -48,7 +59,7 @@ def train(
 
         # Setup datasets
         dataset_train = (
-            tf.data.Dataset.from_tensor_slices(X_train)
+            tf.data.Dataset.from_tensor_slices((X_train, y_train))
             .repeat(iter_train)
             .shuffle(X_train.shape[0])
             .batch(num)
@@ -57,16 +68,11 @@ def train(
         iter = model.cooling_distance
         beta_z = beta_z_method()
 
-        for x in dataset_train:
+        for x, y in dataset_train:
             model.train_step(
                 # random sampling
-                tf.cast(
-                    tf.greater(
-                        tf.cast(x, tf.float64),
-                        tf.cast(tf.random.uniform(tf.shape(x), 0, 1), x.dtype),
-                    ),
-                    x.dtype,
-                ),
+                x,
+                y,
                 samples=samples,
                 batch=batch,
                 beta_z=beta_z,
@@ -81,15 +87,30 @@ def train(
         if i % verbose == 0:
             # Evaluate training metrics
             ##recon, z_ent, y_ent = chain_call(model.entropy_fn, X_train, num_inference)
-            recon, z_ent = chain_call(model.entropy_fn, X_train, num_inference)
+            recon, logpx_reg, bin_xent, cat_xent, z_ent = chain_call(
+                model.entropy_fn, (X_train, X_train), num_inference
+            )
 
             recon = np.array(recon).mean()
+            logpx_reg = np.array(logpx_reg).mean()
+            bin_xent = np.array(bin_xent).mean()
+            cat_xent = np.array(cat_xent).mean()
             z_ent = np.array(z_ent).mean()
 
             loss = -(recon + z_ent)
 
-            value_str = "{:d}\t{:10.5f}\t{:10.5f}\t{:10.5f}\t{:10.5f}".format(
-                int(model.cooling_distance), beta_z, loss, recon, z_ent,
+            value_str = (
+                "{:d}\t{:10.5f}\t{:10.5f}\t{:10.5f}\t{:10.5f}"
+                "\t{:10.5f}\t{:10.5f}\t{:10.5f}"
+            ).format(
+                int(model.cooling_distance),
+                beta_z,
+                loss,
+                recon,
+                logpx_reg,
+                bin_xent,
+                cat_xent,
+                z_ent,
             )
 
             if save_results is not None:

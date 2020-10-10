@@ -1,10 +1,17 @@
 import tensorflow as tf
 import numpy as np
+from typing import Union, Tuple
 
 from deeper.probability_layers.ops.normal import std_normal_kl_divergence
+from deeper.layers.encoder import Encoder
 from deeper.layers.binary import SigmoidEncoder
-from deeper.probability_layers.gumble_softmax import GumbleSoftmaxLayer
-from deeper.probability_layers.normal import RandomNormalEncoder, lognormal_kl
+
+# from deeper.probability_layers.gumble_softmax import GumbleSoftmaxLayer
+from deeper.probability_layers.normal import (
+    RandomNormalEncoder,
+    lognormal_kl,
+    lognormal_pdf,
+)
 from deeper.utils.sampling import mc_stack_mean_dict
 from deeper.utils.function_helpers.decorators import inits_args
 from deeper.utils.function_helpers.collectors import get_local_tensors
@@ -19,8 +26,14 @@ class VAE(Model, Scope):
     @inits_args
     def __init__(
         self,
-        input_dimension,
-        embedding_dimensions,
+        input_regression_dimension: int,
+        input_boolean_dimension: int,
+        input_categorical_dimension: Union[int, Tuple[int]],
+        output_regression_dimension: int,
+        output_boolean_dimension: int,
+        output_categorical_dimension: Union[int, Tuple[int]],
+        encoder_embedding_dimensions: Tuple[int],
+        decoder_embedding_dimensions: Tuple[int],
         latent_dim,
         embedding_activations=tf.nn.tanh,
         kind="binary",
@@ -54,10 +67,42 @@ class VAE(Model, Scope):
 
         self.cooling_distance = 0
 
+        # Input Dimension Calculation
+        self.input_categorical_dimension = (
+            input_categorical_dimension
+            if type(input_categorical_dimension) == tuple
+            else (input_categorical_dimension,)
+        )
+        self.input_cat_dim = (
+            input_categorical_dimension
+            if type(input_categorical_dimension) == int
+            else sum(input_categorical_dimension)
+        )
+        self.input_dim = (
+            input_regression_dimension
+            + input_boolean_dimension
+            + self.input_cat_dim
+        )
+        self.output_categorical_dimension = (
+            output_categorical_dimension
+            if type(output_categorical_dimension) == tuple
+            else (output_categorical_dimension,)
+        )
+        self.output_cat_dim = (
+            output_categorical_dimension
+            if type(output_categorical_dimension) == int
+            else sum(output_categorical_dimension)
+        )
+        self.output_dim = (
+            output_regression_dimension
+            + output_boolean_dimension
+            + self.output_cat_dim
+        )
+
         # Encoder
         self.graph_qz_g_x = RandomNormalEncoder(
             latent_dimension=self.latent_dim,
-            embedding_dimensions=self.embedding_dimensions,
+            embedding_dimensions=self.encoder_embedding_dimensions,
             var_scope=self.v_name("graph_qz_g_x"),
             bn_before=self.bn_before,
             bn_after=self.bn_after,
@@ -77,43 +122,40 @@ class VAE(Model, Scope):
         )
 
         # Decoder
-        if self.kind == "binary":
-            self.graph_px_g_z = SigmoidEncoder(
-                latent_dimension=self.input_dimension,
-                embedding_dimensions=self.embedding_dimensions[::-1],
-                var_scope=self.v_name("graph_px_g_z"),
-                bn_before=self.bn_before,
-                bn_after=self.bn_after,
-                epsilon=self.reconstruction_epsilon,
-                embedding_kernel_initializer=recon_embedding_kernel_initializer,
-                embedding_bias_initializer=recon_embedding_bias_initializer,
-                latent_kernel_initialiazer=recon_latent_kernel_initialiazer,
-                latent_bias_initializer=recon_latent_bias_initializer,
-                embedding_dropout=recon_dropouut,
-            )
-        else:
-            self.graph_px_g_z = RandomNormalEncoder(
-                self.input_dimension,
-                self.embedding_dimensions[::-1],
-                var_scope=self.v_name("graph_px_g_z"),
-                bn_before=self.bn_before,
-                bn_after=self.bn_after,
-                embedding_mu_dropout=recon_dropouut,
-                embedding_var_dropout=recon_dropouut,
-                fixed_var=1.0,
-                epsilon=self.reconstruction_epsilon,
-                embedding_mu_kernel_initializer=recon_embedding_kernel_initializer,
-                embedding_mu_bias_initializer=recon_embedding_bias_initializer,
-                latent_mu_kernel_initialiazer=recon_latent_kernel_initialiazer,
-                latent_mu_bias_initializer=recon_latent_bias_initializer,
-            )
+        self.graph_px_g_z = Encoder(
+            self.output_dim,
+            self.decoder_embedding_dimensions,
+            activation=self.embedding_activations,
+            var_scope=self.v_name("graph_px_g_z"),
+            bn_before=self.bn_before,
+            bn_after=self.bn_after,
+            embedding_kernel_initializer=recon_embedding_kernel_initializer,
+            embedding_bias_initializer=recon_embedding_bias_initializer,
+            latent_kernel_initialiazer=recon_latent_kernel_initialiazer,
+            latent_bias_initializer=recon_latent_bias_initializer,
+            embedding_dropout=recon_dropouut,
+        )
 
     def increment_cooling(self):
         self.cooling_distance += 1
 
     @tf.function
-    def sample_one(self, x, training=False):
+    def predict_one(self, x, training=False):
+
         x = tf.cast(x, dtype=self.dtype)
+        (
+            x_regression,
+            x_bin,
+            x_cat_groups,
+            x_cat_groups_concat,
+        ) = self.split_inputs(
+            x,
+            self.input_regression_dimension,
+            self.input_boolean_dimension,
+            self.input_categorical_dimension,
+        )
+
+        # Encoder
         (
             qz_g_x__sample,
             qz_g_x__logprob,
@@ -123,73 +165,222 @@ class VAE(Model, Scope):
             qz_g_x__var,
         ) = self.graph_qz_g_x.call(x, training)
 
+        # `Decoder
+        out_hidden = self.graph_px_g_z.call(qz_g_x__sample, training)
+
         (
-            px_g_z__sample,
-            px_g_z__logprob,
-            px_g_z__prob,
-        ) = self.graph_px_g_z.call(qz_g_x__sample, training, x)[0:3]
+            x_recon_regression,
+            x_recon_bin_logit,
+            x_recon_cat_groups_logit,
+            x_recon_cat_groups_logit_concat,
+        ) = self.split_inputs(
+            out_hidden,
+            self.output_regression_dimension,
+            self.output_boolean_dimension,
+            self.output_categorical_dimension,
+        )
 
-        recon = px_g_z__logprob
-        z_entropy = std_normal_kl_divergence(qz_g_x__mu, qz_g_x__logvar)
-        elbo = recon + z_entropy
+        x_recon_bin = tf.nn.sigmoid(x_recon_bin_logit)
+        x_recon_cat_groups = [
+            tf.nn.softmax(x) for x in x_recon_cat_groups_logit
+        ]
+        x_recon_cat_groups_concat = (
+            tf.nn.softmax(x_recon_cat_groups[0])
+            if len(x_recon_cat_groups_logit) <= 1
+            else tf.concat(
+                [tf.nn.softmax(z) for z in x_recon_cat_groups_logit], -1
+            )
+        )
 
-        output = {
+        result = {
+            # Input variables
+            "x_regression": x_regression,
+            "x_bin": x_bin,
+            "x_cat_groups_concat": x_cat_groups_concat,
+            # Encoder Variables
             "qz_g_x__sample": qz_g_x__sample,
             "qz_g_x__logprob": qz_g_x__logprob,
             "qz_g_x__prob": qz_g_x__prob,
             "qz_g_x__mu": qz_g_x__mu,
             "qz_g_x__logvar": qz_g_x__logvar,
             "qz_g_x__var": qz_g_x__var,
-            "px_g_z__sample": px_g_z__sample,
-            "px_g_z__logprob": px_g_z__logprob,
-            "px_g_z__prob": px_g_z__prob,
-            "recon": recon,
-            "z_entropy": z_entropy,
-            "elbo": elbo,
+            # DecoderVariables
+            "x_recon": out_hidden,
+            "x_recon_regression": x_recon_regression,
+            "x_recon_bin_logit": x_recon_bin_logit,
+            "x_recon_bin": x_recon_bin,
+            "x_recon_cat_groups_logit_concat": x_recon_cat_groups_logit_concat,
+            "x_recon_cat_groups_concat": x_recon_cat_groups_concat,
+        }
+
+        return result
+
+    @tf.function
+    def sample_one(self, x, y, training=False):
+
+        y = tf.cast(y, dtype=self.dtype)
+        y_reg, y_bin, y_cat_groups, y_cat_groups_concat = self.split_inputs(
+            y,
+            self.output_regression_dimension,
+            self.output_boolean_dimension,
+            self.output_categorical_dimension,
+        )
+
+        result = self.predict_one(x, training)
+
+        (
+            x_recon_reg,
+            x_recon_bin_logit,
+            x_recon_cat_logit_groups,
+            x_recon_cat_logit_groups_concat,
+        ) = self.split_inputs(
+            result["x_recon"],
+            self.output_regression_dimension,
+            self.output_boolean_dimension,
+            self.output_categorical_dimension,
+        )
+
+        x_recon_cat_groups = [
+            tf.nn.softmax(x) for x in x_recon_cat_logit_groups
+        ]
+
+        # Calculate reconstruction epsilon assuming independence between distributions
+        log_px_recon_regression = lognormal_pdf(x_recon_reg, y_reg, 1.0)
+        x_bin_xent = tf.nn.sigmoid_cross_entropy_with_logits(
+            labels=y_bin,
+            logits=x_recon_bin_logit,
+            name="recon_sigmoid_crossent",
+        )
+
+        x_cat_xents = (
+            tf.nn.softmax_cross_entropy_with_logits(
+                y_cat_groups[0], x_recon_cat_logit_groups[0]
+            )
+            if len(self.input_categorical_dimension) <= 1
+            else tf.concat(
+                [
+                    tf.reduce_sum(
+                        tf.nn.softmax_cross_entropy_with_logits(y, x), -1
+                    )
+                    for x, y in zip(y_cat_groups, x_recon_cat_logit_groups)
+                ],
+                -1,
+            )
+        )
+
+        recon = px_g_z__logprob = (
+            log_px_recon_regression
+            - tf.reduce_sum(x_bin_xent, -1)
+            - x_cat_xents
+        )
+        px_g_z__prob = tf.exp(px_g_z__logprob)
+        z_entropy = std_normal_kl_divergence(
+            result["qz_g_x__mu"], result["qz_g_x__logvar"]
+        )
+        elbo = px_g_z__logprob + z_entropy
+
+        output = {
+            **result,
+            **{
+                "y_reg": y_reg,
+                "y_bin": y_bin,
+                "y_cat_groups_concat": y_cat_groups_concat,
+                "log_px_recon_regression": log_px_recon_regression,
+                "x_cat_xents": x_cat_xents,
+                "x_bin_xent": x_bin_xent,
+                "x_cat_xents": x_cat_xents,
+                "px_g_z__logprob": px_g_z__logprob,
+                "px_g_z__prob": px_g_z__prob,
+                "recon": recon,
+                "z_entropy": z_entropy,
+                "elbo": elbo,
+            },
         }
 
         return output
 
     @tf.function
-    def sample(self, samples, x, training=False):
+    def split_inputs(
+        self, x, reg_dim: int, bool_dim: int, cat_dim_tup: Tuple[int]
+    ):
+        x_regression = x[:, :reg_dim]
+        x_bin_logit = x[
+            :,
+            reg_dim : (reg_dim + bool_dim),
+        ]
+
+        # categorical dimensions need to be further broken up according to the size
+        # of the input groups
+        cat_dim = sum(cat_dim_tup)
+        x_cat_softinv = x[:, -cat_dim:]
+        x_cat_softinv_groups = [
+            x_cat_softinv[
+                :,
+                sum(cat_dim_tup[:i]) : sum(cat_dim_tup[i : i + 1]),
+            ]
+            for i in range(len(cat_dim_tup))
+        ]
+        return x_regression, x_bin_logit, x_cat_softinv_groups, x_cat_softinv
+
+    @tf.function
+    def sample(self, samples, x, y, training=False):
         # with tf.device("/gpu:0"):
-        result = [self.sample_one(x, training) for j in range(samples)]
+        result = [self.sample_one(x, y, training) for j in range(samples)]
         return result
 
     @tf.function
-    def monte_carlo_estimate(self, samples, x, training=False):
-        return mc_stack_mean_dict(self.sample(samples, x, training))
+    def monte_carlo_estimate(self, samples, x, y, training=False):
+        return mc_stack_mean_dict(self.sample(samples, x, y, training))
 
     @tf.function
-    def call(self, x, training=False, samples=1):
-        output = self.monte_carlo_estimate(samples, x, training)
+    def call(self, x, y, training=False, samples=1):
+        output = self.monte_carlo_estimate(samples, x, y, training)
         return output
 
     @tf.function
-    def latent_sample(self, inputs, training=False, samples=1):
-        outputs = self.call(inputs, training=training, samples=samples)
+    def latent_sample(self, inputs, y, training=False, samples=1):
+        outputs = self.call(inputs, y, training=training, samples=samples)
         latent = outputs["px_g_z__sample"]
         return latent
 
     @tf.function
-    def entropy_fn(self, inputs, training=False, samples=1):
-        output = self.call(inputs, training=training, samples=samples)
-        return output["recon"], output["z_entropy"]
+    def entropy_fn(self, inputs, y, training=False, samples=1):
+        output = self.call(inputs, y, training=training, samples=samples)
+        return (
+            output["recon"],
+            output["log_px_recon_regression"],
+            output["x_bin_xent"],
+            output["x_cat_xents"],
+            output["z_entropy"],
+        )
 
     @tf.function
     def elbo(
-        self, inputs, training=False, samples=1, beta_z=1.0,
+        self,
+        inputs,
+        y,
+        training=False,
+        samples=1,
+        beta_z=1.0,
     ):
-        recon, z_entropy = self.entropy_fn(inputs, training, samples)
+        recon, logpx_reg, bin_xent, cat_xent, z_entropy = self.entropy_fn(
+            inputs, y, training, samples
+        )
         return recon + beta_z * z_entropy
 
     @tf.function
-    def loss_fn(self, inputs, training=False, samples=1, beta_z=1.0):
-        return -self.elbo(inputs, training, samples, beta_z)
+    def loss_fn(self, inputs, y, training=False, samples=1, beta_z=1.0):
+        return -self.elbo(inputs, y, training, samples, beta_z)
 
     @tf.function
     def train_step(
-        self, x, samples=1, tenorboard=False, batch=False, beta_z=1.0,
+        self,
+        x,
+        y,
+        samples=1,
+        tenorboard=False,
+        batch=False,
+        beta_z=1.0,
     ):
 
         if tenorboard:
@@ -199,7 +390,7 @@ class VAE(Model, Scope):
             writer = tf.summary.create_file_writer(train_log_dir)
 
         with tf.GradientTape() as tape:
-            loss = tf.reduce_mean(self.loss_fn(x, True, samples, beta_z), 0)
+            loss = tf.reduce_mean(self.loss_fn(x, y, True, samples, beta_z), 0)
 
         gradients = tape.gradient(loss, self.trainable_variables)
 

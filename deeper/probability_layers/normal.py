@@ -40,16 +40,16 @@ class RandomNormalEncoder(Layer, Scope):
         latent_dimensions: int, Output dimension of the probabilistic layer
         embedding_dimensions: list, the dimension of each layer from input to
             output for the embedding layers of the encoder for mu and logvar
-        embedding_activation = the tensorflow activation function to apply to 
+        embedding_activation = the tensorflow activation function to apply to
             each layer of the embedding encoder for mu and logvar
         bn_before: bool, flag whether to apply batch normalisation before
             activation in the encoder for mu and logvar
-        bn_after: bool, glag whether to apply batch normalisation after 
+        bn_after: bool, glag whether to apply batch normalisation after
             activation in the encoder for mu and logvar
         fixed_mu: value (to be implemented) A fixed value for mu
         fixed_var: value (to be implemented) A fixed value for var
-        connected_weights: bool, whether to train mu and var as a fully 
-            connected network. 
+        connected_weights: bool, whether to train mu and var as a fully
+            connected network.
 
         """
         Layer.__init__(self)
@@ -109,7 +109,10 @@ class RandomNormalEncoder(Layer, Scope):
 
     @tf.function
     def call_parameters(
-        self, inputs, training=False, apply_epsilon=True,
+        self,
+        inputs,
+        training=False,
+        apply_epsilon=True,
     ):
         """Return the parameters for this normal distribution
 
@@ -122,10 +125,19 @@ class RandomNormalEncoder(Layer, Scope):
         """
 
         if not self.connected_weights:
-            mu = self.mu(inputs, training, )
-            logvar = self.logvar(inputs, training, )
+            mu = self.mu(
+                inputs,
+                training,
+            )
+            logvar = self.logvar(
+                inputs,
+                training,
+            )
         else:
-            mu_logvar = self.mu_logvar(inputs, training, )
+            mu_logvar = self.mu_logvar(
+                inputs,
+                training,
+            )
             mu, logvar = tf.split(mu_logvar, 2, axis=-1)
 
         if apply_epsilon:
@@ -144,7 +156,10 @@ class RandomNormalEncoder(Layer, Scope):
 
     @tf.function
     def call_mu(
-        self, inputs, training=False, apply_epsilon=True, 
+        self,
+        inputs,
+        training=False,
+        apply_epsilon=True,
     ):
         """Get the mean of the network given the inputs
 
@@ -155,16 +170,22 @@ class RandomNormalEncoder(Layer, Scope):
         apply_epsilon: bool flag for whether toa djust the logvar by epsilon
         ldr: allowable lower depth range. call through embedding layers will
             include layers with a lesser than or equal to index value to this.
-            The embedding layers between aldr and audr will be skipped. 
+            The embedding layers between aldr and audr will be skipped.
         audr: allowable upper depth range. call through embedding layers will
             include layers with a higher than or equal to index value to this.
         """
-        mu, logvar, var = self.call_parameters(inputs, training, )
+        mu, logvar, var = self.call_parameters(
+            inputs,
+            training,
+        )
         return mu
 
     @tf.function
     def call_logvar(
-        self, inputs, training=False, apply_epsilon=True, 
+        self,
+        inputs,
+        training=False,
+        apply_epsilon=True,
     ):
         """Get the logvar of the network given the inputs
 
@@ -175,21 +196,26 @@ class RandomNormalEncoder(Layer, Scope):
         apply_epsilon: bool flag for whether toa djust the logvar by epsilon
         ldr: allowable lower depth range. call through embedding layers will
             include layers with a lesser than or equal to index value to this.
-            The embedding layers between aldr and audr will be skipped. 
+            The embedding layers between aldr and audr will be skipped.
         audr: allowable upper depth range. call through embedding layers will
             include layers with a higher than or equal to index value to this.
         """
         mu, logvar, var = self.call_parameters(
-            inputs, training, apply_epsilon, 
+            inputs,
+            training,
+            apply_epsilon,
         )
         return logvar
 
     @tf.function
     def call_var(
-        self, inputs, training=False, apply_epsilon=True, 
+        self,
+        inputs,
+        training=False,
+        apply_epsilon=True,
     ):
         """Get the var of the network given the inputs
-        
+
         Parameters
         ----------
         inputs: Input vector to the Encoder`
@@ -197,12 +223,14 @@ class RandomNormalEncoder(Layer, Scope):
         apply_epsilon: bool flag for whether toa djust the logvar by epsilon
         ldr: allowable lower depth range. call through embedding layers will
             include layers with a lesser than or equal to index value to this.
-            The embedding layers between aldr and audr will be skipped. 
+            The embedding layers between aldr and audr will be skipped.
         audr: allowable upper depth range. call through embedding layers will
             include layers with a higher than or equal to index value to this.
         """
         mu, logvar, var = self.call_parameters(
-            inputs, training, apply_epsilon, 
+            inputs,
+            training,
+            apply_epsilon,
         )
         var = tf.exp(logvar)
         return var
@@ -234,23 +262,25 @@ class RandomNormalEncoder(Layer, Scope):
         apply_epsilon=False,
         name="sample",
     ):
-        """Sample from this distribution layer. 
+        """Sample from this distribution layer.
 
         Parameters:
         -----------
-        inputs: Input vector to the 
+        inputs: Input vector to the
         training: bool flag for whether the layer is training
         apply_epsilon: bool flag for whether toa djust the logvar by epsilon
         ldr: allowable lower depth range. call through embedding layers will
             include layers with a lesser than or equal to index value to this.
-            The embedding layers between aldr and audr will be skipped. 
+            The embedding layers between aldr and audr will be skipped.
         audr: allowable upper depth range. call through embedding layers will
             include layers with a higher than or equal to index value to this.
         name: name of output sample tensor
         """
 
         mu, logvar, var = self.call_parameters(
-            inputs, training, apply_epsilon, 
+            inputs,
+            training,
+            apply_epsilon,
         )
         sample = self._sample_fn(mu, var)
         return sample
@@ -265,7 +295,9 @@ class RandomNormalEncoder(Layer, Scope):
     ):
 
         mu, logvar, var = self.call_parameters(
-            inputs, training, apply_epsilon, 
+            inputs,
+            training,
+            apply_epsilon,
         )
 
         if outputs is not None:
@@ -317,7 +349,7 @@ def lognormal_pdf(x, mu, logvar, eps=0.0, axis=-1, clip=1e-18):
 
     logprob = -0.5 * tf.reduce_sum(
         (
-            tf.cast(tf.log(2 * np.pi), x.dtype)
+            tf.cast(tf.math.log(2 * np.pi), x.dtype)
             + tf.math.log(var)
             + tf.square(x - mu) / var
         ),

@@ -4,7 +4,7 @@ import functools
 
 def inits_args(func):
     """Initializes object attributes by the initializer signature"""
-    argspec = inspect.getargspec(func)
+    argspec = inspect.getfullargspec(func)
     argnames = argspec.args[1:]
     defaults = dict(zip(argnames[-len(argspec.defaults) :], argspec.defaults))
 

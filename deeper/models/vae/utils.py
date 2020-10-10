@@ -7,13 +7,20 @@ import io
 
 
 def chain_call(func, x, num, scalar_dict={}):
-    iters = x.shape[0] // num
+
+    if type(x) != list and type(x) != tuple:
+        x = [x]
+
+    iters = x[0].shape[0] // num
 
     result = []
     j = 0
-    while j * num < x.shape[0]:
+    while j * num < x[0].shape[0]:
         result = result + [
-            func(x[j * num : min((j + 1) * num, x.shape[0])], **scalar_dict)
+            func(
+                *(y[j * num : min((j + 1) * num, y.shape[0])] for y in x),
+                **scalar_dict
+            )
         ]
         j += 1
 
@@ -32,11 +39,17 @@ def plot_latent(latent_vectors):
 
     pca = PCA(2)
     X_pca = pca.fit_transform(latent_vectors)
-    df_latent = pd.DataFrame({"x1": X_pca[:, 0], "x2": X_pca[:, 1],})
+    df_latent = pd.DataFrame(
+        {
+            "x1": X_pca[:, 0],
+            "x2": X_pca[:, 1],
+        }
+    )
 
     f, (ax1) = plt.subplots(1, 1, sharey=True, figsize=(10, 10))
     ax1.scatter(
-        df_latent.x1, df_latent.x2,
+        df_latent.x1,
+        df_latent.x2,
     )
     ax1.set_title("Latent Space")
 

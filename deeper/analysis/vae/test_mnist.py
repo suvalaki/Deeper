@@ -50,11 +50,20 @@ X_test = X_test.reshape(X_test.shape[0], 28 * 28)
 X_train = (X_train > 0.5).astype(float)
 X_test = (X_test > 0.5).astype(float)
 
+ohe = OneHotEncoder()
+y_train_ohe = ohe.fit_transform(y_train.reshape(-1, 1)).astype(float)
+y_test_ohe = ohe.transform(y_test.reshape(-1, 1)).astype(float)
 
 #%% Instantiate the model
 params = {
-    "input_dimension": X_train.shape[1],
-    "embedding_dimensions": [512, 512],
+    "input_regression_dimension": 0,
+    "input_boolean_dimension": X_train.shape[1],
+    "input_categorical_dimension": 0,
+    "output_regression_dimension": 0,
+    "output_boolean_dimension": X_train.shape[1],
+    "output_categorical_dimension": 10,
+    "encoder_embedding_dimensions": [512, 512],
+    "decoder_embedding_dimensions": [512, 512],
     "latent_dim": 64,
     "embedding_activations": tf.nn.relu,
     "kind": "binary",
@@ -64,9 +73,9 @@ params = {
     "latent_epsilon": 1e-12,
     "optimizer": tf.keras.optimizers.Adam(1e-3, epsilon=1e-16),
     "connected_weights": False,
-    "latent_mu_embedding_dropout": 0.2,
-    "latent_var_embedding_dropout": 0.2,
-    "recon_dropouut": 0.2,
+    "latent_mu_embedding_dropout": 0.0,
+    "latent_var_embedding_dropout": 0.0,
+    "recon_dropouut": 0.0,
     #'latent_fixed_var': 10.0,
 }
 
@@ -76,6 +85,13 @@ param_string = "vae" + "__".join(
 
 m1 = model(**params)
 
+# %%
+val = np.concatenate([X_train, y_train_ohe.todense()], 1)[0:10]
+samp = m1.sample_one(X_train[0:10], val)
+
+#%% Prediction
+
+pred = m1.predict_one(X_train[0:10])
 
 # %%
 
@@ -87,6 +103,8 @@ train(
     m1,
     X_train,
     X_test,
+    np.concatenate([X_train, y_train_ohe.todense()], 1),
+    np.concatenate([X_test, y_test_ohe.todense()], 1),
     num=100,
     samples=1,
     epochs=1500,
@@ -120,7 +138,7 @@ for j in range(10):
     # imshow(image, cmap='gray')
 
     # Display a predicted imgage
-    image2 = res_tensors["px_g_z__sample"][k + j].numpy().reshape(w, h)
+    image2 = res_tensors["x_recon_bin"][k + j].numpy().reshape(w, h)
 
     axes[0, j].imshow(image)
     axes[1, j].imshow(image2)
