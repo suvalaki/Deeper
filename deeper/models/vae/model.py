@@ -246,17 +246,23 @@ class VAE(Model, Scope):
 
         # Calculate reconstruction epsilon assuming independence between distributions
         log_px_recon_regression = lognormal_pdf(x_recon_reg, y_reg, 1.0, 1e-6)
-        x_bin_xent = tf.nn.sigmoid_cross_entropy_with_logits(
-            labels=y_bin,
-            logits=x_recon_bin_logit,
-            name="recon_sigmoid_crossent",
+        x_bin_xent = (
+            tf.nn.sigmoid_cross_entropy_with_logits(
+                labels=y_bin,
+                logits=x_recon_bin_logit,
+                name="recon_sigmoid_crossent",
+            )
+            if self.output_boolean_dimension > 0
+            else tf.zeros(tf.shape(x_recon_bin_logit))
         )
 
         x_cat_xents = (
-            tf.nn.softmax_cross_entropy_with_logits(
+            tf.zeros(tf.shape(x_recon_cat_logit_groups_concat))
+            if self.output_cat_dim == 0
+            else tf.nn.softmax_cross_entropy_with_logits(
                 y_cat_groups[0], x_recon_cat_logit_groups[0]
             )
-            if len(self.input_categorical_dimension) <= 1
+            if len(self.input_categorical_dimension) == 1
             else tf.reduce_sum(
                 tf.concat(
                     [
@@ -268,18 +274,16 @@ class VAE(Model, Scope):
                 -1,
             )
         )
-
         recon = px_g_z__logprob = (
             log_px_recon_regression
             - tf.reduce_sum(x_bin_xent, -1)
-            - x_cat_xents
+            - tf.reduce_sum(x_cat_xents, -1)
         )
         px_g_z__prob = tf.exp(px_g_z__logprob)
         z_entropy = std_normal_kl_divergence(
             result["qz_g_x__mu"], result["qz_g_x__logvar"]
         )
         elbo = px_g_z__logprob + z_entropy
-
         output = {
             **result,
             **{
@@ -287,7 +291,6 @@ class VAE(Model, Scope):
                 "y_bin": y_bin,
                 "y_cat_groups_concat": y_cat_groups_concat,
                 "log_px_recon_regression": log_px_recon_regression,
-                "x_cat_xents": x_cat_xents,
                 "x_bin_xent": x_bin_xent,
                 "x_cat_xents": x_cat_xents,
                 "px_g_z__logprob": px_g_z__logprob,
@@ -315,7 +318,7 @@ class VAE(Model, Scope):
         # categorical dimensions need to be further broken up according to the size
         # of the input groups
         cat_dim = sum(cat_dim_tup)
-        x_cat_softinv = x[:, -cat_dim:]
+        x_cat_softinv = x[:, -cat_dim:] if cat_dim > 0 else x[:, 0:0]
         x_cat_softinv_groups = [
             x_cat_softinv[
                 :,
