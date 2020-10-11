@@ -257,13 +257,14 @@ class VAE(Model, Scope):
                 y_cat_groups[0], x_recon_cat_logit_groups[0]
             )
             if len(self.input_categorical_dimension) <= 1
-            else tf.concat(
-                [
-                    tf.reduce_sum(
-                        tf.nn.softmax_cross_entropy_with_logits(y, x), -1
-                    )
-                    for x, y in zip(y_cat_groups, x_recon_cat_logit_groups)
-                ],
+            else tf.reduce_sum(
+                tf.concat(
+                    [
+                        tf.nn.softmax_cross_entropy_with_logits(y, x, -1)
+                        for x, y in zip(y_cat_groups, x_recon_cat_logit_groups)
+                    ],
+                    -1,
+                ),
                 -1,
             )
         )
@@ -303,7 +304,9 @@ class VAE(Model, Scope):
     def split_inputs(
         self, x, reg_dim: int, bool_dim: int, cat_dim_tup: Tuple[int]
     ):
-        x_regression = x[:, :reg_dim]
+        x_regression = (
+            x[:, :reg_dim] if reg_dim > 0 else tf.zeros((tf.shape(x)[0], 0))
+        )
         x_bin_logit = x[
             :,
             reg_dim : (reg_dim + bool_dim),

@@ -30,6 +30,11 @@ def chain_call(func, x, num, scalar_dict={}):
         result_pivot = [
             np.concatenate([y[i] for y in result], 0) for i in range(num_dats)
         ]
+    elif type(result[0]) == dict:
+        result_pivot = {
+            k: np.concatenate([y[k] for y in result], 0)
+            for k in result[0].keys()
+        }
     else:
         result_pivot = np.concatenate(result, axis=0)
     return result_pivot
