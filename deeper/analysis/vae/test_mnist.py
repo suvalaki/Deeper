@@ -24,6 +24,8 @@ import deeper.utils.cooling as cooling
 from matplotlib.pyplot import imshow
 from matplotlib import pyplot as plt
 
+from deeper.utils.feature_engineering.encoder import ohe_to_ordinalohe
+
 print("tensorflow gpu available {}".format(tf.test.is_gpu_available()))
 
 #%% Checlk whether the log directory exists. If it does not create it and empty
@@ -283,4 +285,63 @@ print(confusion_matrix(y_test, pred_y_test.numpy().argmax(-1)))
 print(classification_report(y_test, pred_y_test.numpy().argmax(-1)))
 # %%
 
+# %%
+
+y_ord_train = ohe_to_ordinalohe(y_train_ohe.todense())
+y_ord_test = ohe_to_ordinalohe(y_test_ohe.todense())
+
+params_ordinal = {
+    "input_regression_dimension": 0,
+    "input_boolean_dimension": X_train.shape[1],
+    "input_categorical_dimension": 0,
+    "output_regression_dimension": 0,
+    "output_boolean_dimension": X_train.shape[1] + y_ord_train.shape[1],
+    "output_categorical_dimension": (0,),
+    "encoder_embedding_dimensions": [512, 512],
+    "decoder_embedding_dimensions": [512, 512],
+    "latent_dim": 64,
+    "embedding_activations": tf.nn.relu,
+    "kind": "binary",
+    "bn_before": False,
+    "bn_after": True,
+    "reconstruction_epsilon": 1e-12,
+    "latent_epsilon": 1e-12,
+    "optimizer": tf.keras.optimizers.Adam(1e-3, epsilon=1e-16),
+    "connected_weights": False,
+    "latent_mu_embedding_dropout": 0.0,
+    "latent_var_embedding_dropout": 0.0,
+    "recon_dropouut": 0.0,
+    #'latent_fixed_var': 10.0,
+}
+
+m_ordinal = model(**params_ordinal)
+
+#%%
+z_cooling = lambda: 1.0
+train(
+    m_ordinal,
+    X_train,
+    X_test,
+    np.concatenate([X_train, y_ord_train], 1),
+    np.concatenate([X_test, y_ord_test], 1),
+    num=100,
+    samples=1,
+    epochs=1000,
+    iter_train=1,
+    num_inference=50,
+    save="model_w_5",
+    batch=True,
+    save_results="./gumble_results.txt",
+    beta_z_method=z_cooling,
+    tensorboard=None,  # "./logs/" + param_string + "/samples__" + str(1),
+)
+# %%
+# %% ordinal classificaion accuracy
+
+pred = chain_call(m_ordinal.predict_one, X_test, 1000)
+y_pred = (pred["x_recon_bin"][:, -y_ord_train.shape[1] :] > 0.5).argmax(
+    1
+) + 1  # add 1 for null grp
+ordinal_acc = sum(y_pred >= y_test) / y_test.shape
+print(f"ord acc: {ordinal_acc}")
 # %%
