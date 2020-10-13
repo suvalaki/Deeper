@@ -22,6 +22,9 @@ def train(
     verbose=1,
     save=None,
     save_results=None,
+    beta_reg_method=lambda: 1.0,
+    beta_bin_method=lambda: 1.0,
+    beta_cat_method=lambda: 1.0,
     beta_z_method=lambda: 1.0,
     tensorboard="./logs",
 ):
@@ -66,6 +69,9 @@ def train(
         )
 
         iter = model.cooling_distance
+        beta_reg = beta_reg_method()
+        beta_bin = beta_bin_method()
+        beta_cat = beta_cat_method()
         beta_z = beta_z_method()
 
         for x, y in dataset_train:
@@ -75,6 +81,9 @@ def train(
                 y,
                 samples=samples,
                 batch=batch,
+                beta_reg=beta_reg,
+                beta_bin=beta_bin,
+                beta_cat=beta_cat,
                 beta_z=beta_z,
             )
 
@@ -97,7 +106,12 @@ def train(
             cat_xent = np.array(cat_xent).mean()
             z_ent = np.array(z_ent).mean()
 
-            loss = -(recon + z_ent)
+            loss = -(
+                beta_reg * logpx_reg
+                - beta_bin * bin_xent
+                - beta_cat * cat_xent
+                + z_ent
+            )
 
             value_str = (
                 "{:d}\t{:10.5f}\t{:10.5f}\t{:10.5f}\t{:10.5f}"

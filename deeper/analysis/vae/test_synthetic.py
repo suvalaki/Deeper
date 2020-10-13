@@ -146,4 +146,6 @@ train(
 pred = m1.predict_one(X_test)["x_recon_cat_groups_concat"].numpy().argmax(1)
 print(confusion_matrix(y_test, pred))
 print(classification_report(y_test, pred))
+# %% Testing ordinal 
+
 # %%

@@ -61,6 +61,10 @@ ohe = OneHotEncoder()
 y_train_ohe = ohe.fit_transform(y_train.reshape(-1, 1)).astype(float)
 y_test_ohe = ohe.transform(y_test.reshape(-1, 1)).astype(float)
 
+
+y_ord_train = ohe_to_ordinalohe(y_train_ohe.todense())
+y_ord_test = ohe_to_ordinalohe(y_test_ohe.todense())
+
 #%% Instantiate the model
 params = {
     "input_regression_dimension": 0,
@@ -125,6 +129,9 @@ def single_train(epochs=1):
         save="model_w_5",
         batch=True,
         save_results="./gumble_results.txt",
+        beta_reg_method=lambda: 1.0,
+        beta_bin_method=lambda: 1.0,
+        beta_cat_method=lambda: 100000.0,
         beta_z_method=z_cooling,
         tensorboard=None,  # "./logs/" + param_string + "/samples__" + str(1),
     )
@@ -287,9 +294,7 @@ print(classification_report(y_test, pred_y_test.numpy().argmax(-1)))
 
 # %%
 
-y_ord_train = ohe_to_ordinalohe(y_train_ohe.todense())
-y_ord_test = ohe_to_ordinalohe(y_test_ohe.todense())
-
+#%%
 params_ordinal = {
     "input_regression_dimension": 0,
     "input_boolean_dimension": X_train.shape[1],

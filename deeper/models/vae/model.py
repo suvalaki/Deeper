@@ -367,15 +367,33 @@ class VAE(Model, Scope):
         y,
         training=False,
         samples=1,
+        beta_reg=1.0,
+        beta_bin=1.0,
+        beta_cat=1.0,
         beta_z=1.0,
     ):
         recon, logpx_reg, bin_xent, cat_xent, z_entropy = self.entropy_fn(
             inputs, y, training, samples
         )
+        recon = px_g_z__logprob = (
+            beta_reg * logpx_reg
+            - beta_bin * tf.reduce_sum(bin_xent, -1)
+            - beta_cat * tf.reduce_sum(cat_xent, -1)
+        )
         return recon + beta_z * z_entropy
 
     @tf.function
-    def loss_fn(self, inputs, y, training=False, samples=1, beta_z=1.0):
+    def loss_fn(
+        self,
+        inputs,
+        y,
+        training=False,
+        samples=1,
+        beta_reg=1.0,
+        beta_bin=1.0,
+        beta_cat=1.0,
+        beta_z=1.0,
+    ):
         return -self.elbo(inputs, y, training, samples, beta_z)
 
     @tf.function
@@ -386,6 +404,9 @@ class VAE(Model, Scope):
         samples=1,
         tenorboard=False,
         batch=False,
+        beta_reg=1.0,
+        beta_bin=1.0,
+        beta_cat=1.0,
         beta_z=1.0,
     ):
 
