@@ -17,6 +17,10 @@ from deeper.utils.function_helpers.decorators import inits_args
 from deeper.utils.function_helpers.collectors import get_local_tensors
 from deeper.utils.scope import Scope
 
+from deeper.models.vae.utils import split_inputs
+
+from tensorflow.python.keras.engine import data_adapter
+
 tfk = tf.keras
 Model = tfk.Model
 Layer = tfk.layers.Layer
@@ -34,14 +38,12 @@ class VAE(Model, Scope):
         output_categorical_dimension: Union[int, Tuple[int]],
         encoder_embedding_dimensions: Tuple[int],
         decoder_embedding_dimensions: Tuple[int],
-        latent_dim,
+        latent_dim: int,
         embedding_activations=tf.nn.tanh,
-        kind="binary",
         var_scope="variational_autoencoder",
         bn_before=False,
         bn_after=False,
         latent_epsilon=0.0,
-        reconstruction_epsilon=0.0,
         enc_mu_embedding_kernel_initializer="glorot_uniform",
         enc_mu_embedding_bias_initializer="zeros",
         enc_mu_latent_kernel_initialiazer="glorot_uniform",
@@ -146,8 +148,8 @@ class VAE(Model, Scope):
         (
             x_regression,
             x_bin,
-            x_cat_groups,
             x_cat_groups_concat,
+            x_cat_groups,
         ) = self.split_inputs(
             x,
             self.input_regression_dimension,
@@ -171,8 +173,8 @@ class VAE(Model, Scope):
         (
             x_recon_regression,
             x_recon_bin_logit,
-            x_recon_cat_groups_logit,
             x_recon_cat_groups_logit_concat,
+            x_recon_cat_groups_logit,
         ) = self.split_inputs(
             out_hidden,
             self.output_regression_dimension,
@@ -219,7 +221,7 @@ class VAE(Model, Scope):
     def sample_one(self, x, y, training=False):
 
         y = tf.cast(y, dtype=self.dtype)
-        y_reg, y_bin, y_cat_groups, y_cat_groups_concat = self.split_inputs(
+        y_reg, y_bin, y_cat_groups_concat, y_cat_groups  = self.split_inputs(
             y,
             self.output_regression_dimension,
             self.output_boolean_dimension,
@@ -231,8 +233,8 @@ class VAE(Model, Scope):
         (
             x_recon_reg,
             x_recon_bin_logit,
-            x_recon_cat_logit_groups,
             x_recon_cat_logit_groups_concat,
+            x_recon_cat_logit_groups,
         ) = self.split_inputs(
             result["x_recon"],
             self.output_regression_dimension,
@@ -307,26 +309,10 @@ class VAE(Model, Scope):
     def split_inputs(
         self, x, reg_dim: int, bool_dim: int, cat_dim_tup: Tuple[int]
     ):
-        x_regression = (
-            x[:, :reg_dim] if reg_dim > 0 else tf.zeros((tf.shape(x)[0], 0))
+        x_reg, x_bin, x_ord, x_ord_g, x_cat, x_cat_g = split_inputs(
+            x, reg_dim, bool_dim, (0, ), cat_dim_tup
         )
-        x_bin_logit = x[
-            :,
-            reg_dim : (reg_dim + bool_dim),
-        ]
-
-        # categorical dimensions need to be further broken up according to the size
-        # of the input groups
-        cat_dim = sum(cat_dim_tup)
-        x_cat_softinv = x[:, -cat_dim:] if cat_dim > 0 else x[:, 0:0]
-        x_cat_softinv_groups = [
-            x_cat_softinv[
-                :,
-                sum(cat_dim_tup[:i]) : sum(cat_dim_tup[i : i + 1]),
-            ]
-            for i in range(len(cat_dim_tup))
-        ]
-        return x_regression, x_bin_logit, x_cat_softinv_groups, x_cat_softinv
+        return x_reg, x_bin, x_cat, x_cat_g
 
     @tf.function
     def sample(self, samples, x, y, training=False):
@@ -339,19 +325,19 @@ class VAE(Model, Scope):
         return mc_stack_mean_dict(self.sample(samples, x, y, training))
 
     @tf.function
-    def call(self, x, y, training=False, samples=1):
-        output = self.monte_carlo_estimate(samples, x, y, training)
+    def call(self, x, training=False):
+        output = self.predict_one(x, training)
         return output
 
     @tf.function
     def latent_sample(self, inputs, y, training=False, samples=1):
-        outputs = self.call(inputs, y, training=training, samples=samples)
+        output = self.monte_carlo_estimate(samples, inputs, y, training=training)
         latent = outputs["px_g_z__sample"]
         return latent
 
     @tf.function
     def entropy_fn(self, inputs, y, training=False, samples=1):
-        output = self.call(inputs, y, training=training, samples=samples)
+        output = self.monte_carlo_estimate(samples, inputs, y, training=training)
         return (
             output["recon"],
             output["log_px_recon_regression"],
@@ -382,6 +368,31 @@ class VAE(Model, Scope):
         )
         return recon + beta_z * z_entropy
 
+    @tf.function 
+    def losses_fns(
+        self, 
+        inputs, 
+        y, 
+        training=False, 
+        samples=1,
+        beta_reg=1.0,
+        beta_bin=1.0,
+        beta_cat=1.0,
+        beta_z=1.0,
+    ):
+        recon, logpx_reg, bin_xent, cat_xent, z_entropy = self.entropy_fn(
+            inputs, y, training, samples
+        )
+        logpx_bin = tf.reduce_sum(bin_xent, -1)
+        logpx_cat = tf.reduce_sum(cat_xent, -1)
+        recon = px_g_z__logprob = (
+            beta_reg * logpx_reg - beta_bin * logpx_bin- beta_cat * logpx_cat
+        )
+        elbo = recon + beta_z * z_entropy
+        loss = - elbo
+        return loss, recon, logpx_reg, logpx_bin, logpx_cat, z_entropy
+
+
     @tf.function
     def loss_fn(
         self,
@@ -399,8 +410,7 @@ class VAE(Model, Scope):
     @tf.function
     def train_step(
         self,
-        x,
-        y,
+        data, 
         samples=1,
         tenorboard=False,
         batch=False,
@@ -409,6 +419,8 @@ class VAE(Model, Scope):
         beta_cat=1.0,
         beta_z=1.0,
     ):
+        data = data_adapter.expand_1d(data)
+        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
 
         if tenorboard:
             current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -417,7 +429,10 @@ class VAE(Model, Scope):
             writer = tf.summary.create_file_writer(train_log_dir)
 
         with tf.GradientTape() as tape:
-            loss = tf.reduce_mean(self.loss_fn(x, y, True, samples, beta_z), 0)
+            loss, recon, logpx_reg, logpx_bin, logpx_cat, z_entropy = [
+                tf.reduce_mean(output ) 
+                for output in self.losses_fns(x, y, True, samples, beta_z) 
+            ]
 
         gradients = tape.gradient(loss, self.trainable_variables)
 
@@ -459,3 +474,11 @@ class VAE(Model, Scope):
         self.optimizer.apply_gradients(
             zip(gradients, self.trainable_variables)
         )
+        return {
+            "loss": loss, 
+            #"log_px": recon, 
+            #"log_px_reg": logpx_reg, 
+            #"log_px_bin": logpx_bin,
+            #"log_px_cat": logpx_cat,
+            "z_kl_entropy": z_entropy
+        }

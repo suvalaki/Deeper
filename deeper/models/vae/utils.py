@@ -6,6 +6,9 @@ import pandas as pd
 import io
 
 
+from typing import Union, Tuple
+
+
 def chain_call(func, x, num, scalar_dict={}):
 
     if type(x) != list and type(x) != tuple:
@@ -59,3 +62,42 @@ def plot_latent(latent_vectors):
     ax1.set_title("Latent Space")
 
     return f
+
+
+@tf.function
+def split_groups(x, group_dims: Union[Tuple[int], np.array]):
+
+    if type(group_dims) == np.array:
+        assert(len(group_dims.shape) == 1)
+
+    tot_dim = sum(group_dims)
+    x_grouped = [
+        x[:, sum(group_dims[:i]) : sum(group_dims[i:i+1]) ]
+        for i in range(len(group_dims))
+    ]
+    return x_grouped
+        
+        
+
+
+@tf.function
+def split_inputs(
+    x, 
+    reg_dim: int, 
+    bool_dim: int, 
+    ord_dim_tup: Tuple[int], 
+    cat_dim_tup: Tuple[int]
+):
+    x_reg = x[:, :reg_dim] if reg_dim > 0 else tf.zeros((tf.shape(x)[0], 0))
+    x_bin = x[:, reg_dim : (reg_dim + bool_dim)]
+
+    # categorical dimensions need to be further broken up according to the size
+    # of the input groups
+    cat_dim = sum(cat_dim_tup)
+    ord_dim = sum(ord_dim_tup)
+    x_ord = x[:, -(ord_dim + cat_dim): -(cat_dim)] if ord_dim >0 else x[:, 0:0]
+    x_cat = x[:, -cat_dim:] if cat_dim > 0 else x[:, 0:0]
+    x_ord_grouped = split_groups(x_ord, ord_dim_tup)
+    x_cat_grouped = split_groups(x_cat, cat_dim_tup)
+
+    return x_reg, x_bin, x_ord, x_ord_grouped, x_cat, x_cat_grouped

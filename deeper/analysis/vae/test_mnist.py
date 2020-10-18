@@ -77,10 +77,8 @@ params = {
     "decoder_embedding_dimensions": [512, 512],
     "latent_dim": 64,
     "embedding_activations": tf.nn.relu,
-    "kind": "binary",
     "bn_before": False,
     "bn_after": True,
-    "reconstruction_epsilon": 1e-12,
     "latent_epsilon": 1e-12,
     "optimizer": tf.keras.optimizers.Adam(1e-3, epsilon=1e-16),
     "connected_weights": False,
@@ -95,6 +93,18 @@ param_string = "vae" + "__".join(
 )
 
 m1 = model(**params)
+
+#%% 
+
+m1.compile()
+
+import tempfile
+model_path = tempfile.mkdtemp()
+tf.saved_model.save(m1, model_path)
+
+
+#%% 
+m1.fit(x = X_train,y = np.concatenate([X_train, y_train_ohe.todense()], 1), batch_size=100, epochs=10)
 
 # %%
 val = np.concatenate([X_train, y_train_ohe.todense()], 1)[0:10]
