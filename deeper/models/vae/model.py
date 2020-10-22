@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from typing import Union, Tuple
+from typing import Union, Tuple, Sequence
 
 from deeper.probability_layers.ops.normal import std_normal_kl_divergence
 from deeper.layers.encoder import Encoder
@@ -16,230 +16,88 @@ from deeper.utils.sampling import mc_stack_mean_dict
 from deeper.utils.function_helpers.decorators import inits_args
 from deeper.utils.function_helpers.collectors import get_local_tensors
 from deeper.utils.scope import Scope
+from deeper.models.vae.metrics import VaeCategoricalAvgAccuracy
 
 from deeper.models.vae.utils import split_inputs
+from deeper.models.vae.network import VaeNet
 
 from tensorflow.python.keras.engine import data_adapter
 
+from types import SimpleNamespace
+
+from deeper.utils.tf.keras.models import Model
+
 tfk = tf.keras
-Model = tfk.Model
 Layer = tfk.layers.Layer
 
 
-class VAE(Model, Scope):
+class VAE(Model):
     @inits_args
     def __init__(
         self,
         input_regression_dimension: int,
         input_boolean_dimension: int,
+        input_ordinal_dimension: Union[int, Sequence[int]],
         input_categorical_dimension: Union[int, Tuple[int]],
         output_regression_dimension: int,
         output_boolean_dimension: int,
+        output_ordinal_dimension: Union[int, Sequence[int]],
         output_categorical_dimension: Union[int, Tuple[int]],
         encoder_embedding_dimensions: Tuple[int],
         decoder_embedding_dimensions: Tuple[int],
         latent_dim: int,
-        embedding_activations=tf.nn.tanh,
-        var_scope="variational_autoencoder",
-        bn_before=False,
-        bn_after=False,
-        latent_epsilon=0.0,
-        enc_mu_embedding_kernel_initializer="glorot_uniform",
-        enc_mu_embedding_bias_initializer="zeros",
-        enc_mu_latent_kernel_initialiazer="glorot_uniform",
-        enc_mu_latent_bias_initializer="zeros",
-        enc_var_embedding_kernel_initializer="glorot_uniform",
-        enc_var_embedding_bias_initializer="zeros",
-        enc_var_latent_kernel_initialiazer="glorot_uniform",
-        enc_var_latent_bias_initializer="zeros",
-        recon_embedding_kernel_initializer="glorot_uniform",
-        recon_embedding_bias_initializer="zeros",
-        recon_latent_kernel_initialiazer="glorot_uniform",
-        recon_latent_bias_initializer="zeros",
-        connected_weights=True,
-        latent_mu_embedding_dropout=0.0,
-        latent_var_embedding_dropout=0.0,
-        recon_dropouut=0.0,
-        latent_fixed_var=None,
+        embedding_activations=tf.nn.relu,
         optimizer=tf.keras.optimizers.Adam(1e-3),
         gradient_clip=None,
+        **network_kwargs,
     ):
         Model.__init__(self)
-        Scope.__init__(self, var_scope)
-
         self.cooling_distance = 0
-
-        # Input Dimension Calculation
-        self.input_categorical_dimension = (
-            input_categorical_dimension
-            if type(input_categorical_dimension) == tuple
-            else (input_categorical_dimension,)
-        )
-        self.input_cat_dim = (
-            input_categorical_dimension
-            if type(input_categorical_dimension) == int
-            else sum(input_categorical_dimension)
-        )
-        self.input_dim = (
-            input_regression_dimension
-            + input_boolean_dimension
-            + self.input_cat_dim
-        )
-        self.output_categorical_dimension = (
-            output_categorical_dimension
-            if type(output_categorical_dimension) == tuple
-            else (output_categorical_dimension,)
-        )
-        self.output_cat_dim = (
-            output_categorical_dimension
-            if type(output_categorical_dimension) == int
-            else sum(output_categorical_dimension)
-        )
-        self.output_dim = (
-            output_regression_dimension
-            + output_boolean_dimension
-            + self.output_cat_dim
-        )
-
-        # Encoder
-        self.graph_qz_g_x = RandomNormalEncoder(
-            latent_dimension=self.latent_dim,
-            embedding_dimensions=self.encoder_embedding_dimensions,
-            var_scope=self.v_name("graph_qz_g_x"),
-            bn_before=self.bn_before,
-            bn_after=self.bn_after,
-            epsilon=self.latent_epsilon,
-            embedding_mu_kernel_initializer=enc_mu_embedding_kernel_initializer,
-            embedding_mu_bias_initializer=enc_mu_embedding_bias_initializer,
-            latent_mu_kernel_initialiazer=enc_mu_latent_kernel_initialiazer,
-            latent_mu_bias_initializer=enc_mu_latent_bias_initializer,
-            embedding_var_kernel_initializer=enc_var_embedding_kernel_initializer,
-            embedding_var_bias_initializer=enc_var_embedding_bias_initializer,
-            latent_var_kernel_initialiazer=enc_var_latent_kernel_initialiazer,
-            latent_var_bias_initializer=enc_var_latent_bias_initializer,
-            connected_weights=connected_weights,
-            embedding_mu_dropout=latent_mu_embedding_dropout,
-            embedding_var_dropout=latent_var_embedding_dropout,
-            fixed_var=latent_fixed_var,
-        )
-
-        # Decoder
-        self.graph_px_g_z = Encoder(
-            self.output_dim,
-            self.decoder_embedding_dimensions,
-            activation=self.embedding_activations,
-            var_scope=self.v_name("graph_px_g_z"),
-            bn_before=self.bn_before,
-            bn_after=self.bn_after,
-            embedding_kernel_initializer=recon_embedding_kernel_initializer,
-            embedding_bias_initializer=recon_embedding_bias_initializer,
-            latent_kernel_initialiazer=recon_latent_kernel_initialiazer,
-            latent_bias_initializer=recon_latent_bias_initializer,
-            embedding_dropout=recon_dropouut,
+        self.network = VaeNet(
+            input_regression_dimension,
+            input_boolean_dimension,
+            input_ordinal_dimension,
+            input_categorical_dimension,
+            output_regression_dimension,
+            output_boolean_dimension,
+            output_ordinal_dimension,
+            output_categorical_dimension,
+            encoder_embedding_dimensions,
+            decoder_embedding_dimensions,
+            latent_dim,
+            embedding_activations,
+            **network_kwargs,
         )
 
     def increment_cooling(self):
         self.cooling_distance += 1
 
     @tf.function
-    def predict_one(self, x, training=False):
-
-        x = tf.cast(x, dtype=self.dtype)
-        (
-            x_regression,
-            x_bin,
-            x_cat_groups_concat,
-            x_cat_groups,
-        ) = self.split_inputs(
-            x,
-            self.input_regression_dimension,
-            self.input_boolean_dimension,
-            self.input_categorical_dimension,
-        )
-
-        # Encoder
-        (
-            qz_g_x__sample,
-            qz_g_x__logprob,
-            qz_g_x__prob,
-            qz_g_x__mu,
-            qz_g_x__logvar,
-            qz_g_x__var,
-        ) = self.graph_qz_g_x.call(x, training)
-
-        # `Decoder
-        out_hidden = self.graph_px_g_z.call(qz_g_x__sample, training)
-
-        (
-            x_recon_regression,
-            x_recon_bin_logit,
-            x_recon_cat_groups_logit_concat,
-            x_recon_cat_groups_logit,
-        ) = self.split_inputs(
-            out_hidden,
-            self.output_regression_dimension,
-            self.output_boolean_dimension,
-            self.output_categorical_dimension,
-        )
-
-        x_recon_bin = tf.nn.sigmoid(x_recon_bin_logit)
-        x_recon_cat_groups = [
-            tf.nn.softmax(x) for x in x_recon_cat_groups_logit
-        ]
-        x_recon_cat_groups_concat = (
-            tf.nn.softmax(x_recon_cat_groups[0])
-            if len(x_recon_cat_groups_logit) <= 1
-            else tf.concat(
-                [tf.nn.softmax(z) for z in x_recon_cat_groups_logit], -1
-            )
-        )
-
-        result = {
-            # Input variables
-            "x_regression": x_regression,
-            "x_bin": x_bin,
-            "x_cat_groups_concat": x_cat_groups_concat,
-            # Encoder Variables
-            "qz_g_x__sample": qz_g_x__sample,
-            "qz_g_x__logprob": qz_g_x__logprob,
-            "qz_g_x__prob": qz_g_x__prob,
-            "qz_g_x__mu": qz_g_x__mu,
-            "qz_g_x__logvar": qz_g_x__logvar,
-            "qz_g_x__var": qz_g_x__var,
-            # DecoderVariables
-            "x_recon": out_hidden,
-            "x_recon_regression": x_recon_regression,
-            "x_recon_bin_logit": x_recon_bin_logit,
-            "x_recon_bin": x_recon_bin,
-            "x_recon_cat_groups_logit_concat": x_recon_cat_groups_logit_concat,
-            "x_recon_cat_groups_concat": x_recon_cat_groups_concat,
-        }
-
-        return result
-
-    @tf.function
     def sample_one(self, x, y, training=False):
 
         y = tf.cast(y, dtype=self.dtype)
-        y_reg, y_bin, y_cat_groups_concat, y_cat_groups  = self.split_inputs(
+        (
+            y_reg,
+            y_bin,
+            y_ord_groups_concat,
+            y_groups,
+            y_cat_groups_concat,
+            y_cat_groups,
+        ) = self.network.split_outputs(
             y,
-            self.output_regression_dimension,
-            self.output_boolean_dimension,
-            self.output_categorical_dimension,
         )
 
-        result = self.predict_one(x, training)
+        result = self.network.call_dict(x, training)
 
         (
             x_recon_reg,
             x_recon_bin_logit,
+            x_recon_ord_groups_logit_concat,
+            x_recon_ord_groups_logit,
             x_recon_cat_logit_groups_concat,
             x_recon_cat_logit_groups,
-        ) = self.split_inputs(
+        ) = self.network.split_outputs(
             result["x_recon"],
-            self.output_regression_dimension,
-            self.output_boolean_dimension,
-            self.output_categorical_dimension,
         )
 
         x_recon_cat_groups = [
@@ -260,11 +118,11 @@ class VAE(Model, Scope):
 
         x_cat_xents = (
             tf.zeros(tf.shape(x_recon_cat_logit_groups_concat))
-            if self.output_cat_dim == 0
+            if self.network.output_categorical_dimension == 0
             else tf.nn.softmax_cross_entropy_with_logits(
                 y_cat_groups[0], x_recon_cat_logit_groups[0]
             )
-            if len(self.input_categorical_dimension) == 1
+            if len(self.network.input_categorical_dimension) == 1
             else tf.reduce_sum(
                 tf.concat(
                     [
@@ -310,7 +168,7 @@ class VAE(Model, Scope):
         self, x, reg_dim: int, bool_dim: int, cat_dim_tup: Tuple[int]
     ):
         x_reg, x_bin, x_ord, x_ord_g, x_cat, x_cat_g = split_inputs(
-            x, reg_dim, bool_dim, (0, ), cat_dim_tup
+            x, reg_dim, bool_dim, (0,), cat_dim_tup
         )
         return x_reg, x_bin, x_cat, x_cat_g
 
@@ -326,18 +184,21 @@ class VAE(Model, Scope):
 
     @tf.function
     def call(self, x, training=False):
-        output = self.predict_one(x, training)
-        return output
+        return self.network(x, training)
 
     @tf.function
     def latent_sample(self, inputs, y, training=False, samples=1):
-        output = self.monte_carlo_estimate(samples, inputs, y, training=training)
+        output = self.monte_carlo_estimate(
+            samples, inputs, y, training=training
+        )
         latent = outputs["px_g_z__sample"]
         return latent
 
     @tf.function
     def entropy_fn(self, inputs, y, training=False, samples=1):
-        output = self.monte_carlo_estimate(samples, inputs, y, training=training)
+        output = self.monte_carlo_estimate(
+            samples, inputs, y, training=training
+        )
         return (
             output["recon"],
             output["log_px_recon_regression"],
@@ -368,30 +229,30 @@ class VAE(Model, Scope):
         )
         return recon + beta_z * z_entropy
 
-    @tf.function 
+    @tf.function
     def losses_fns(
-        self, 
-        inputs, 
-        y, 
-        training=False, 
-        samples=1,
+        self,
+        output,
         beta_reg=1.0,
         beta_bin=1.0,
         beta_cat=1.0,
         beta_z=1.0,
     ):
-        recon, logpx_reg, bin_xent, cat_xent, z_entropy = self.entropy_fn(
-            inputs, y, training, samples
+        recon, logpx_reg, bin_xent, cat_xent, z_entropy = (
+            output["recon"],
+            output["log_px_recon_regression"],
+            output["x_bin_xent"],
+            output["x_cat_xents"],
+            output["z_entropy"],
         )
         logpx_bin = tf.reduce_sum(bin_xent, -1)
         logpx_cat = tf.reduce_sum(cat_xent, -1)
         recon = px_g_z__logprob = (
-            beta_reg * logpx_reg - beta_bin * logpx_bin- beta_cat * logpx_cat
+            beta_reg * logpx_reg - beta_bin * logpx_bin - beta_cat * logpx_cat
         )
         elbo = recon + beta_z * z_entropy
-        loss = - elbo
+        loss = -elbo
         return loss, recon, logpx_reg, logpx_bin, logpx_cat, z_entropy
-
 
     @tf.function
     def loss_fn(
@@ -410,7 +271,7 @@ class VAE(Model, Scope):
     @tf.function
     def train_step(
         self,
-        data, 
+        data,
         samples=1,
         tenorboard=False,
         batch=False,
@@ -429,9 +290,12 @@ class VAE(Model, Scope):
             writer = tf.summary.create_file_writer(train_log_dir)
 
         with tf.GradientTape() as tape:
+            y_pred = self.monte_carlo_estimate(samples, x, y, True)
             loss, recon, logpx_reg, logpx_bin, logpx_cat, z_entropy = [
-                tf.reduce_mean(output ) 
-                for output in self.losses_fns(x, y, True, samples, beta_z) 
+                tf.reduce_mean(output)
+                for output in self.losses_fns(
+                    y_pred, beta_reg, beta_bin, beta_cat, beta_z
+                )
             ]
 
         gradients = tape.gradient(loss, self.trainable_variables)
@@ -474,11 +338,15 @@ class VAE(Model, Scope):
         self.optimizer.apply_gradients(
             zip(gradients, self.trainable_variables)
         )
+        # self.compiled_metrics.update_state(y, y_pred)
+        # for m in self.intrinsic_metrics:
+        #    m.update_state(y, y_pred)
         return {
-            "loss": loss, 
-            #"log_px": recon, 
-            #"log_px_reg": logpx_reg, 
-            #"log_px_bin": logpx_bin,
-            #"log_px_cat": logpx_cat,
-            "z_kl_entropy": z_entropy
+            "loss": loss,
+            # "log_px": recon,
+            # "log_px_reg": logpx_reg,
+            # "log_px_bin": logpx_bin,
+            # "log_px_cat": logpx_cat,
+            "z_kl_entropy": z_entropy,
+            **{m.name: m.result() for m in self.intrinsic_metrics},
         }

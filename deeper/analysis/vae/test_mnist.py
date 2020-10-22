@@ -24,7 +24,17 @@ import deeper.utils.cooling as cooling
 from matplotlib.pyplot import imshow
 from matplotlib import pyplot as plt
 
+from tensorflow.python.util import nest
+
 from deeper.utils.feature_engineering.encoder import ohe_to_ordinalohe
+
+from tensorflow.python.ops import math_ops
+from tensorflow.python.keras.utils import metrics_utils
+
+from deeper.models.vae.metrics import (
+    vae_categorical_dims_accuracy,
+    VaeCategoricalAvgAccuracy,
+)
 
 print("tensorflow gpu available {}".format(tf.test.is_gpu_available()))
 
@@ -69,9 +79,11 @@ y_ord_test = ohe_to_ordinalohe(y_test_ohe.todense())
 params = {
     "input_regression_dimension": 0,
     "input_boolean_dimension": X_train.shape[1],
+    "input_ordinal_dimension": (0,),
     "input_categorical_dimension": 0,
     "output_regression_dimension": 0,
     "output_boolean_dimension": X_train.shape[1],
+    "output_ordinal_dimension": (0,),
     "output_categorical_dimension": 10,
     "encoder_embedding_dimensions": [512, 512],
     "decoder_embedding_dimensions": [512, 512],
@@ -94,17 +106,54 @@ param_string = "vae" + "__".join(
 
 m1 = model(**params)
 
-#%% 
+#%%
 
 m1.compile()
 
+# m1.intrinsic_metrics = [
+#    VaeCategoricalAvgAccuracy(
+#    reg_dim = 0, bool_dim = X_train.shape[1], ord_dim_tup = (0,),
+#    cat_dim_tup=(10,), group_weights = None, dtype=m1.dtype)
+# ]
+
+# m1.add_metric(VaeCategoricalAvgAccuracy("new", 0, X_train.shape[1], (0,), (10,), None), "new")
+
+
 import tempfile
+
 model_path = tempfile.mkdtemp()
 tf.saved_model.save(m1, model_path)
 
+#%%
+m1.fit(
+    x=X_train,
+    y=np.concatenate([X_train, y_train_ohe.todense()], 1),
+    batch_size=100,
+    epochs=5,
+)
 
-#%% 
-m1.fit(x = X_train,y = np.concatenate([X_train, y_train_ohe.todense()], 1), batch_size=100, epochs=10)
+
+#%%
+
+m1.metrics[0](
+    np.concatenate([X_test, y_test_ohe.todense()], 1),
+    m1.sample_one(X_test, np.concatenate([X_test, y_test_ohe.todense()], 1)),
+)
+
+#%%
+
+m1.metric_fns.VaeCategoricalAverageAccuracy
+
+#%%
+
+y_true = np.concatenate([X_train, y_train_ohe.todense()], 1)
+y_pred = m1(X_train)
+vae_categorical_dims_accuracy(
+    y_true, y_pred, 0, X_train.shape[1], (0,), (10,)
+).numpy()
+
+#%%
+m1.metric_fns.VaeCategoricalGroupAverageAccuracy(y_true, y_pred)
 
 # %%
 val = np.concatenate([X_train, y_train_ohe.todense()], 1)[0:10]
@@ -207,7 +256,7 @@ train(
 )
 
 # %%
-res_tensors = m1.predict_one(X_test)
+res_tensors = m1.network.call_dict(X_test)
 
 # Accuracy over predictions
 
