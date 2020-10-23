@@ -17,11 +17,9 @@ X_cat1 = np.zeros((25, 5))
 for i, idx in enumerate(state.binomial(5, 0.5, 25)):
     X_cat[i, idx] = 1
 X_cat = np.concatenate([X_cat0, X_cat1], -1)
-
 X = np.concatenate([X_reg, X_bool, X_ord, X_cat], -1)
 
 # %% Instantiate the model
-
 net = VaeNet(
     X_reg.shape[1],
     X_bool.shape[1],
@@ -37,7 +35,6 @@ net = VaeNet(
 )
 
 # %%
-
 output = net(X)
 
 # %%

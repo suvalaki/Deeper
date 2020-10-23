@@ -16,16 +16,20 @@ from deeper.utils.sampling import mc_stack_mean_dict
 from deeper.utils.function_helpers.decorators import inits_args
 from deeper.utils.function_helpers.collectors import get_local_tensors
 from deeper.utils.scope import Scope
-from deeper.models.vae.metrics import VaeCategoricalAvgAccuracy
+from deeper.models.vae.metrics import vae_categorical_dims_accuracy
 
 from deeper.models.vae.utils import split_inputs
-from deeper.models.vae.network import VaeNet
-
+from deeper.models.vae.network import VaeNet, VaeLossNet
 from tensorflow.python.keras.engine import data_adapter
 
 from types import SimpleNamespace
 
 from deeper.utils.tf.keras.models import Model
+
+
+from tensorflow.python.keras.metrics import (
+    categorical_accuracy,
+)
 
 tfk = tf.keras
 Layer = tfk.layers.Layer
@@ -68,6 +72,7 @@ class VAE(Model):
             embedding_activations,
             **network_kwargs,
         )
+        self.lossnet = VaeLossNet()
 
     def increment_cooling(self):
         self.cooling_distance += 1
@@ -80,7 +85,7 @@ class VAE(Model):
             y_reg,
             y_bin,
             y_ord_groups_concat,
-            y_groups,
+            y_ord_groups,
             y_cat_groups_concat,
             y_cat_groups,
         ) = self.network.split_outputs(
@@ -103,62 +108,31 @@ class VAE(Model):
         x_recon_cat_groups = [
             tf.nn.softmax(x) for x in x_recon_cat_logit_groups
         ]
-
-        # Calculate reconstruction epsilon assuming independence between distributions
-        log_px_recon_regression = lognormal_pdf(x_recon_reg, y_reg, 1.0, 1e-6)
-        x_bin_xent = (
-            tf.nn.sigmoid_cross_entropy_with_logits(
-                labels=y_bin,
-                logits=x_recon_bin_logit,
-                name="recon_sigmoid_crossent",
-            )
-            if self.output_boolean_dimension > 0
-            else tf.zeros(tf.shape(x_recon_bin_logit))
+        self.lossnet.categorical_accuracy_grouped(
+            y_cat_groups, x_recon_cat_groups
         )
 
-        x_cat_xents = (
-            tf.zeros(tf.shape(x_recon_cat_logit_groups_concat))
-            if self.network.output_categorical_dimension == 0
-            else tf.nn.softmax_cross_entropy_with_logits(
-                y_cat_groups[0], x_recon_cat_logit_groups[0]
-            )
-            if len(self.network.input_categorical_dimension) == 1
-            else tf.reduce_sum(
-                tf.concat(
-                    [
-                        tf.nn.softmax_cross_entropy_with_logits(y, x, -1)
-                        for x, y in zip(y_cat_groups, x_recon_cat_logit_groups)
-                    ],
-                    -1,
+        loss = tf.reduce_mean(
+            self.lossnet(
+                (
+                    (result["qz_g_x__mu"], result["qz_g_x__logvar"]),
+                    (y_reg, y_bin, y_ord_groups, y_cat_groups),
+                    (
+                        x_recon_reg,
+                        x_recon_bin_logit,
+                        x_recon_ord_groups_logit,
+                        x_recon_cat_logit_groups,
+                    ),
+                    (1.0, 1.0, 1.0, 1.0, 1.0),
                 ),
-                -1,
+                training,
             )
         )
-        recon = px_g_z__logprob = (
-            log_px_recon_regression
-            - tf.reduce_sum(x_bin_xent, -1)
-            - tf.reduce_sum(x_cat_xents, -1)
-        )
-        px_g_z__prob = tf.exp(px_g_z__logprob)
-        z_entropy = std_normal_kl_divergence(
-            result["qz_g_x__mu"], result["qz_g_x__logvar"]
-        )
-        elbo = px_g_z__logprob + z_entropy
+        # self.add_loss(loss)
+
         output = {
             **result,
-            **{
-                "y_reg": y_reg,
-                "y_bin": y_bin,
-                "y_cat_groups_concat": y_cat_groups_concat,
-                "log_px_recon_regression": log_px_recon_regression,
-                "x_bin_xent": x_bin_xent,
-                "x_cat_xents": x_cat_xents,
-                "px_g_z__logprob": px_g_z__logprob,
-                "px_g_z__prob": px_g_z__prob,
-                "recon": recon,
-                "z_entropy": z_entropy,
-                "elbo": elbo,
-            },
+            **{"loss": loss},
         }
 
         return output
@@ -195,80 +169,6 @@ class VAE(Model):
         return latent
 
     @tf.function
-    def entropy_fn(self, inputs, y, training=False, samples=1):
-        output = self.monte_carlo_estimate(
-            samples, inputs, y, training=training
-        )
-        return (
-            output["recon"],
-            output["log_px_recon_regression"],
-            output["x_bin_xent"],
-            output["x_cat_xents"],
-            output["z_entropy"],
-        )
-
-    @tf.function
-    def elbo(
-        self,
-        inputs,
-        y,
-        training=False,
-        samples=1,
-        beta_reg=1.0,
-        beta_bin=1.0,
-        beta_cat=1.0,
-        beta_z=1.0,
-    ):
-        recon, logpx_reg, bin_xent, cat_xent, z_entropy = self.entropy_fn(
-            inputs, y, training, samples
-        )
-        recon = px_g_z__logprob = (
-            beta_reg * logpx_reg
-            - beta_bin * tf.reduce_sum(bin_xent, -1)
-            - beta_cat * tf.reduce_sum(cat_xent, -1)
-        )
-        return recon + beta_z * z_entropy
-
-    @tf.function
-    def losses_fns(
-        self,
-        output,
-        beta_reg=1.0,
-        beta_bin=1.0,
-        beta_cat=1.0,
-        beta_z=1.0,
-    ):
-        recon, logpx_reg, bin_xent, cat_xent, z_entropy = (
-            output["recon"],
-            output["log_px_recon_regression"],
-            output["x_bin_xent"],
-            output["x_cat_xents"],
-            output["z_entropy"],
-        )
-        logpx_bin = tf.reduce_sum(bin_xent, -1)
-        logpx_cat = tf.reduce_sum(cat_xent, -1)
-        recon = px_g_z__logprob = (
-            beta_reg * logpx_reg - beta_bin * logpx_bin - beta_cat * logpx_cat
-        )
-        elbo = recon + beta_z * z_entropy
-        loss = -elbo
-        return loss, recon, logpx_reg, logpx_bin, logpx_cat, z_entropy
-
-    @tf.function
-    def loss_fn(
-        self,
-        inputs,
-        y,
-        training=False,
-        samples=1,
-        beta_reg=1.0,
-        beta_bin=1.0,
-        beta_cat=1.0,
-        beta_z=1.0,
-    ):
-        return -self.elbo(inputs, y, training, samples, beta_z)
-
-    @tf.function
     def train_step(
         self,
         data,
@@ -290,6 +190,8 @@ class VAE(Model):
             writer = tf.summary.create_file_writer(train_log_dir)
 
         with tf.GradientTape() as tape:
+            y_pred = self.sample_one(x, y, True)
+            """
             y_pred = self.monte_carlo_estimate(samples, x, y, True)
             loss, recon, logpx_reg, logpx_bin, logpx_cat, z_entropy = [
                 tf.reduce_mean(output)
@@ -297,6 +199,8 @@ class VAE(Model):
                     y_pred, beta_reg, beta_bin, beta_cat, beta_z
                 )
             ]
+            """
+            loss = y_pred["loss"]
 
         gradients = tape.gradient(loss, self.trainable_variables)
 
@@ -347,6 +251,5 @@ class VAE(Model):
             # "log_px_reg": logpx_reg,
             # "log_px_bin": logpx_bin,
             # "log_px_cat": logpx_cat,
-            "z_kl_entropy": z_entropy,
             **{m.name: m.result() for m in self.intrinsic_metrics},
         }

@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from typing import Optional
 
+
 Tensor = tf.Tensor
 
 
@@ -33,19 +34,19 @@ def std_normal_kl_divergence(
     axis: int = -1,
     name: Optional[str] = None,
 ) -> Tensor:
-    """Simplified version of kl-divergence for a proposal distribution 
+    """Simplified version of kl-divergence for a proposal distribution
     following a normal distribution and a prior distribution following a std
-    MVN(0,I). 
+    MVN(0,I).
 
     Input
     -----
-    mu: Tensor: mean values for the proposal distribution 
-    var: (optional) Tensor: variance values for the proposal distribution. Must 
+    mu: Tensor: mean values for the proposal distribution
+    var: (optional) Tensor: variance values for the proposal distribution. Must
         be included if logvar is None
-    logvar: (optional) Tensor: logvariance values for the proposal distribution. 
-        Must be included if var is None 
-    epsilon: float: minimum value for the variance. 
-    axis: the axis uppon which to calculate the joint probability 
+    logvar: (optional) Tensor: logvariance values for the proposal distribution.
+        Must be included if var is None
+    epsilon: float: minimum value for the variance.
+    axis: the axis uppon which to calculate the joint probability
         (via logsum of dimensions)
     """
 

@@ -84,7 +84,7 @@ params = {
     "output_regression_dimension": 0,
     "output_boolean_dimension": X_train.shape[1],
     "output_ordinal_dimension": (0,),
-    "output_categorical_dimension": 10,
+    "output_categorical_dimension": (10,),
     "encoder_embedding_dimensions": [512, 512],
     "decoder_embedding_dimensions": [512, 512],
     "latent_dim": 64,
@@ -129,8 +129,12 @@ m1.fit(
     x=X_train,
     y=np.concatenate([X_train, y_train_ohe.todense()], 1),
     batch_size=100,
-    epochs=5,
+    epochs=100,
 )
+
+#%%
+
+m1.metric_results
 
 
 #%%
@@ -254,6 +258,20 @@ train(
     beta_z_method=z_cooling,
     tensorboard=None,  # "./logs/" + param_string + "/samples__" + str(1),
 )
+
+
+#%%
+
+res_tensors = m1.network.call_dict(X_train)
+
+# Accuracy over predictions
+
+pred_y_train = res_tensors["x_recon_cat_groups_concat"]
+print(f"accuracy: {accuracy_score(y_train, pred_y_train.numpy().argmax(-1))}")
+
+print(confusion_matrix(y_train, pred_y_train.numpy().argmax(-1)))
+print(classification_report(y_train, pred_y_train.numpy().argmax(-1)))
+
 
 # %%
 res_tensors = m1.network.call_dict(X_test)
