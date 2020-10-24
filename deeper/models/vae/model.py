@@ -72,7 +72,7 @@ class VAE(Model):
             embedding_activations,
             **network_kwargs,
         )
-        self.lossnet = VaeLossNet()
+        self.lossnet = VaeLossNet(latent_eps=1e-6)
 
     def increment_cooling(self):
         self.cooling_distance += 1
@@ -132,7 +132,9 @@ class VAE(Model):
 
         output = {
             **result,
-            **{"loss": loss},
+            **{
+                "loss": tf.reduce_mean(loss),
+            },
         }
 
         return output
