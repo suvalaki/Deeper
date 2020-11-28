@@ -24,10 +24,10 @@ class VaeNet(Layer):
 
     output_names = [
         # Input variables
-        "x_regression",
-        "x_bin",
-        "x_ord_groups_concat",
-        "x_cat_groups_concat",
+        # "x_regression",
+        # "x_bin",
+        # "x_ord_groups_concat",
+        # "x_cat_groups_concat",
         # Encoder Variables
         "qz_g_x__sample",
         "qz_g_x__logprob",
@@ -61,7 +61,6 @@ class VaeNet(Layer):
         decoder_embedding_dimensions: Tuple[int],
         latent_dim: int,
         embedding_activations=tf.nn.relu,
-        var_scope: str = "variational_autoencoder",
         bn_before: bool = False,
         bn_after: bool = False,
         latent_epsilon=0.0,
@@ -191,16 +190,6 @@ class VaeNet(Layer):
     def call(self, x, training=False):
 
         x = tf.cast(x, dtype=self.dtype)
-        (
-            x_regression,
-            x_bin,
-            x_ord_groups_concat,
-            x_ord_groups,
-            x_cat_groups_concat,
-            x_cat_groups,
-        ) = self.split_inputs(
-            x,
-        )
 
         # Encoder
         (
@@ -249,10 +238,10 @@ class VaeNet(Layer):
         )
         result = [
             # Input variables
-            x_regression,
-            x_bin,
-            x_ord_groups_concat,
-            x_cat_groups_concat,
+            # x_regression,
+            # x_bin,
+            # x_ord_groups_concat,
+            # x_cat_groups_concat,
             # Encoder Variables
             qz_g_x__sample,
             qz_g_x__logprob,
@@ -286,9 +275,15 @@ class VaeLossNet(tf.keras.layers.Layer):
     def __init__(
         self,
         latent_eps=0.0,
+        encoder_name="zgy",
+        decoder_name="xgz",
+        prefix="",
     ):
         super(VaeLossNet, self).__init__()
         self.latent_eps = latent_eps
+        self.encoder_name = encoder_name
+        self.decoder_name = decoder_name
+        self.prefix = prefix
 
     def categorical_accuracy_grouped(
         self,
@@ -302,16 +297,18 @@ class VaeLossNet(tf.keras.layers.Layer):
             for (yct, ypc) in zip(y_cat_true, y_cat_pred)
         ]
         for i, acc in enumerate(cat_accs):
-            self.add_metric(acc, name=f"accuracy_category_{i}")
+            self.add_metric(
+                acc, name=f"{self.decoder_name}_cat_accuracy_group_{i}"
+            )
         cat_acc = tf.reduce_mean(tf.stack(cat_accs))
-        self.add_metric(cat_acc, name="accuracy_total")
+        self.add_metric(cat_acc, name=f"{self.decoder_name}_cat_accuracy")
         return cat_acc
 
-    def latent_kl(self, mu, logvar, training=False):
+    def latent_kl(self, mu, logvar, training=False, name="latent_kl"):
         kl = std_normal_kl_divergence(
-            mu, logvar, epsilon=self.latent_eps, name="latent_kl"
+            mu, logvar, epsilon=self.latent_eps, name=name
         )
-        self.add_metric(kl, name="latent_kl")
+        self.add_metric(kl, name=name)
         return kl
 
     def xent_binary(
@@ -325,11 +322,11 @@ class VaeLossNet(tf.keras.layers.Layer):
             tf.nn.sigmoid_cross_entropy_with_logits(
                 y_bin_logits_true,
                 y_bin_logits_pred,
-                name="xent_binary",
+                name=f"{self.decoder_name}_binary_xent",
             ),
             -1,
         )
-        self.add_metric(xent, name="xent_binary")
+        self.add_metric(xent, name=f"{self.decoder_name}_binary_xent")
         return xent
 
     def xent_ordinal(
@@ -351,7 +348,7 @@ class VaeLossNet(tf.keras.layers.Layer):
                 tf.nn.sigmoid_cross_entropy_with_logits(
                     y_ord_logits_true,
                     y_ord_logits_pred,
-                    name="xent_ordinal",
+                    name=f"{self.decoder_name}_ord_xent",
                 ),
                 -1,
             )
@@ -363,7 +360,7 @@ class VaeLossNet(tf.keras.layers.Layer):
                         tf.nn.sigmoid_cross_entropy_with_logits(
                             yolt,
                             yolp,
-                            name=f"xent_ordinal_group_{i}",
+                            name=f"{self.decoder_name}_ord_xent_group_{i}",
                         ),
                         -1,
                     )
@@ -374,7 +371,7 @@ class VaeLossNet(tf.keras.layers.Layer):
                     )
                 ]
             )
-        self.add_metric(xent, name="xent_ordinal")
+        self.add_metric(xent, name=f"{self.decoder_name}_ord_xent")
         return xent
 
     def xent_categorical(
@@ -394,7 +391,7 @@ class VaeLossNet(tf.keras.layers.Layer):
             xent = tf.nn.softmax_cross_entropy_with_logits(
                 y_ord_logits_true,
                 y_ord_logits_pred,
-                name="xent_categorical",
+                name=f"{self.decoder_name}_cat_xent",
             )
         else:
             xents = [
@@ -402,7 +399,7 @@ class VaeLossNet(tf.keras.layers.Layer):
                 * tf.nn.softmax_cross_entropy_with_logits(
                     yolt,
                     yolp,
-                    name=f"xent_categorical_group_{i}",
+                    name=f"{self.decoder_name}_cat_xent_group_{i}",
                 )
                 for i, (wt, yolt, yolp) in enumerate(
                     zip(class_weights, y_ord_logits_true, y_ord_logits_pred)
@@ -410,8 +407,10 @@ class VaeLossNet(tf.keras.layers.Layer):
             ]
             xent = tf.add_n(xents)
             for i, x in enumerate(xents):
-                self.add_metric(x, name=f"xent_categorical_group_{i}")
-        self.add_metric(xent, name="xent_categorical")
+                self.add_metric(
+                    x, name=f"{self.decoder_name}_cat_xent_group_{i}"
+                )
+        self.add_metric(xent, name=f"{self.decoder_name}_cat_xent")
         return xent
 
     def log_pxgz_regression(
@@ -421,7 +420,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         training: bool = False,
     ):
         log_p = lognormal_pdf(y_reg_true, y_reg_pred, 1.0)
-        self.add_metric(log_p, name="log_pxgz_regression")
+        self.add_metric(log_p, name=f"log_p{self.decoder_name}_regression")
         return log_p
 
     def log_pxgz_binary(
@@ -434,7 +433,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         log_p = -self.xent_binary(
             y_bin_logits_true, y_bin_logits_pred, training, weights
         )
-        self.add_metric(log_p, name="log_pxgz_binary")
+        self.add_metric(log_p, name=f"log_p{self.decoder_name}_binary")
         return log_p
 
     def log_pxgz_ordinal(
@@ -447,7 +446,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         log_p = -self.xent_ordinal(
             y_ord_logits_true, y_ord_logits_pred, training, class_weights
         )
-        self.add_metric(log_p, name="log_pxgz_ordinal")
+        self.add_metric(log_p, name=f"log_p{self.decoder_name}_ordinal")
         return log_p
 
     def log_pxgz_categorical(
@@ -460,7 +459,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         log_p = -self.xent_categorical(
             y_cat_logits_true, y_cat_logits_pred, training, class_weights
         )
-        self.add_metric(log_p, name="log_pxgz_categorical")
+        self.add_metric(log_p, name=f"log_p{self.decoder_name}_categorical")
         return log_p
 
     def log_pxgz(
@@ -475,7 +474,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         lambda_cat=1.0,
     ):
         log_p = log_pxgz_reg + log_pxgz_bin + log_pxgz_ord + log_pxgz_cat
-        self.add_metric(log_p, name="log_pxgz")
+        self.add_metric(log_p, name=f"log_p{self.decoder_name}")
 
     def elbo(
         self,
@@ -483,7 +482,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         ln_pxgz,
     ):
         result = ln_pxgz + kl_z
-        self.add_metric(result, name="elbo")
+        self.add_metric(result, name=f"{self.prefix}elbo")
         return result
 
     def loss(
@@ -502,24 +501,34 @@ class VaeLossNet(tf.keras.layers.Layer):
         scaled_kl_z = lambda_z * kl_z
         self.add_metric(scaled_kl_z, name="scaled_latent_kl")
         scaled_log_pxgz_reg = lambda_reg * log_pxgz_reg
-        self.add_metric(scaled_log_pxgz_reg, name="scaled_log_pxgz_reg")
+        self.add_metric(
+            scaled_log_pxgz_reg, name=f"scaled_log_p{self.decoder_name}_reg"
+        )
         scaled_log_pxgz_bin = lambda_bin * log_pxgz_bin
-        self.add_metric(scaled_log_pxgz_bin, name="scaled_log_pxgz_bin")
+        self.add_metric(
+            scaled_log_pxgz_bin, name=f"scaled_log_p{self.decoder_name}_bin"
+        )
         scaled_log_pxgz_ord = lambda_ord * log_pxgz_ord
-        self.add_metric(scaled_log_pxgz_ord, name="scaled_log_pxgz_ord")
+        self.add_metric(
+            scaled_log_pxgz_ord, name=f"scaled_log_p{self.decoder_name}_ord"
+        )
         scaled_log_pxgz_cat = lambda_reg * log_pxgz_cat
-        self.add_metric(scaled_log_pxgz_cat, name="scaled_log_pxgz_cat")
+        self.add_metric(
+            scaled_log_pxgz_cat, name=f"scaled_log_p{self.decoder_name}_cat"
+        )
         scaled_log_pgz = (
             scaled_log_pxgz_reg
             + scaled_log_pxgz_bin
             + scaled_log_pxgz_ord
             + scaled_log_pxgz_cat
         )
-        self.add_metric(scaled_log_pgz, name="scaled_log_pgz")
+        self.add_metric(
+            scaled_log_pgz, name=f"scaled_log_p{self.encoder_name}"
+        )
         scaled_elbo = scaled_log_pgz + scaled_kl_z
-        self.add_metric(scaled_elbo, name="scaled_elbo")
+        self.add_metric(scaled_elbo, name=f"{self.prefix}scaled_elbo")
         scaled_loss = -scaled_elbo
-        self.add_metric(scaled_loss, name="scaled_loss")
+        self.add_metric(scaled_loss, name=f"{self.prefix}scaled_loss")
         return scaled_loss
 
     def call(self, inputs, training=False):

@@ -93,7 +93,7 @@ params = {
     "bn_after": True,
     "latent_epsilon": 1e-12,
     "optimizer": tf.keras.optimizers.Adam(1e-3, epsilon=1e-16),
-    "connected_weights": False,
+    "connected_weights": True,
     "latent_mu_embedding_dropout": 0.0,
     "latent_var_embedding_dropout": 0.0,
     "recon_dropouut": 0.0,
@@ -129,7 +129,7 @@ m1.fit(
     x=X_train,
     y=np.concatenate([X_train, y_train_ohe.todense()], 1),
     batch_size=100,
-    epochs=100,
+    epochs=1,
 )
 
 #%%

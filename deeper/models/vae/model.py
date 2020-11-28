@@ -128,7 +128,6 @@ class VAE(Model):
                 training,
             )
         )
-        # self.add_loss(loss)
 
         output = {
             **result,
@@ -159,8 +158,9 @@ class VAE(Model):
         return mc_stack_mean_dict(self.sample(samples, x, y, training))
 
     @tf.function
-    def call(self, x, training=False):
-        return self.network(x, training)
+    def call(self, inputs, training=False):
+        X, y = inputs
+        return self.sample_one(X, y, training)
 
     @tf.function
     def latent_sample(self, inputs, y, training=False, samples=1):
@@ -193,15 +193,6 @@ class VAE(Model):
 
         with tf.GradientTape() as tape:
             y_pred = self.sample_one(x, y, True)
-            """
-            y_pred = self.monte_carlo_estimate(samples, x, y, True)
-            loss, recon, logpx_reg, logpx_bin, logpx_cat, z_entropy = [
-                tf.reduce_mean(output)
-                for output in self.losses_fns(
-                    y_pred, beta_reg, beta_bin, beta_cat, beta_z
-                )
-            ]
-            """
             loss = y_pred["loss"]
 
         gradients = tape.gradient(loss, self.trainable_variables)

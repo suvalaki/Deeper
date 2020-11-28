@@ -48,28 +48,28 @@ def plot_results(X, Y_, means, covariances, index, title):
 
     plt.xlim(-9.0, 5.0)
     plt.ylim(-3.0, 6.0)
-    plt.xticks(())classification_report
-# Fit a Gaussian mixture with EM using five components
+    plt.xticks(())
+
+
+#%% make data
+state = np.random.RandomState(0)
+X_reg = state.random((25, 10))
+X_bool = (state.random((25, 3)) > 0.5).astype(float)
+X_ord = (state.random((25, 5)) > 0.5).astype(float)
+X_cat0 = np.zeros((25, 9))
+for i, idx in enumerate(state.binomial(8, 0.5, 25)):
+    X_cat0[i, idx] = 1
+X_cat1 = np.zeros((25, 5))
+for i, idx in enumerate(state.binomial(4, 0.5, 25)):
+    X_cat1[i, idx] = 1
+X_cat = np.concatenate([X_cat0, X_cat1], -1)
+X = np.concatenate([X_reg, X_bool, X_ord, X_cat], -1)
+
+
+#%% Fit a Gaussian mixture with EM using five components
 gmm = mixture.GaussianMixture(n_components=5, covariance_type="full").fit(X)
 y = gmm.predict(X)
-plot_results(
-    X, gmm.predict(X), gmm.means_, gmm.covariances_, 0, "Gaussian Mixture"
-)
 
-# Fit a Dirichlet process Gaussian mixture using five components
-dpgmm = mixture.BayesianGaussianMixture(
-    n_components=5, covariance_type="full"
-).fit(X)
-plot_results(
-    X,
-    dpgmm.predict(X),
-    dpgmm.means_,
-    dpgmm.covariances_,
-    1,
-    "Bayesian Gaussian Mixture with a Dirichlet process prior",
-)
-
-plt.show()
 # %%
 
 X_train, X_test, y_train, y_test = train_test_split(
@@ -85,18 +85,18 @@ y_test_ohe = ohe.fit_transform(y_test.reshape(-1, 1))
 params = {
     "input_regression_dimension": X_train.shape[1],
     "input_boolean_dimension": 0,
+    "input_ordinal_dimension": (X_ord.shape[1],),
     "input_categorical_dimension": 0,
     "output_regression_dimension": X_train.shape[1],
     "output_boolean_dimension": 0,
+    "output_ordinal_dimension": (X_ord.shape[1],),
     "output_categorical_dimension": (y_train_ohe.shape[1],),
     "encoder_embedding_dimensions": [12, 12],
     "decoder_embedding_dimensions": [12, 12],
     "latent_dim": 64,
     "embedding_activations": tf.nn.relu,
-    "kind": "binary",
     "bn_before": False,
     "bn_after": True,
-    "reconstruction_epsilon": 1e-12,
     "latent_epsilon": 1e-12,
     "optimizer": tf.keras.optimizers.Adam(1e-3, epsilon=1e-16),
     "connected_weights": False,
@@ -111,6 +111,10 @@ param_string = "vae" + "__".join(
 )
 
 m1 = model(**params)
+
+#%%
+m1.compile()
+m1.fit(X_train, X_train)
 
 
 # %%
@@ -146,6 +150,6 @@ train(
 pred = m1.predict_one(X_test)["x_recon_cat_groups_concat"].numpy().argmax(1)
 print(confusion_matrix(y_test, pred))
 print(classification_report(y_test, pred))
-# %% Testing ordinal 
+# %% Testing ordinal
 
 # %%
