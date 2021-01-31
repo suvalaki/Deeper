@@ -318,15 +318,18 @@ class VaeLossNet(tf.keras.layers.Layer):
         training: bool = False,
         weights: Optional[Sequence[float]] = None,
     ):
-        xent = tf.reduce_sum(
-            tf.nn.sigmoid_cross_entropy_with_logits(
-                y_bin_logits_true,
-                y_bin_logits_pred,
-                name=f"{self.decoder_name}_binary_xent",
-            ),
-            -1,
-        )
-        self.add_metric(xent, name=f"{self.decoder_name}_binary_xent")
+        if y_bin_logits_true.shape[1] > 0:
+            xent = tf.reduce_sum(
+                tf.nn.sigmoid_cross_entropy_with_logits(
+                    y_bin_logits_true,
+                    y_bin_logits_pred,
+                    name=f"{self.decoder_name}_binary_xent",
+                ),
+                -1,
+            )
+            self.add_metric(xent, name=f"{self.decoder_name}_binary_xent")
+        else:
+            xent = y_bin_logits_true[:, 0:0]
         return xent
 
     def xent_ordinal(
@@ -430,11 +433,14 @@ class VaeLossNet(tf.keras.layers.Layer):
         training: bool = False,
         weights: Optional[Sequence[float]] = None,
     ):
-        log_p = -self.xent_binary(
-            y_bin_logits_true, y_bin_logits_pred, training, weights
-        )
-        self.add_metric(log_p, name=f"log_p{self.decoder_name}_binary")
-        return log_p
+        if y_bin_logits_true.shape[0] > 0:
+            log_p = -self.xent_binary(
+                y_bin_logits_true, y_bin_logits_pred, training, weights
+            )
+            self.add_metric(log_p, name=f"log_p{self.decoder_name}_binary")
+            return log_p
+        else:
+            return y_bin_logits_true[:, 0:0]
 
     def log_pxgz_ordinal(
         self,
