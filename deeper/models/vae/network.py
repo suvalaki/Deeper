@@ -236,6 +236,7 @@ class VaeNet(Layer):
                 [tf.nn.softmax(z) for z in x_recon_cat_groups_logit], -1
             )
         )
+
         result = [
             # Input variables
             # x_regression,
@@ -340,21 +341,28 @@ class VaeLossNet(tf.keras.layers.Layer):
         class_weights: Optional[Sequence[float]] = None,
     ):
 
-        if class_weights is not None:
-            class_weights = [1 for i in range(y_ord_logits_true)]
+        xent = tf.zeros((tf.shape(y_ord_logits_pred)[0],), dtype=self.dtype)
+
+        if class_weights is None and len(y_ord_logits_true) > 0:
+            class_weights = [1 for i in range(len(y_ord_logits_true))]
 
         if len(y_ord_logits_true) == 0:
-            return 0
+            return 0.0
 
-        if len(y_ord_logits_true) == 1:
-            xent = tf.reduce_sum(
-                tf.nn.sigmoid_cross_entropy_with_logits(
-                    y_ord_logits_true,
-                    y_ord_logits_pred,
-                    name=f"{self.decoder_name}_ord_xent",
-                ),
-                -1,
-            )
+        elif len(y_ord_logits_true) == 1:
+            if tf.shape(y_ord_logits_pred[0])[-1] == 1:
+                xent = tf.zeros(
+                    (tf.shape(y_ord_logits_pred)[0],), dtype=self.dtype
+                )
+            else:
+                xent = tf.reduce_sum(
+                    tf.nn.sigmoid_cross_entropy_with_logits(
+                        y_ord_logits_true[0],
+                        y_ord_logits_pred[0],
+                        name=f"{self.decoder_name}_ord_xent",
+                    ),
+                    -1,
+                )
         else:
             xent = tf.math.add_n(
                 [
@@ -374,6 +382,7 @@ class VaeLossNet(tf.keras.layers.Layer):
                     )
                 ]
             )
+
         self.add_metric(xent, name=f"{self.decoder_name}_ord_xent")
         return xent
 
@@ -384,18 +393,28 @@ class VaeLossNet(tf.keras.layers.Layer):
         training: bool = False,
         class_weights: Optional[Sequence[float]] = None,
     ):
+        xent = 0.0
+
         if class_weights is not None:
             class_weights = [1 for i in range(y_ord_logits_true)]
 
         if len(y_ord_logits_pred) == 0:
-            return 0
+            return 0.0
 
-        if len(y_ord_logits_true) <= 1:
-            xent = tf.nn.softmax_cross_entropy_with_logits(
-                y_ord_logits_true,
-                y_ord_logits_pred,
-                name=f"{self.decoder_name}_cat_xent",
-            )
+        elif len(y_ord_logits_true) == 1:
+            if tf.shape(y_ord_logits_true)[-1] <= 1:
+                self.add_metric(0, name=f"{self.decoder_name}_cat_xent")
+                return 0.0
+            else:
+                xent = tf.nn.softmax_cross_entropy_with_logits(
+                    y_ord_logits_true[0],
+                    y_ord_logits_pred[0],
+                    name=f"{self.decoder_name}_cat_xent",
+                )
+
+                tf.print(xent.shape)
+                self.add_metric(xent, name=f"{self.decoder_name}_cat_xent")
+                return xent
         else:
             xents = [
                 wt
@@ -433,14 +452,14 @@ class VaeLossNet(tf.keras.layers.Layer):
         training: bool = False,
         weights: Optional[Sequence[float]] = None,
     ):
-        if y_bin_logits_true.shape[0] > 0:
+        if y_bin_logits_true.shape[1] > 0:
             log_p = -self.xent_binary(
                 y_bin_logits_true, y_bin_logits_pred, training, weights
             )
             self.add_metric(log_p, name=f"log_p{self.decoder_name}_binary")
             return log_p
         else:
-            return y_bin_logits_true[:, 0:0]
+            return tf.reduce_sum(y_bin_logits_true[:, 0:0], -1)
 
     def log_pxgz_ordinal(
         self,
@@ -535,6 +554,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.add_metric(scaled_elbo, name=f"{self.prefix}scaled_elbo")
         scaled_loss = -scaled_elbo
         self.add_metric(scaled_loss, name=f"{self.prefix}scaled_loss")
+
         return scaled_loss
 
     def call(self, inputs, training=False):

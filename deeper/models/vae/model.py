@@ -237,10 +237,11 @@ class VAE(Model):
         )
         # self.compiled_metrics.update_state(y, y_pred)
         # for m in self.intrinsic_metrics:
-        #    m.update_state(y, y_pred)
+        #   m.update_state(y, y_pred)
+        metval = self.metric_results
         return {
             "loss": loss,
-            # "log_px": recon,
+            "latent_kl": metval["latent_kl"],
             # "log_px_reg": logpx_reg,
             # "log_px_bin": logpx_bin,
             # "log_px_cat": logpx_cat,
