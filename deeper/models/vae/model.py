@@ -23,7 +23,6 @@ from deeper.models.vae.network import VaeNet, VaeLossNet
 from tensorflow.python.keras.engine import data_adapter
 
 from types import SimpleNamespace
-
 from deeper.utils.tf.keras.models import Model
 
 
@@ -33,6 +32,9 @@ from tensorflow.python.keras.metrics import (
 
 tfk = tf.keras
 Layer = tfk.layers.Layer
+
+from collections import namedtuple
+from deeper.models.vae.utils import SplitCovariates
 
 
 class VAE(Model):
@@ -81,56 +83,29 @@ class VAE(Model):
     def sample_one(self, x, y, training=False):
 
         y = tf.cast(y, dtype=self.dtype)
-        (
-            y_reg,
-            y_bin,
-            y_ord_groups_concat,
-            y_ord_groups,
-            y_cat_groups_concat,
-            y_cat_groups,
-        ) = self.network.split_outputs(
-            y,
-        )
-
-        result = self.network.call_dict(x, training)
-
-        (
-            x_recon_reg,
-            x_recon_bin_logit,
-            x_recon_ord_groups_logit_concat,
-            x_recon_ord_groups_logit,
-            x_recon_cat_logit_groups_concat,
-            x_recon_cat_logit_groups,
-        ) = self.network.split_outputs(
-            result["x_recon"],
-        )
+        y_split = self.network.split_outputs(y)
+        result = self.network(x, training)
 
         x_recon_cat_groups = [
-            tf.nn.softmax(x) for x in x_recon_cat_logit_groups
+            tf.nn.softmax(x) for x in result.x_recon_cat_groups_logit
         ]
         self.lossnet.categorical_accuracy_grouped(
-            y_cat_groups, x_recon_cat_groups
+            y_split.categorical_groups, x_recon_cat_groups
         )
 
         loss = tf.reduce_mean(
             self.lossnet(
-                (
-                    (result["qz_g_x__mu"], result["qz_g_x__logvar"]),
-                    (y_reg, y_bin, y_ord_groups, y_cat_groups),
-                    (
-                        x_recon_reg,
-                        x_recon_bin_logit,
-                        x_recon_ord_groups_logit,
-                        x_recon_cat_logit_groups,
-                    ),
-                    (1.0, 1.0, 1.0, 1.0, 1.0),
+                self.lossnet.Input.from_vaenet_outputs(
+                    y_split,
+                    result,
+                    self.lossnet.InputWeight(1.0, 1.0, 1.0, 1.0, 1.0),
                 ),
                 training,
             )
         )
 
         output = {
-            **result,
+            **result._asdict(),
             **{
                 "loss": tf.reduce_mean(loss),
             },

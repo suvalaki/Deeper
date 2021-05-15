@@ -39,8 +39,10 @@ class VaeNet(Layer):
         logits_binary: tf.Tensor
         binary: tf.Tensor
         logits_ordinal_groups_concat: tf.Tensor
+        logits_ordinal_groups: tf.Tensor
         ord_groups_concat: tf.Tensor
         logits_categorical_groups_concat: tf.Tensor
+        logits_categorical_groups: tf.Tensor
         categorical_groups_concat: tf.Tensor
 
     class VaeNetOutput(NamedTuple):
@@ -57,8 +59,10 @@ class VaeNet(Layer):
         x_recon_bin_logit: tf.Tensor
         x_recon_bin: tf.Tensor
         x_recon_ord_groups_logit_concat: tf.Tensor
+        x_recon_ord_groups_logit: tf.Tensor
         x_recon_ord_groups_concat: tf.Tensor
         x_recon_cat_groups_logit_concat: tf.Tensor
+        x_recon_cat_groups_logit: tf.Tensor
         x_recon_cat_groups_concat: tf.Tensor
 
     @inits_args
@@ -231,8 +235,10 @@ class VaeNet(Layer):
             x_recon_logit.binary,
             x_recon_bin,
             x_recon_logit.ordinal_groups_concat,
+            x_recon_logit.ordinal_groups,
             x_recon_ord_groups_concat,
             x_recon_logit.categorical_groups_concat,
+            x_recon_logit.categorical_groups,
             x_recon_cat_groups_concat,
         )
 
@@ -574,12 +580,37 @@ class VaeLossNet(tf.keras.layers.Layer):
         weight: VaeLossNet.InputWeight
 
         @staticmethod
-        def from_nested_sequence(inputs):
+        def from_nested_sequence(inputs) -> VaeLossNet.Input:
             return VaeLossNet.Input(
                 VaeLossNet.InputLatent(*inputs[0]),
                 VaeLossNet.InputYTrue(*inputs[1]),
                 VaeLossNet.InputYPred(*inputs[2]),
                 VaeLossNet.InputWeight(*inputs[3]),
+            )
+
+        @staticmethod
+        def from_vaenet_outputs(
+            y_true: SplitCovariates,
+            model_output: VaeNet.VaeNetOutput,
+            weights: VaeLossNet.InputWeight,
+        ) -> VaeLossNet.Input:
+            return VaeLossNet.Input(
+                VaeLossNet.InputLatent(
+                    model_output.qz_g_x__mu, model_output.qz_g_x__logvar
+                ),
+                VaeLossNet.InputYTrue(
+                    y_true.regression,
+                    y_true.binary,
+                    y_true.ordinal_groups,
+                    y_true.categorical_groups,
+                ),
+                VaeLossNet.InputYPred(
+                    model_output.x_recon_regression,
+                    model_output.x_recon_bin_logit,
+                    model_output.x_recon_ord_groups_logit,
+                    model_output.x_recon_cat_groups_logit,
+                ),
+                weights,
             )
 
     class Output(NamedTuple):
