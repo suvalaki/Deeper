@@ -1,3 +1,4 @@
+from __future__ import annotations
 import tensorflow as tf
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.initializers import Initializer
@@ -22,8 +23,7 @@ from tensorflow.python.keras.metrics import categorical_accuracy, accuracy
 from deeper.utils.tf.keras.models import Model
 from typing import Sequence
 
-
-from collections import namedtuple
+from typing import NamedTuple
 
 
 def reduce_groups(fn, x_grouped: Sequence[tf.Tensor]):
@@ -33,61 +33,33 @@ def reduce_groups(fn, x_grouped: Sequence[tf.Tensor]):
 
 
 class VaeNet(Layer):
+    class ReconstructionOutput(NamedTuple):
+        hidden_logits: tf.Tensor
+        regression: tf.Tensor
+        logits_binary: tf.Tensor
+        binary: tf.Tensor
+        logits_ordinal_groups_concat: tf.Tensor
+        ord_groups_concat: tf.Tensor
+        logits_categorical_groups_concat: tf.Tensor
+        categorical_groups_concat: tf.Tensor
 
-    output_names = [
-        # Encoder Variables
-        "qz_g_x__sample",
-        "qz_g_x__logprob",
-        "qz_g_x__prob",
-        "qz_g_x__mu",
-        "qz_g_x__logvar",
-        "qz_g_x__var",
+    class VaeNetOutput(NamedTuple):
+        # Encoder/Latent variables
+        qz_g_x__sample: tf.Tensor
+        qz_g_x__logprob: tf.Tensor
+        qz_g_x__prob: tf.Tensor
+        qz_g_x__mu: tf.Tensor
+        qz_g_x__logvar: tf.Tensor
+        qz_g_x__var: tf.Tensor
         # DecoderVariables
-        "x_recon",
-        "x_recon_regression",
-        "x_recon_bin_logit",
-        "x_recon_bin",
-        "x_recon_ord_groups_logit_concat",
-        "x_recon_ord_groups_concat",
-        "x_recon_cat_groups_logit_concat",
-        "x_recon_cat_groups_concat",
-    ]
-
-    ReconstructionOutput = namedtuple(
-        "Graph_x_g_z",
-        [
-            "hidden_logits",
-            "regression",
-            "logits_binary",
-            "binary",
-            "logits_ordinal_groups_concat",
-            "ord_groups_concat",
-            "logits_categorical_groups_concat",
-            "categorical_groups_concat",
-        ],
-    )
-
-    VaeNetOutput = namedtuple(
-        "VaeNetOutputs",
-        [
-            # Encoder Variables
-            "qz_g_x__sample",
-            "qz_g_x__logprob",
-            "qz_g_x__prob",
-            "qz_g_x__mu",
-            "qz_g_x__logvar",
-            "qz_g_x__var",
-            # DecoderVariables
-            "x_recon",
-            "x_recon_regression",
-            "x_recon_bin_logit",
-            "x_recon_bin",
-            "x_recon_ord_groups_logit_concat",
-            "x_recon_ord_groups_concat",
-            "x_recon_cat_groups_logit_concat",
-            "x_recon_cat_groups_concat",
-        ],
-    )
+        x_recon: tf.Tensor
+        x_recon_regression: tf.Tensor
+        x_recon_bin_logit: tf.Tensor
+        x_recon_bin: tf.Tensor
+        x_recon_ord_groups_logit_concat: tf.Tensor
+        x_recon_ord_groups_concat: tf.Tensor
+        x_recon_cat_groups_logit_concat: tf.Tensor
+        x_recon_cat_groups_concat: tf.Tensor
 
     @inits_args
     def __init__(
@@ -232,7 +204,7 @@ class VaeNet(Layer):
     @tf.function
     def logits_to_actuals(
         self, output_logits_concat, training=False
-    ) -> VaeNet.ReconstructionOutput:
+    ) -> self.ReconstructionOutput:
         """Binary and categorical logits need to be converted into probs"""
 
         x_recon_logit = self.split_outputs(
@@ -572,41 +544,80 @@ class VaeLossNet(tf.keras.layers.Layer):
 
         return scaled_loss
 
-    def call(self, inputs, training=False):
+    class InputLatent(NamedTuple):
+        mu: tf.Tensor
+        logvar: tf.Tensor
 
-        (
-            (z_mu, z_logvar),
-            (
-                y_true_reg,
-                y_true_bin,
-                y_true_ord,
-                y_true_cat,
-            ),
-            (
-                y_pred_reg,
-                y_pred_bin_logit,
-                y_pred_ord_logit,
-                y_pred_cat_logit,
-            ),
-            (
-                lambda_z,
-                lambda_reg,
-                lambda_bin,
-                lambda_ord,
-                lambda_cat,
-            ),
-        ) = inputs
+    class InputYTrue(NamedTuple):
+        regression_value: tf.Tensor
+        binary_prob: tf.Tensor
+        ordinal_prob: tf.Tensor
+        categorical_prob: tf.Tensor
 
-        kl_z = self.latent_kl(z_mu, z_logvar, training)
-        l_pxgz_reg = self.log_pxgz_regression(y_true_reg, y_pred_reg, training)
+    class InputYPred(NamedTuple):
+        regression_value: tf.Tensor
+        binary_logit: tf.Tensor
+        ordinal_logit: tf.Tensor
+        categorical_logit: tf.Tensor
+
+    class InputWeight(NamedTuple):
+        lambda_z: float
+        lambda_reg: float
+        lambda_bin: float
+        lambda_ord: float
+        lambda_cat: float
+
+    class Input(NamedTuple):
+        latent: VaeLossNet.InputLatent
+        y_true: VaeLossNet.InputYTrue
+        y_pred: VaeLossNet.InputYPred
+        weight: VaeLossNet.InputWeight
+
+        @staticmethod
+        def from_nested_sequence(inputs):
+            return VaeLossNet.Input(
+                VaeLossNet.InputLatent(*inputs[0]),
+                VaeLossNet.InputYTrue(*inputs[1]),
+                VaeLossNet.InputYPred(*inputs[2]),
+                VaeLossNet.InputWeight(*inputs[3]),
+            )
+
+    class Output(NamedTuple):
+        kl_z: tf.Tensor
+        l_pxgz_reg: tf.Tensor
+        l_pxgz_bin: tf.Tensor
+        l_pxgz_ord: tf.Tensor
+        l_pxgz_cat: tf.Tensor
+        lambda_z: tf.Tensor
+        lambda_reg: tf.Tensor
+        lambda_bin: tf.Tensor
+        lambda_ord: tf.Tensor
+        lambda_cat: tf.Tensor
+
+    def call(self, inputs: Input, training=False) -> Output:
+
+        inputs = (
+            VaeLossNet.Input.from_nested_sequence(inputs)
+            if not isinstance(inputs, VaeLossNet.Input)
+            else inputs
+        )
+
+        kl_z = self.latent_kl(inputs.latent.mu, inputs.latent.logvar, training)
+        l_pxgz_reg = self.log_pxgz_regression(
+            inputs.y_true.regression_value,
+            inputs.y_pred.regression_value,
+            training,
+        )
         l_pxgz_bin = self.log_pxgz_binary(
-            y_true_bin, y_pred_bin_logit, training
+            inputs.y_true.binary_prob, inputs.y_pred.binary_logit, training
         )
         l_pxgz_ord = self.log_pxgz_ordinal(
-            y_true_ord, y_pred_ord_logit, training
+            inputs.y_true.ordinal_prob, inputs.y_pred.ordinal_logit, training
         )
         l_pxgz_cat = self.log_pxgz_categorical(
-            y_true_cat, y_pred_cat_logit, training
+            inputs.y_true.categorical_prob,
+            inputs.y_pred.categorical_logit,
+            training,
         )
         loss = self.loss(
             kl_z,
@@ -614,10 +625,6 @@ class VaeLossNet(tf.keras.layers.Layer):
             l_pxgz_bin,
             l_pxgz_ord,
             l_pxgz_cat,
-            lambda_z,
-            lambda_reg,
-            lambda_bin,
-            lambda_ord,
-            lambda_cat,
+            *inputs.weight,
         )
         return loss
