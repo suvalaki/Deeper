@@ -4,9 +4,20 @@ from sklearn import metrics
 from matplotlib import pyplot as plt
 import pandas as pd
 import io
-
-
 from typing import Union, Tuple
+from collections import namedtuple
+
+SplitCovariates = namedtuple(
+    "SplitInputs",
+    [
+        "regression",
+        "binary",
+        "ordinal_groups_concat",
+        "ordinal_groups",
+        "categorical_groups_concat",
+        "categorical_groups",
+    ],
+)
 
 
 def chain_call(func, x, num, scalar_dict={}):
@@ -83,7 +94,7 @@ def split_inputs(
     bool_dim: int,
     ord_dim_tup: Tuple[int],
     cat_dim_tup: Tuple[int],
-):
+) -> SplitCovariates:
     x_reg = x[:, :reg_dim] if reg_dim > 0 else tf.zeros((tf.shape(x)[0], 0))
     x_bin = x[:, reg_dim : (reg_dim + bool_dim)] if bool_dim > 0 else x[:, 0:0]
 
@@ -98,4 +109,6 @@ def split_inputs(
     x_ord_grouped = split_groups(x_ord, ord_dim_tup)
     x_cat_grouped = split_groups(x_cat, cat_dim_tup)
 
-    return x_reg, x_bin, x_ord, x_ord_grouped, x_cat, x_cat_grouped
+    return SplitCovariates(
+        x_reg, x_bin, x_ord, x_ord_grouped, x_cat, x_cat_grouped
+    )

@@ -3,6 +3,7 @@ import numpy as np
 
 from deeper.utils.scope import Scope
 from deeper.layers.encoder import Encoder
+from collections import namedtuple
 
 tfk = tf.keras
 Layer = tfk.layers.Layer
@@ -10,6 +11,12 @@ Tensor = tf.Tensor
 
 
 class RandomNormalEncoder(Layer, Scope):
+
+    RandomNormalEncoderOutput = namedtuple(
+        "RandomNormalEncoderOutput",
+        ["sample", "logprob", "prob", "mu", "logvar", "var"],
+    )
+
     def __init__(
         self,
         latent_dimension,
@@ -309,7 +316,9 @@ class RandomNormalEncoder(Layer, Scope):
         # Metrics for loss
         logprob = self.logprob(sample, mu, var)
         prob = tf.exp(logprob)
-        return sample, logprob, prob, mu, logvar, var
+        return self.RandomNormalEncoderOutput(
+            sample, logprob, prob, mu, logvar, var
+        )
 
     @staticmethod
     @tf.function

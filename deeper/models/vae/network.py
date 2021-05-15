@@ -10,7 +10,7 @@ from deeper.probability_layers.normal import (
     RandomNormalEncoder,
 )
 from deeper.probability_layers.ops.normal import std_normal_kl_divergence
-from deeper.models.vae.utils import split_inputs
+from deeper.models.vae.utils import split_inputs, SplitCovariates
 from deeper.utils.function_helpers.decorators import inits_args
 
 from deeper.probability_layers.normal import (
@@ -19,15 +19,22 @@ from deeper.probability_layers.normal import (
 )
 from tensorflow.python.keras.metrics import categorical_accuracy, accuracy
 
+from deeper.utils.tf.keras.models import Model
+from typing import Sequence
+
+
+from collections import namedtuple
+
+
+def reduce_groups(fn, x_grouped: Sequence[tf.Tensor]):
+    if len(x_grouped) <= 1:
+        return fn(x_grouped[0])
+    return tf.concat([fn(z) for z in x_grouped], -1)
+
 
 class VaeNet(Layer):
 
     output_names = [
-        # Input variables
-        # "x_regression",
-        # "x_bin",
-        # "x_ord_groups_concat",
-        # "x_cat_groups_concat",
         # Encoder Variables
         "qz_g_x__sample",
         "qz_g_x__logprob",
@@ -45,6 +52,42 @@ class VaeNet(Layer):
         "x_recon_cat_groups_logit_concat",
         "x_recon_cat_groups_concat",
     ]
+
+    ReconstructionOutput = namedtuple(
+        "Graph_x_g_z",
+        [
+            "hidden_logits",
+            "regression",
+            "logits_binary",
+            "binary",
+            "logits_ordinal_groups_concat",
+            "ord_groups_concat",
+            "logits_categorical_groups_concat",
+            "categorical_groups_concat",
+        ],
+    )
+
+    VaeNetOutput = namedtuple(
+        "VaeNetOutputs",
+        [
+            # Encoder Variables
+            "qz_g_x__sample",
+            "qz_g_x__logprob",
+            "qz_g_x__prob",
+            "qz_g_x__mu",
+            "qz_g_x__logvar",
+            "qz_g_x__var",
+            # DecoderVariables
+            "x_recon",
+            "x_recon_regression",
+            "x_recon_bin_logit",
+            "x_recon_bin",
+            "x_recon_ord_groups_logit_concat",
+            "x_recon_ord_groups_concat",
+            "x_recon_cat_groups_logit_concat",
+            "x_recon_cat_groups_concat",
+        ],
+    )
 
     @inits_args
     def __init__(
@@ -167,7 +210,7 @@ class VaeNet(Layer):
         )
 
     @tf.function
-    def split_inputs(self, x):
+    def split_inputs(self, x) -> SplitCovariates:
         return split_inputs(
             x,
             self.input_regression_dimension,
@@ -177,7 +220,7 @@ class VaeNet(Layer):
         )
 
     @tf.function
-    def split_outputs(self, x):
+    def split_outputs(self, x) -> SplitCovariates:
         return split_inputs(
             x,
             self.output_regression_dimension,
@@ -187,85 +230,58 @@ class VaeNet(Layer):
         )
 
     @tf.function
-    def call(self, x, training=False):
+    def logits_to_actuals(
+        self, output_logits_concat, training=False
+    ) -> VaeNet.ReconstructionOutput:
+        """Binary and categorical logits need to be converted into probs"""
+
+        x_recon_logit = self.split_outputs(
+            output_logits_concat,
+        )
+
+        x_recon_bin = tf.nn.sigmoid(x_recon_logit.binary)
+        x_recon_ord_groups = [
+            tf.nn.sigmoid(x) for x in x_recon_logit.ordinal_groups
+        ]
+        x_recon_ord_groups_concat = reduce_groups(
+            tf.nn.softmax, x_recon_ord_groups
+        )
+        x_recon_cat_groups = [
+            tf.nn.softmax(x) for x in x_recon_logit.categorical_groups
+        ]
+        x_recon_cat_groups_concat = reduce_groups(
+            tf.nn.softmax, x_recon_cat_groups
+        )
+
+        return VaeNet.ReconstructionOutput(
+            output_logits_concat,
+            x_recon_logit.regression,
+            x_recon_logit.binary,
+            x_recon_bin,
+            x_recon_logit.ordinal_groups_concat,
+            x_recon_ord_groups_concat,
+            x_recon_logit.categorical_groups_concat,
+            x_recon_cat_groups_concat,
+        )
+
+    @tf.function
+    def call(self, x, training=False) -> VaeNet.VaeNetOutput:
 
         x = tf.cast(x, dtype=self.dtype)
 
         # Encoder
-        (
-            qz_g_x__sample,
-            qz_g_x__logprob,
-            qz_g_x__prob,
-            qz_g_x__mu,
-            qz_g_x__logvar,
-            qz_g_x__var,
-        ) = self.graph_qz_g_x.call(x, training)
+        graph_z_g_x = self.graph_qz_g_x.call(x, training)
 
-        # `Decoder
-        out_hidden = self.graph_px_g_z.call(qz_g_x__sample, training)
-
-        (
-            x_recon_regression,
-            x_recon_bin_logit,
-            x_recon_ord_groups_logit_concat,
-            x_recon_ord_groups_logit,
-            x_recon_cat_groups_logit_concat,
-            x_recon_cat_groups_logit,
-        ) = self.split_outputs(
-            out_hidden,
+        # Decoder
+        graph_x_g_z = self.logits_to_actuals(
+            self.graph_px_g_z.call(graph_z_g_x.sample, training), training
         )
 
-        x_recon_bin = tf.nn.sigmoid(x_recon_bin_logit)
-        x_recon_ord_groups = [
-            tf.nn.sigmoid(x) for x in x_recon_ord_groups_logit
-        ]
-        x_recon_ord_groups_concat = (
-            tf.nn.softmax(x_recon_ord_groups[0])
-            if len(x_recon_ord_groups_logit) <= 1
-            else tf.concat(
-                [tf.nn.sigmoid(z) for z in x_recon_ord_groups_logit], -1
-            )
-        )
-        x_recon_cat_groups = [
-            tf.nn.softmax(x) for x in x_recon_cat_groups_logit
-        ]
-        x_recon_cat_groups_concat = (
-            tf.nn.softmax(x_recon_cat_groups[0])
-            if len(x_recon_cat_groups_logit) <= 1
-            else tf.concat(
-                [tf.nn.softmax(z) for z in x_recon_cat_groups_logit], -1
-            )
-        )
-
-        result = [
-            # Input variables
-            # x_regression,
-            # x_bin,
-            # x_ord_groups_concat,
-            # x_cat_groups_concat,
-            # Encoder Variables
-            qz_g_x__sample,
-            qz_g_x__logprob,
-            qz_g_x__prob,
-            qz_g_x__mu,
-            qz_g_x__logvar,
-            qz_g_x__var,
-            # DecoderVariables
-            out_hidden,
-            x_recon_regression,
-            x_recon_bin_logit,
-            x_recon_bin,
-            x_recon_ord_groups_logit_concat,
-            x_recon_ord_groups_concat,
-            x_recon_cat_groups_logit_concat,
-            x_recon_cat_groups_concat,
-        ]
-
-        return result
+        return VaeNet.VaeNetOutput(*graph_z_g_x, *graph_x_g_z)
 
     @classmethod
     def call_to_dict(self, result):
-        return {k: v for k, v in zip(self.output_names, result)}
+        return result._asdict()
 
     @tf.function
     def call_dict(self, x, training=False):
@@ -412,7 +428,6 @@ class VaeLossNet(tf.keras.layers.Layer):
                     name=f"{self.decoder_name}_cat_xent",
                 )
 
-                tf.print(xent.shape)
                 self.add_metric(xent, name=f"{self.decoder_name}_cat_xent")
                 return xent
         else:
