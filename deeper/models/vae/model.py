@@ -12,7 +12,6 @@ from deeper.probability_layers.normal import (
     lognormal_kl,
     lognormal_pdf,
 )
-from deeper.utils.sampling import mc_stack_mean_dict
 from deeper.utils.function_helpers.decorators import inits_args
 from deeper.utils.function_helpers.collectors import get_local_tensors
 from deeper.utils.scope import Scope
@@ -23,7 +22,7 @@ from deeper.models.vae.network import VaeNet, VaeLossNet
 from tensorflow.python.keras.engine import data_adapter
 
 from types import SimpleNamespace
-from deeper.utils.tf.keras.models import Model
+from deeper.utils.tf.keras.models import GenerativeModel
 
 
 from tensorflow.python.keras.metrics import (
@@ -37,7 +36,7 @@ from collections import namedtuple
 from deeper.models.vae.utils import SplitCovariates
 
 
-class VAE(Model):
+class VAE(GenerativeModel):
     @inits_args
     def __init__(
         self,
@@ -57,7 +56,7 @@ class VAE(Model):
         gradient_clip=None,
         **network_kwargs,
     ):
-        Model.__init__(self)
+        GenerativeModel.__init__(self)
         self.cooling_distance = 0
         self.network = VaeNet(
             input_regression_dimension,
@@ -80,38 +79,36 @@ class VAE(Model):
         self.cooling_distance += 1
 
     @tf.function
-    def sample_one(self, x, y, training=False):
+    def sample_one(self, x, training=False):
+        return self.network(x, training)
 
-        y = tf.cast(y, dtype=self.dtype)
-        y_split = self.network.split_outputs(y)
-        result = self.network(x, training)
+    @tf.function
+    def loss_fn(
+        self, y_true, y_pred: VaeNet.VaeNetOutput, training=False
+    ) -> VaeLossNet.output:
+        y_true = tf.cast(y_true, dtype=self.dtype)
+        y_split = self.network.split_outputs(y_true)
 
-        x_recon_cat_groups = [
-            tf.nn.softmax(x) for x in result.x_recon_cat_groups_logit
-        ]
-        self.lossnet.categorical_accuracy_grouped(
-            y_split.categorical_groups, x_recon_cat_groups
+        # This can be none?
+        # self.lossnet.categorical_accuracy_grouped(
+        #    y_split.categorical_groups, y_pred.x_recon_cat_groups
+        # )
+
+        loss = self.lossnet.Output(
+            *[
+                tf.reduce_mean(x)
+                for x in self.lossnet(
+                    self.lossnet.Input.from_vaenet_outputs(
+                        y_split,
+                        y_pred,
+                        self.lossnet.InputWeight(1.0, 1.0, 1.0, 1.0, 1.0),
+                    ),
+                    training,
+                )
+            ]
         )
 
-        loss = tf.reduce_mean(
-            self.lossnet(
-                self.lossnet.Input.from_vaenet_outputs(
-                    y_split,
-                    result,
-                    self.lossnet.InputWeight(1.0, 1.0, 1.0, 1.0, 1.0),
-                ),
-                training,
-            )
-        )
-
-        output = {
-            **result._asdict(),
-            **{
-                "loss": tf.reduce_mean(loss),
-            },
-        }
-
-        return output
+        return loss
 
     @tf.function
     def split_inputs(
@@ -123,19 +120,8 @@ class VAE(Model):
         return x_reg, x_bin, x_cat, x_cat_g
 
     @tf.function
-    def sample(self, samples, x, y, training=False):
-        # with tf.device("/gpu:0"):
-        result = [self.sample_one(x, y, training) for j in range(samples)]
-        return result
-
-    @tf.function
-    def monte_carlo_estimate(self, samples, x, y, training=False):
-        return mc_stack_mean_dict(self.sample(samples, x, y, training))
-
-    @tf.function
-    def call(self, inputs, training=False):
-        X, y = inputs
-        return self.sample_one(X, y, training)
+    def call(self, x, training=False):
+        return self.sample_one(x, training)
 
     @tf.function
     def latent_sample(self, inputs, y, training=False, samples=1):
@@ -167,8 +153,9 @@ class VAE(Model):
             writer = tf.summary.create_file_writer(train_log_dir)
 
         with tf.GradientTape() as tape:
-            y_pred = self.sample_one(x, y, True)
-            loss = y_pred["loss"]
+            y_pred = self(x, True)
+            losses = self.loss_fn(y, y_pred, True)
+            loss = tf.reduce_mean(losses.loss)
 
         gradients = tape.gradient(loss, self.trainable_variables)
 

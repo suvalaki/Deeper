@@ -41,9 +41,11 @@ class VaeNet(Layer):
         logits_ordinal_groups_concat: tf.Tensor
         logits_ordinal_groups: tf.Tensor
         ord_groups_concat: tf.Tensor
+        ord_groups: tf.Tensor
         logits_categorical_groups_concat: tf.Tensor
         logits_categorical_groups: tf.Tensor
         categorical_groups_concat: tf.Tensor
+        categorical_groups: tf.Tensor
 
     class VaeNetOutput(NamedTuple):
         # Encoder/Latent variables
@@ -61,9 +63,11 @@ class VaeNet(Layer):
         x_recon_ord_groups_logit_concat: tf.Tensor
         x_recon_ord_groups_logit: tf.Tensor
         x_recon_ord_groups_concat: tf.Tensor
+        x_recon_ord_groups: tf.Tensor
         x_recon_cat_groups_logit_concat: tf.Tensor
         x_recon_cat_groups_logit: tf.Tensor
         x_recon_cat_groups_concat: tf.Tensor
+        x_recon_cat_groups: tf.Tensor
 
     @inits_args
     def __init__(
@@ -237,9 +241,11 @@ class VaeNet(Layer):
             x_recon_logit.ordinal_groups_concat,
             x_recon_logit.ordinal_groups,
             x_recon_ord_groups_concat,
+            x_recon_ord_groups,
             x_recon_logit.categorical_groups_concat,
             x_recon_logit.categorical_groups,
             x_recon_cat_groups_concat,
+            x_recon_cat_groups,
         )
 
     @tf.function
@@ -280,6 +286,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.decoder_name = decoder_name
         self.prefix = prefix
 
+    @tf.function
     def categorical_accuracy_grouped(
         self,
         y_cat_true: Sequence[tf.Tensor],
@@ -299,6 +306,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.add_metric(cat_acc, name=f"{self.decoder_name}_cat_accuracy")
         return cat_acc
 
+    @tf.function
     def latent_kl(self, mu, logvar, training=False, name="latent_kl"):
         kl = std_normal_kl_divergence(
             mu, logvar, epsilon=self.latent_eps, name=name
@@ -306,6 +314,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.add_metric(kl, name=name)
         return kl
 
+    @tf.function
     def xent_binary(
         self,
         y_bin_logits_true: Sequence[tf.Tensor],
@@ -327,6 +336,7 @@ class VaeLossNet(tf.keras.layers.Layer):
             xent = y_bin_logits_true[:, 0:0]
         return xent
 
+    @tf.function
     def xent_ordinal(
         self,
         y_ord_logits_true: Sequence[tf.Tensor],
@@ -380,6 +390,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.add_metric(xent, name=f"{self.decoder_name}_ord_xent")
         return xent
 
+    @tf.function
     def xent_categorical(
         self,
         y_ord_logits_true: Sequence[tf.Tensor],
@@ -428,6 +439,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.add_metric(xent, name=f"{self.decoder_name}_cat_xent")
         return xent
 
+    @tf.function
     def log_pxgz_regression(
         self,
         y_reg_true,
@@ -438,6 +450,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.add_metric(log_p, name=f"log_p{self.decoder_name}_regression")
         return log_p
 
+    @tf.function
     def log_pxgz_binary(
         self,
         y_bin_logits_true: Sequence[tf.Tensor],
@@ -454,6 +467,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         else:
             return tf.reduce_sum(y_bin_logits_true[:, 0:0], -1)
 
+    @tf.function
     def log_pxgz_ordinal(
         self,
         y_ord_logits_true: Sequence[tf.Tensor],
@@ -467,6 +481,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.add_metric(log_p, name=f"log_p{self.decoder_name}_ordinal")
         return log_p
 
+    @tf.function
     def log_pxgz_categorical(
         self,
         y_cat_logits_true: Sequence[tf.Tensor],
@@ -480,6 +495,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.add_metric(log_p, name=f"log_p{self.decoder_name}_categorical")
         return log_p
 
+    @tf.function
     def log_pxgz(
         self,
         log_pxgz_reg,
@@ -494,6 +510,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         log_p = log_pxgz_reg + log_pxgz_bin + log_pxgz_ord + log_pxgz_cat
         self.add_metric(log_p, name=f"log_p{self.decoder_name}")
 
+    @tf.function
     def elbo(
         self,
         kl_z,
@@ -503,6 +520,21 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.add_metric(result, name=f"{self.prefix}elbo")
         return result
 
+    class Output(NamedTuple):
+        kl_z: tf.Tensor
+        l_pxgz_reg: tf.Tensor
+        l_pxgz_bin: tf.Tensor
+        l_pxgz_ord: tf.Tensor
+        l_pxgz_cat: tf.Tensor
+        scaled_elbo: tf.Tensor
+        loss: tf.Tensor
+        lambda_z: tf.Tensor
+        lambda_reg: tf.Tensor
+        lambda_bin: tf.Tensor
+        lambda_ord: tf.Tensor
+        lambda_cat: tf.Tensor
+
+    @tf.function
     def loss(
         self,
         kl_z,
@@ -548,7 +580,20 @@ class VaeLossNet(tf.keras.layers.Layer):
         scaled_loss = -scaled_elbo
         self.add_metric(scaled_loss, name=f"{self.prefix}scaled_loss")
 
-        return scaled_loss
+        return self.Output(
+            kl_z, 
+            log_pxgz_reg, 
+            log_pxgz_bin, 
+            log_pxgz_ord,
+            log_pxgz_cat,
+            scaled_elbo, 
+            scaled_loss,
+            lambda_z, 
+            lambda_reg, 
+            lambda_bin, 
+            lambda_ord, 
+            lambda_cat,
+        )
 
     class InputLatent(NamedTuple):
         mu: tf.Tensor
@@ -613,18 +658,7 @@ class VaeLossNet(tf.keras.layers.Layer):
                 weights,
             )
 
-    class Output(NamedTuple):
-        kl_z: tf.Tensor
-        l_pxgz_reg: tf.Tensor
-        l_pxgz_bin: tf.Tensor
-        l_pxgz_ord: tf.Tensor
-        l_pxgz_cat: tf.Tensor
-        lambda_z: tf.Tensor
-        lambda_reg: tf.Tensor
-        lambda_bin: tf.Tensor
-        lambda_ord: tf.Tensor
-        lambda_cat: tf.Tensor
-
+    @tf.function
     def call(self, inputs: Input, training=False) -> Output:
 
         inputs = (
@@ -650,7 +684,7 @@ class VaeLossNet(tf.keras.layers.Layer):
             inputs.y_pred.categorical_logit,
             training,
         )
-        loss = self.loss(
+        return self.loss(
             kl_z,
             l_pxgz_reg,
             l_pxgz_bin,
@@ -658,4 +692,3 @@ class VaeLossNet(tf.keras.layers.Layer):
             l_pxgz_cat,
             *inputs.weight,
         )
-        return loss
