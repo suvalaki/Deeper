@@ -322,7 +322,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         training: bool = False,
         weights: Optional[Sequence[float]] = None,
     ):
-        if y_bin_logits_true.shape[1] > 0:
+        if y_bin_logits_true.shape[-1] > 0:
             xent = tf.reduce_sum(
                 tf.nn.sigmoid_cross_entropy_with_logits(
                     y_bin_logits_true,
@@ -354,7 +354,7 @@ class VaeLossNet(tf.keras.layers.Layer):
             return 0.0
 
         elif len(y_ord_logits_true) == 1:
-            if tf.shape(y_ord_logits_pred[0])[-1] == 1:
+            if y_ord_logits_pred[0].get_shape()[-1] == 1:
                 xent = tf.zeros(
                     (tf.shape(y_ord_logits_pred)[0],), dtype=self.dtype
                 )
@@ -407,7 +407,7 @@ class VaeLossNet(tf.keras.layers.Layer):
             return 0.0
 
         elif len(y_ord_logits_true) == 1:
-            if tf.shape(y_ord_logits_true)[-1] <= 1:
+            if y_ord_logits_true[-1].get_shape()[-1] <= 1:
                 self.add_metric(0, name=f"{self.decoder_name}_cat_xent")
                 return 0.0
             else:
@@ -581,17 +581,17 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.add_metric(scaled_loss, name=f"{self.prefix}scaled_loss")
 
         return self.Output(
-            kl_z, 
-            log_pxgz_reg, 
-            log_pxgz_bin, 
+            kl_z,
+            log_pxgz_reg,
+            log_pxgz_bin,
             log_pxgz_ord,
             log_pxgz_cat,
-            scaled_elbo, 
+            scaled_elbo,
             scaled_loss,
-            lambda_z, 
-            lambda_reg, 
-            lambda_bin, 
-            lambda_ord, 
+            lambda_z,
+            lambda_reg,
+            lambda_bin,
+            lambda_ord,
             lambda_cat,
         )
 

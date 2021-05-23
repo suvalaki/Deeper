@@ -95,7 +95,7 @@ def split_inputs(
     ord_dim_tup: Tuple[int],
     cat_dim_tup: Tuple[int],
 ) -> SplitCovariates:
-    x_reg = x[:, :reg_dim] if reg_dim > 0 else tf.zeros((tf.shape(x)[0], 0))
+    x_reg = x[:, :reg_dim] if reg_dim > 0 else x[:, 0:0]
     x_bin = x[:, reg_dim : (reg_dim + bool_dim)] if bool_dim > 0 else x[:, 0:0]
 
     # categorical dimensions need to be further broken up according to the size

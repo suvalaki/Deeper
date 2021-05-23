@@ -83,6 +83,34 @@ class VAE(GenerativeModel):
         return self.network(x, training)
 
     @tf.function
+    def loss_fn_weighted(
+        self, weights, y_true, y_pred: VaeNet.VaeNetOutput, training=False
+    ) -> VaeLossNet.output:
+        y_true = tf.cast(y_true, dtype=self.dtype)
+        y_split = self.network.split_outputs(y_true)
+
+        # This can be none?
+        # self.lossnet.categorical_accuracy_grouped(
+        #    y_split.categorical_groups, y_pred.x_recon_cat_groups
+        # )
+
+        loss = self.lossnet.Output(
+            *[
+                tf.reduce_mean(x)
+                for x in self.lossnet(
+                    self.lossnet.Input.from_vaenet_outputs(
+                        y_split,
+                        y_pred,
+                        self.lossnet.InputWeight(*weights),
+                    ),
+                    training,
+                )
+            ]
+        )
+
+        return loss
+
+    @tf.function
     def loss_fn(
         self, y_true, y_pred: VaeNet.VaeNetOutput, training=False
     ) -> VaeLossNet.output:
