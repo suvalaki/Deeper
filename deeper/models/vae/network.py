@@ -206,7 +206,7 @@ class VaeNet(Layer):
             x,
             self.output_regression_dimension,
             self.output_boolean_dimension,
-            self.output_categorical_dimension,
+            self.output_ordinal_dimension,
             self.output_categorical_dimension,
         )
 
@@ -402,7 +402,6 @@ class VaeReconLossNet(tf.keras.layers.Layer):
                     )
                 ]
             )
-
         self.add_metric(
             xent, name=f"{self.prefix}/{self.decoder_name}_ord_xent"
         )
@@ -419,8 +418,8 @@ class VaeReconLossNet(tf.keras.layers.Layer):
         xent = 0.0
         # logit = np.log(1e-4 / (1 - 1e-4))
 
-        if class_weights is not None:
-            class_weights = [1 for i in range(y_ord_logits_true)]
+        if class_weights is None:
+            class_weights = [1 for i in range(len(y_ord_logits_true))]
 
         if len(y_ord_logits_pred) == 0:
             return 0.0
@@ -449,12 +448,14 @@ class VaeReconLossNet(tf.keras.layers.Layer):
                     yolt,
                     yolp,
                     name=f"{self.prefix}/{self.decoder_name}_cat_xent_group_{i}",
+                    axis=-1,
                 )
                 for i, (wt, yolt, yolp) in enumerate(
                     zip(class_weights, y_ord_logits_true, y_ord_logits_pred)
                 )
+                if yolt.shape[-1] > 0
             ]
-            xent = tf.add_n(xents)
+            xent = tf.math.add_n(xents) if len(xents) > 0 else 0.0
             for i, x in enumerate(xents):
                 self.add_metric(
                     x,

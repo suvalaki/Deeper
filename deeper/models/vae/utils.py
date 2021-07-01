@@ -82,7 +82,7 @@ def split_groups(x, group_dims: Union[Tuple[int], np.array]):
 
     tot_dim = sum(group_dims)
     x_grouped = [
-        x[:, sum(group_dims[:i]) : sum(group_dims[i : i + 1])]
+        x[:, sum(group_dims[:i]) : sum(group_dims[: i + 1])]
         for i in range(len(group_dims))
     ]
     return x_grouped
