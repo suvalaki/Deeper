@@ -116,15 +116,23 @@ class Encoder(Layer, Scope):
         """
         x = inputs
 
-        for i in range(self.n_em):
+        for i, (embedding, bn_before, bn_after, dropout) in enumerate(
+            zip(
+                self.embeddings,
+                self.embeddings_bn_before,
+                self.embeddings_bn_after,
+                self.dropout,
+            )
+        ):
             with tf.name_scope("embedding_{}".format(i)):
-                x = self.embeddings[i](x)
+                x = embedding(x)
                 if self.bn_before:
-                    x = self.embeddings_bn_before[i](x, training=training)
+                    x = bn_before(x, training=training)
                 x = self.activation(x)
                 if self.bn_after:
-                    x = self.embeddings_bn_after[i](x, training=training)
+                    x = bn_after(x, training=training)
                 if self.dropout_rate > 0.0:
-                    x = self.dropout[i](x, training=training)
+                    x = dropout(x, training=training)
+
         x = self.latent(x)
         return x
