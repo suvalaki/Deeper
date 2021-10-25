@@ -2,9 +2,11 @@ import pytest
 import unittest
 import numpy as np
 import tensorflow as tf
+
 tf.config.experimental_run_functions_eagerly(True)
 
 from deeper.models.vae.model import VAE
+
 
 class TestVAE(unittest.TestCase):
     def test___init__(self):
@@ -42,3 +44,6 @@ class TestVAE(unittest.TestCase):
             latent_dim=5,
         )
         model.call((dummy_data, dummy_data))
+
+        model.compile()
+        model.fit(dummy_data, dummy_data)

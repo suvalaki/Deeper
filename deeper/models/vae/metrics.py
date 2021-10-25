@@ -13,7 +13,7 @@ from tensorflow.python.keras.utils import metrics_utils
 from tensorflow.python.ops.losses import util as tf_losses_utils
 from tensorflow.python.ops import math_ops
 
-from deeper.models.vae.utils import split_inputs, split_groups
+from deeper.layers.data_splitter import split_inputs, split_groups
 
 
 def split_cat_true_pred_grouped(

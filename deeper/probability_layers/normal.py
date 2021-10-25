@@ -1,9 +1,12 @@
+from __future__ import annotations
 import tensorflow as tf
 import numpy as np
+from dataclasses import dataclass, asdict
+from collections import namedtuple
+from typing import Optional
 
 from deeper.utils.scope import Scope
-from deeper.layers.encoder import Encoder
-from collections import namedtuple
+from deeper.layers.encoder import Encoder, BaseEncoderConfig
 
 tfk = tf.keras
 Layer = tfk.layers.Layer
@@ -11,11 +14,40 @@ Tensor = tf.Tensor
 
 
 class RandomNormalEncoder(Layer, Scope):
+    @dataclass
+    class Config(BaseEncoderConfig):
+        embedding_activations: tf.keras.layers.Activation = tf.nn.relu
+        epsilon: float = 0.0
+        embedding_mu_kernel_initializer: tf.keras.initializers.Initializer = (
+            tf.initializers.glorot_normal()
+        )
+        embedding_mu_bias_initializer: tf.keras.initializers.Initializer = tf.initializers.zeros()
+        latent_mu_kernel_initialiazer: tf.keras.initializers.Initializer = (
+            tf.initializers.glorot_normal()
+        )
+        latent_mu_bias_initializer: tf.keras.initializers.Initializer = tf.initializers.zeros()
+        embedding_var_kernel_initializer: tf.keras.initializers.Initializer = (
+            tf.initializers.glorot_normal()
+        )
+        embedding_var_bias_initializer: tf.keras.initializers.Initializer = tf.initializers.zeros()
+        latent_var_kernel_initialiazer: tf.keras.initializers.Initializer = (
+            tf.initializers.glorot_normal()
+        )
+        latent_var_bias_initializer: tf.keras.initializers.Initializer = tf.initializers.ones()
+        fixed_mu: Optional[float] = None
+        fixed_var: Optional[float] = None
+        connected_weights: bool = True
+        embedding_mu_dropout: float = 0.0
+        embedding_var_dropout: float = 0.0
 
-    RandomNormalEncoderOutput = namedtuple(
+    Output = namedtuple(
         "RandomNormalEncoderOutput",
         ["sample", "logprob", "prob", "mu", "logvar", "var"],
     )
+
+    @classmethod
+    def from_config(cls, config: RandomNormalEncoder.Config, **kwargs):
+        return cls(**asdict(config), **kwargs)
 
     def __init__(
         self,
@@ -114,7 +146,7 @@ class RandomNormalEncoder(Layer, Scope):
                 embedding_dropout=embedding_mu_dropout,
             )
 
-    @tf.function
+    # @tf.function
     def call_parameters(
         self,
         inputs,
@@ -161,7 +193,7 @@ class RandomNormalEncoder(Layer, Scope):
 
         return mu, logvar, var
 
-    @tf.function
+    # @tf.function
     def call_mu(
         self,
         inputs,
@@ -187,7 +219,7 @@ class RandomNormalEncoder(Layer, Scope):
         )
         return mu
 
-    @tf.function
+    # @tf.function
     def call_logvar(
         self,
         inputs,
@@ -214,7 +246,7 @@ class RandomNormalEncoder(Layer, Scope):
         )
         return logvar
 
-    @tf.function
+    # @tf.function
     def call_var(
         self,
         inputs,
@@ -243,7 +275,7 @@ class RandomNormalEncoder(Layer, Scope):
         return var
 
     @staticmethod
-    @tf.function
+    # @tf.function
     def _sample_fn(mu, var):
         """Reparameterisation trick sample from a random normal distribution
         with the given mean (mu) and variance (var)
@@ -255,13 +287,11 @@ class RandomNormalEncoder(Layer, Scope):
         name: name of output sample tensor
         """
         sample_shape = tf.shape(mu)
-        r_norm = tf.cast(
-            tf.random.normal(sample_shape, mean=0.0, stddev=1.0), mu.dtype
-        )
+        r_norm = tf.cast(tf.random.normal(sample_shape, mean=0.0, stddev=1.0), mu.dtype)
         sample = tf.add(mu, tf.multiply(r_norm, tf.sqrt(var)))
         return sample
 
-    @tf.function
+    # @tf.function
     def sample(
         self,
         inputs,
@@ -292,7 +322,7 @@ class RandomNormalEncoder(Layer, Scope):
         sample = self._sample_fn(mu, var)
         return sample
 
-    @tf.function
+    # @tf.function
     def call(
         self,
         inputs,
@@ -316,12 +346,10 @@ class RandomNormalEncoder(Layer, Scope):
         # Metrics for loss
         logprob = self.logprob(sample, mu, var)
         prob = tf.exp(logprob)
-        return self.RandomNormalEncoderOutput(
-            sample, logprob, prob, mu, logvar, var
-        )
+        return self.Output(sample, logprob, prob, mu, logvar, var)
 
     @staticmethod
-    @tf.function
+    # @tf.function
     def _log_normal(x, mu, var, eps=0.0, axis=-1):
 
         if eps > 0.0:
@@ -341,11 +369,11 @@ class RandomNormalEncoder(Layer, Scope):
         logprob = tf.reduce_sum(kernel, axis)
         return logprob
 
-    @tf.function
+    # @tf.function
     def logprob(self, x, mu, var, axis=-1):
         return self._log_normal(x, mu, var, 0.0, axis)
 
-    @tf.function
+    # @tf.function
     def prob(self, x, mu, logvar, axis=-1):
         return tf.exp(self.logprob(x, mu, var, axis))
 
@@ -356,11 +384,11 @@ def lognormal_pdf(x, mu, logvar, eps=0.0, axis=-1, clip=1e-18):
     mu = tf.cast(mu, dtype=x.dtype)
     logvar = tf.cast(logvar, dtype=x.dtype)
     var = tf.math.exp(logvar)
-    if eps > 0.0:
-        var = tf.add(var, eps)
+
+    var = tf.cond(eps > 0.0, lambda: tf.add(var, eps), lambda: var)
 
     logprob = -0.5 * (
-        x.shape[axis]
+        tf.cast(tf.shape(x)[axis], x.dtype)
         * (tf.math.log(var) + tf.cast(tf.math.log(2 * np.pi), x.dtype))
         + tf.reduce_sum(tf.square(x - mu) / tf.math.sqrt(var), axis)
     )
@@ -369,9 +397,7 @@ def lognormal_pdf(x, mu, logvar, eps=0.0, axis=-1, clip=1e-18):
     return logprob
 
 
-def lognormal_kl(
-    x, mu_x, mu_y, logvar_x, logvar_y, eps_x=0.0, eps_y=0.0, axis=-1, clip=0.0
-):
+def lognormal_kl(x, mu_x, mu_y, logvar_x, logvar_y, eps_x=0.0, eps_y=0.0, axis=-1, clip=0.0):
 
     var_x = tf.math.exp(logvar_x)
     if eps_x > 0.0:
@@ -381,12 +407,12 @@ def lognormal_kl(
     if eps_y > 0.0:
         var_y = tf.add(var_y, eps_y)
 
+    w = tf.log(var_x) - tf.log(var_y) + var_x / var_y + tf.square(mu_x - mu_y) / var_y - 1
+
+    w_no_nan = tf.select(tf.is_nan(w), tf.zeros_like(w), w)
+
     entropy = 0.5 * tf.reduce_sum(
-        tf.log(var_x)
-        - tf.log(var_y)
-        + var_x / var_y
-        + tf.square(mu_x - mu_y) / var_y
-        - 1,
+        w_no_nan,
         axis=-1,
     )
 

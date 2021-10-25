@@ -1,3 +1,4 @@
+from __future__ import annotations
 import tensorflow as tf
 import numpy as np
 from typing import Union, Tuple, Sequence
@@ -17,8 +18,9 @@ from deeper.utils.function_helpers.collectors import get_local_tensors
 from deeper.utils.scope import Scope
 from deeper.models.vae.metrics import vae_categorical_dims_accuracy
 
-from deeper.models.vae.utils import split_inputs
-from deeper.models.vae.network import VaeNet, VaeLossNet
+from deeper.layers.data_splitter import split_inputs
+from deeper.models.vae.network import VaeNet
+from deeper.models.vae.network_loss import VaeLossNet
 from tensorflow.python.keras.engine import data_adapter
 
 from types import SimpleNamespace
@@ -73,7 +75,7 @@ class VAE(GenerativeModel):
             embedding_activations,
             **network_kwargs,
         )
-        self.lossnet = VaeLossNet(latent_eps=1e-6)
+        self.lossnet = VaeLossNet(latent_eps=1e-6, prefix="loss")
 
     def increment_cooling(self):
         self.cooling_distance += 1
@@ -87,7 +89,7 @@ class VAE(GenerativeModel):
         self, weights, y_true, y_pred: VaeNet.VaeNetOutput, training=False
     ) -> VaeLossNet.output:
         y_true = tf.cast(y_true, dtype=self.dtype)
-        y_split = self.network.split_outputs(y_true)
+        y_split = self.network.graph_px_g_z.splitter(y_true)
 
         # This can be none?
         # self.lossnet.categorical_accuracy_grouped(
@@ -115,7 +117,7 @@ class VAE(GenerativeModel):
         self, y_true, y_pred: VaeNet.VaeNetOutput, training=False
     ) -> VaeLossNet.output:
         y_true = tf.cast(y_true, dtype=self.dtype)
-        y_split = self.network.split_outputs(y_true)
+        y_split = self.network.graph_px_g_z.splitter(y_true)
 
         # This can be none?
         # self.lossnet.categorical_accuracy_grouped(
