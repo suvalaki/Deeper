@@ -179,7 +179,7 @@ class VaeNet(Layer):
         # Decoder
         graph_x_g_z = self.graph_px_g_z.call(graph_z_g_x, training)
 
-        return self.Output(graph_z_g_x, graph_x_g_z)
+        return VaeNet.Output(graph_z_g_x, graph_x_g_z)
 
     @classmethod
     def call_to_dict(self, result):
