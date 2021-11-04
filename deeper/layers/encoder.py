@@ -20,7 +20,7 @@ class BaseEncoderConfig:
     bn_after: bool = False
 
 
-class Encoder(Layer, Scope):
+class Encoder(Layer):
     @dataclass
     class Config(BaseEncoderConfig):
         activation: tf.keras.layers.Activation = tf.nn.relu
@@ -56,7 +56,7 @@ class Encoder(Layer, Scope):
         V1_PARMS = {"autocast": False}
 
         Layer.__init__(self, **V1_PARMS, **kwargs)
-        Scope.__init__(self, var_scope)
+        # Scope.__init__(self, var_scope)
         self.latent_dim = latent_dim
         self.em_dim = embedding_dimensions
 
@@ -68,11 +68,14 @@ class Encoder(Layer, Scope):
         self.activation = activation
         self.bn_before = bn_before
         self.bn_after = bn_after
-        self.dropout_rate = embedding_dropout if embedding_dropout is not None else 0.0
+        self.dropout_rate = (
+            embedding_dropout if embedding_dropout is not None else 0.0
+        )
         self.dropout = [None] * self.n_em
 
         for i, em in enumerate(self.em_dim):
             with tf.name_scope("embedding_{}".format(i)):
+
                 self.embeddings[i] = tfk.layers.Dense(
                     units=em,
                     activation=None,
@@ -84,7 +87,9 @@ class Encoder(Layer, Scope):
                     **V1_PARMS,
                 )
                 if self.bn_before:
-                    self.embeddings_bn_before[i] = tfk.layers.BatchNormalization(
+                    self.embeddings_bn_before[
+                        i
+                    ] = tfk.layers.BatchNormalization(
                         axis=-1,
                         name="bn_before",
                         renorm=True,
@@ -92,7 +97,9 @@ class Encoder(Layer, Scope):
                     )
 
                 if self.bn_after:
-                    self.embeddings_bn_after[i] = tfk.layers.BatchNormalization(
+                    self.embeddings_bn_after[
+                        i
+                    ] = tfk.layers.BatchNormalization(
                         axis=-1,
                         name="bn_after",
                         renorm=True,
@@ -108,7 +115,7 @@ class Encoder(Layer, Scope):
 
         self.latent_bn = tfk.layers.BatchNormalization(
             axis=-1,
-            name=self.v_name("latent_bn"),
+            name="latent_bn",
             **V1_PARMS,
         )
         self.latent = tfk.layers.Dense(
@@ -117,7 +124,7 @@ class Encoder(Layer, Scope):
             use_bias=True,
             kernel_initializer=latent_kernel_initialiazer,
             bias_initializer=latent_bias_initializer,
-            name=self.v_name("latent_dense"),
+            name="latent_dense",
             **V1_PARMS,
         )
 

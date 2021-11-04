@@ -322,6 +322,10 @@ class VaeReconLossNet(tf.keras.layers.Layer):
             x.y_pred.categorical_logit,
             training,
         )
+        out = self.Output(l_pxgz_reg, l_pxgz_bin, l_pxgz_ord, l_pxgz_cat)
         return self.Output(
-            l_pxgz_reg, l_pxgz_bin, l_pxgz_ord, l_pxgz_cat
+            *[
+                tf.reduce_sum(z, axis=-1) if len(tf.shape(z)) > 1 else z
+                for z in out
+            ]
         )
