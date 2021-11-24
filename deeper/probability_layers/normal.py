@@ -12,6 +12,8 @@ tfk = tf.keras
 Layer = tfk.layers.Layer
 Tensor = tf.Tensor
 
+coalesce = lambda w, num: tf.where(tf.math.is_nan(w), tf.ones_like(w) * num, w)
+
 
 class RandomNormalEncoder(Layer, Scope):
     @dataclass
@@ -21,19 +23,27 @@ class RandomNormalEncoder(Layer, Scope):
         embedding_mu_kernel_initializer: tf.keras.initializers.Initializer = (
             tf.initializers.glorot_normal()
         )
-        embedding_mu_bias_initializer: tf.keras.initializers.Initializer = tf.initializers.zeros()
+        embedding_mu_bias_initializer: tf.keras.initializers.Initializer = (
+            tf.initializers.zeros()
+        )
         latent_mu_kernel_initialiazer: tf.keras.initializers.Initializer = (
             tf.initializers.glorot_normal()
         )
-        latent_mu_bias_initializer: tf.keras.initializers.Initializer = tf.initializers.zeros()
+        latent_mu_bias_initializer: tf.keras.initializers.Initializer = (
+            tf.initializers.zeros()
+        )
         embedding_var_kernel_initializer: tf.keras.initializers.Initializer = (
             tf.initializers.glorot_normal()
         )
-        embedding_var_bias_initializer: tf.keras.initializers.Initializer = tf.initializers.zeros()
+        embedding_var_bias_initializer: tf.keras.initializers.Initializer = (
+            tf.initializers.zeros()
+        )
         latent_var_kernel_initialiazer: tf.keras.initializers.Initializer = (
             tf.initializers.glorot_normal()
         )
-        latent_var_bias_initializer: tf.keras.initializers.Initializer = tf.initializers.ones()
+        latent_var_bias_initializer: tf.keras.initializers.Initializer = (
+            tf.initializers.ones()
+        )
         fixed_mu: Optional[float] = None
         fixed_var: Optional[float] = None
         connected_weights: bool = True
@@ -191,6 +201,11 @@ class RandomNormalEncoder(Layer, Scope):
             var = tf.cast(tf.fill(tf.shape(mu), self.fixed_var), inputs.dtype)
             logvar = tf.math.log(var)
 
+        # Convert nans to numbers
+        mu = coalesce(mu, 0.0)
+        logvar = coalesce(logvar, 0.0)
+        var = coalesce(var, 1.0)
+
         return mu, logvar, var
 
     # @tf.function
@@ -287,7 +302,9 @@ class RandomNormalEncoder(Layer, Scope):
         name: name of output sample tensor
         """
         sample_shape = tf.shape(mu)
-        r_norm = tf.cast(tf.random.normal(sample_shape, mean=0.0, stddev=1.0), mu.dtype)
+        r_norm = tf.cast(
+            tf.random.normal(sample_shape, mean=0.0, stddev=1.0), mu.dtype
+        )
         sample = tf.add(mu, tf.multiply(r_norm, tf.sqrt(var)))
         return sample
 
@@ -371,11 +388,11 @@ class RandomNormalEncoder(Layer, Scope):
 
     # @tf.function
     def logprob(self, x, mu, var, axis=-1):
-        return self._log_normal(x, mu, var, 0.0, axis)
+        return coalesce(self._log_normal(x, mu, var, 0.0, axis), 0.0)
 
     # @tf.function
     def prob(self, x, mu, logvar, axis=-1):
-        return tf.exp(self.logprob(x, mu, var, axis))
+        return coalesce(tf.exp(self.logprob(x, mu, var, axis)), 0.0)
 
 
 def lognormal_pdf(x, mu, logvar, eps=0.0, axis=-1, clip=1e-18):
@@ -394,10 +411,15 @@ def lognormal_pdf(x, mu, logvar, eps=0.0, axis=-1, clip=1e-18):
     )
 
     # logprob = tf.compat.v2.clip_by_value(logprob, np.log(clip), np.log(1-clip))
-    return logprob
+    logprob_no_nan = tf.where(
+        tf.math.is_nan(logprob), tf.zeros_like(logprob), logprob
+    )
+    return logprob_no_nan
 
 
-def lognormal_kl(x, mu_x, mu_y, logvar_x, logvar_y, eps_x=0.0, eps_y=0.0, axis=-1, clip=0.0):
+def lognormal_kl(
+    x, mu_x, mu_y, logvar_x, logvar_y, eps_x=0.0, eps_y=0.0, axis=-1, clip=0.0
+):
 
     var_x = tf.math.exp(logvar_x)
     if eps_x > 0.0:
@@ -407,9 +429,15 @@ def lognormal_kl(x, mu_x, mu_y, logvar_x, logvar_y, eps_x=0.0, eps_y=0.0, axis=-
     if eps_y > 0.0:
         var_y = tf.add(var_y, eps_y)
 
-    w = tf.log(var_x) - tf.log(var_y) + var_x / var_y + tf.square(mu_x - mu_y) / var_y - 1
+    w = (
+        tf.log(var_x)
+        - tf.log(var_y)
+        + var_x / var_y
+        + tf.square(mu_x - mu_y) / var_y
+        - 1
+    )
 
-    w_no_nan = tf.select(tf.is_nan(w), tf.zeros_like(w), w)
+    w_no_nan = tf.where(tf.math.is_nan(w), tf.zeros_like(w), w)
 
     entropy = 0.5 * tf.reduce_sum(
         w_no_nan,
