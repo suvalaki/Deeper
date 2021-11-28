@@ -1,26 +1,30 @@
 import numpy as np
+import tensorflow as tf
 
 
 def linear_cooling(k, start, end, alpha):
-    """Linear interpolation between two points over alpha time periods"""
+    """Linear interpolation between two points over alpha time periods
+    Parameters
+    alpha:  interpolation steps
+    """
     shifted_base = end - start
-    return start + (shifted_base) * min(k, alpha) / alpha
+    return start + (shifted_base) * tf.math.minimum(k, alpha) / alpha
 
 
 def exponential_multiplicative_cooling(i, start, end, alpha):
-    """Proposed by Kirkpatrick, Gelatt and Vecchi (1983), and used as reference 
-    in the comparison among the different cooling criteria. The temperature decrease 
-    is made multiplying the initial temperature T0 by a factor that decreases 
+    """Proposed by Kirkpatrick, Gelatt and Vecchi (1983), and used as reference
+    in the comparison among the different cooling criteria. The temperature decrease
+    is made multiplying the initial temperature T0 by a factor that decreases
     exponentially with respect to temperature cycle k:"""
     shifted_base = start - end
     return end + (shifted_base) * ((alpha) ** i)
 
 
 def logarithmical_multiplicative_cooling(k, start, end, alpha):
-    """Based on the asymptotical convergence condition of simulated annealing (Aarts, 
-    E.H.L. & Korst, J., 1989), but incorporating a factor a of cooling speeding-up 
-    that makes possible its use in practice. The temperature decrease is made multiplying 
-    the initial temperature T0 by a factor that decreases in inverse proportion to the 
+    """Based on the asymptotical convergence condition of simulated annealing (Aarts,
+    E.H.L. & Korst, J., 1989), but incorporating a factor a of cooling speeding-up
+    that makes possible its use in practice. The temperature decrease is made multiplying
+    the initial temperature T0 by a factor that decreases in inverse proportion to the
     natural logarithm of temperature cycle k:"""
     cooling = 1 / (1 + alpha * np.log(1 + k))
     shifted_base = start - end
@@ -28,7 +32,7 @@ def logarithmical_multiplicative_cooling(k, start, end, alpha):
 
 
 def linear_multiplicative_cooling(k, start, end, alpha):
-    """The temperature decrease is made multiplying the initial temperature T0 by a factor 
+    """The temperature decrease is made multiplying the initial temperature T0 by a factor
     that decreases in inverse proportion to the temperature cycle k"""
     cooling = 1 / (1 + alpha * k)
     shifted_base = start - end
@@ -36,7 +40,7 @@ def linear_multiplicative_cooling(k, start, end, alpha):
 
 
 def quadratic_multiplicative_cooling(k, start, end, alpha):
-    """The temperature decrease is made multiplying the initial temperature T0 by a factor 
+    """The temperature decrease is made multiplying the initial temperature T0 by a factor
     that decreases in inverse proportion to the square of temperature cycle k"""
     cooling = 1 / (1 + alpha * k ** 2)
     shifted_base = start - end
@@ -121,9 +125,7 @@ class CyclicCoolingRegime:
 
 
 def get_method(identifier):
-    """A dict of the form {class_name, class_args...}
-
-    """
+    """A dict of the form {class_name, class_args...}"""
     # class_args = {k:v for k,v in identifier.items() if k is not "class_name"}
     mappings = {
         "linear": linear_cooling,
