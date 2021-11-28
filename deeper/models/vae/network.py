@@ -69,15 +69,15 @@ class VaeNet(Layer):
         latent_epsilon=0.0,
         enc_mu_embedding_kernel_initializer="glorot_uniform",
         enc_mu_embedding_bias_initializer="zeros",
-        enc_mu_latent_kernel_initialiazer="glorot_uniform",
+        enc_mu_latent_kernel_initialiazer="glorot_normal",
         enc_mu_latent_bias_initializer="zeros",
         enc_var_embedding_kernel_initializer="glorot_uniform",
         enc_var_embedding_bias_initializer="zeros",
-        enc_var_latent_kernel_initialiazer="glorot_uniform",
+        enc_var_latent_kernel_initialiazer="glorot_normal",
         enc_var_latent_bias_initializer="zeros",
         recon_embedding_kernel_initializer="glorot_uniform",
         recon_embedding_bias_initializer="zeros",
-        recon_latent_kernel_initialiazer="glorot_uniform",
+        recon_latent_kernel_initialiazer="glorot_normal",
         recon_latent_bias_initializer="zeros",
         connected_weights: bool = True,
         latent_mu_embedding_dropout: Optional[float] = None,
@@ -188,3 +188,7 @@ class VaeNet(Layer):
     @tf.function
     def call_dict(self, x, training=False):
         return self.call_to_dict(self.call(x, training))
+
+    @property
+    def dim_latent(self):
+        return self.graph_qz_g_x.latent_dimension
