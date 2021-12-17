@@ -134,7 +134,7 @@ def std_normal_kl_divergence(
     """
     var = logvar_computation(logvar, epsilon)
     kl_divergence = 0.5 * tf.reduce_sum(
-        1 + tf.math.log(var) - tf.math.square(mu) - var, axis=axis
+        1 + logvar - tf.math.square(mu) - var, axis=axis
     )
     if name is not None:
         kl_divergence = tf.identity(kl_divergence, name=name)
@@ -176,12 +176,13 @@ def normal_kl(
     if eps_y > 0.0:
         var_y = tf.add(var_y, eps_y)
 
-    entropy = 0.5 * tf.reduce_sum(
-        tf.log(var_x)
-        - tf.log(var_y)
-        + tf.square(x - mu_y) / var_y
-        - tf.square(x - mu_x) / var_x,
-        axis=-1,
+    w = (
+        logvar_x
+        - logvar_y
+        + var_x / var_y
+        + tf.square(mu_x - mu_y) / var_y
+        - 1
     )
+    entropy = 0.5 * tf.reduce_sum(w, axis=-1)
 
     return entropy

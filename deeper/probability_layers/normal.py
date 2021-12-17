@@ -406,15 +406,15 @@ def lognormal_pdf(x, mu, logvar, eps=0.0, axis=-1, clip=1e-18):
 
     logprob = -0.5 * (
         tf.cast(tf.shape(x)[axis], x.dtype)
-        * (tf.math.log(var) + tf.cast(tf.math.log(2 * np.pi), x.dtype))
+        * (logvar + tf.cast(tf.math.log(2 * np.pi), x.dtype))
         + tf.reduce_sum(tf.square(x - mu) / tf.math.sqrt(var), axis)
     )
 
     # logprob = tf.compat.v2.clip_by_value(logprob, np.log(clip), np.log(1-clip))
-    logprob_no_nan = tf.where(
-        tf.math.is_nan(logprob), tf.zeros_like(logprob), logprob
-    )
-    return logprob_no_nan
+    # logprob_no_nan = tf.where(
+    #     tf.math.is_nan(logprob), tf.zeros_like(logprob), logprob
+    # )
+    return logprob
 
 
 def lognormal_kl(
@@ -430,18 +430,20 @@ def lognormal_kl(
         var_y = tf.add(var_y, eps_y)
 
     w = (
-        tf.log(var_x)
-        - tf.log(var_y)
+        logvar_x
+        - logvar_y
         + var_x / var_y
         + tf.square(mu_x - mu_y) / var_y
         - 1
     )
 
-    w_no_nan = tf.where(tf.math.is_nan(w), tf.zeros_like(w), w)
+    # w_no_nan = tf.where(tf.math.is_nan(w), tf.zeros_like(w), w)
 
-    entropy = 0.5 * tf.reduce_sum(
-        w_no_nan,
-        axis=-1,
-    )
+    # entropy = 0.5 * tf.reduce_sum(
+    #     w_no_nan,
+    #     axis=-1,
+    # )
+
+    entropy = 0.5 * tf.reduce_sum(w, axis=-1)
 
     return entropy
