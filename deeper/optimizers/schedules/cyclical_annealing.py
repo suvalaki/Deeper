@@ -3,6 +3,7 @@ import tensorflow as tf
 from typeguard import typechecked
 
 from deeper.utils.cooling import linear_cooling
+from typing import Union, Callable
 from tensorflow_addons.utils.types import FloatTensorLike
 
 
