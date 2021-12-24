@@ -51,8 +51,8 @@ class Encoder(Layer):
         latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         latent_bias_initializer=tf.initializers.zeros(),
         embedding_dropout: Optional[float] = None,
-        embedding_kernel_regularizer=None,
-        embedding_bias_regularizer=None,
+        embedding_kernel_regularizer=tf.keras.regularizers.l2(),
+        embedding_bias_regularizer=tf.keras.regularizers.l2(),
         latent_kernel_regularizer=None,
         latent_bias_regularizer=None,
         **kwargs

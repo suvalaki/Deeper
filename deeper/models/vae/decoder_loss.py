@@ -303,6 +303,17 @@ class VaeReconLossNet(tf.keras.layers.Layer):
         )
         return log_p
 
+    @staticmethod
+    @tf.function
+    def reduce_ranked_dimsum(x):
+        if tf.rank(x) > 1:
+            if len(tf.shape(x)) != 0:
+                return tf.reduce_sum(x, axis=-1)
+            else:
+                return x
+        else:
+            return x
+
     def call(
         self, x: VaeReconLossNet.Input, training=False
     ) -> VaeReconLossNet.Output:
@@ -323,9 +334,4 @@ class VaeReconLossNet(tf.keras.layers.Layer):
             training,
         )
         out = self.Output(l_pxgz_reg, l_pxgz_bin, l_pxgz_ord, l_pxgz_cat)
-        return self.Output(
-            *[
-                tf.reduce_sum(z, axis=-1) if len(tf.shape(z)) > 1 else z
-                for z in out
-            ]
-        )
+        return self.Output(*[self.reduce_ranked_dimsum(z) for z in out])
