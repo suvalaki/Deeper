@@ -260,8 +260,9 @@ class VaeReconLossNet(tf.keras.layers.Layer):
             y_bin_pred = tf.cast(
                 tf.nn.sigmoid(y_bin_logits_pred) > 0.5, dtype=tf.float32
             )
+            y_bin_true = tf.cast(y_bin_logits_true > 0.5, dtype=tf.float32)
             acc = tf.reduce_mean(
-                tf.cast(y_bin_logits_true == y_bin_pred, dtype=tf.float32)
+                tf.cast(y_bin_true == y_bin_pred, dtype=tf.float32)
             )
             self.add_metric(
                 acc,
