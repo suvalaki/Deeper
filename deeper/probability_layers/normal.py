@@ -156,7 +156,7 @@ class RandomNormalEncoder(Layer, Scope):
                 embedding_dropout=embedding_mu_dropout,
             )
 
-    # @tf.function
+    @tf.function
     def call_parameters(
         self,
         inputs,
@@ -208,7 +208,7 @@ class RandomNormalEncoder(Layer, Scope):
 
         return mu, logvar, var
 
-    # @tf.function
+    @tf.function
     def call_mu(
         self,
         inputs,
@@ -234,7 +234,7 @@ class RandomNormalEncoder(Layer, Scope):
         )
         return mu
 
-    # @tf.function
+    @tf.function
     def call_logvar(
         self,
         inputs,
@@ -261,7 +261,7 @@ class RandomNormalEncoder(Layer, Scope):
         )
         return logvar
 
-    # @tf.function
+    @tf.function
     def call_var(
         self,
         inputs,
@@ -290,7 +290,7 @@ class RandomNormalEncoder(Layer, Scope):
         return var
 
     @staticmethod
-    # @tf.function
+    @tf.function
     def _sample_fn(mu, var):
         """Reparameterisation trick sample from a random normal distribution
         with the given mean (mu) and variance (var)
@@ -308,7 +308,7 @@ class RandomNormalEncoder(Layer, Scope):
         sample = tf.add(mu, tf.multiply(r_norm, tf.sqrt(var)))
         return sample
 
-    # @tf.function
+    @tf.function
     def sample(
         self,
         inputs,
@@ -339,7 +339,7 @@ class RandomNormalEncoder(Layer, Scope):
         sample = self._sample_fn(mu, var)
         return sample
 
-    # @tf.function
+    @tf.function
     def call(
         self,
         inputs,
@@ -386,11 +386,11 @@ class RandomNormalEncoder(Layer, Scope):
         logprob = tf.reduce_sum(kernel, axis)
         return logprob
 
-    # @tf.function
+    @tf.function
     def logprob(self, x, mu, var, axis=-1):
         return coalesce(self._log_normal(x, mu, var, 0.0, axis), 0.0)
 
-    # @tf.function
+    @tf.function
     def prob(self, x, mu, logvar, axis=-1):
         return coalesce(tf.exp(self.logprob(x, mu, var, axis)), 0.0)
 

@@ -23,7 +23,7 @@ class BaseEncoderConfig:
 class Encoder(Layer):
     @dataclass
     class Config(BaseEncoderConfig):
-        activation: tf.keras.layers.Activation = tf.nn.relu
+        activation: tf.keras.layers.Activation = tf.keras.layers.ReLU()
         embedding_kernel_initializer = tf.initializers.glorot_uniform()
         embedding_bias_initializer = tf.initializers.zeros()
         latent_kernel_initialiazer = tf.initializers.glorot_uniform()
@@ -167,7 +167,7 @@ class Encoder(Layer):
                 x = embedding(x)
                 if self.bn_before:
                     x = bn_before(x, training=training)
-                x = self.activation(x)
+                x = self.activation(x, training=training)
                 if self.bn_after:
                     x = bn_after(x, training=training)
                 if self.dropout_rate > 0.0:

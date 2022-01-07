@@ -172,6 +172,7 @@ class VaeNet(Layer):
             self.input_categorical_dimension,
         )
 
+    @tf.function
     def call(self, x, training=False) -> VaeNet.VaeNetOutput:
 
         x = tf.cast(x, dtype=self.dtype)

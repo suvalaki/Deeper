@@ -144,7 +144,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         scaled_loss = -scaled_elbo
         self.add_metric(scaled_loss, name=f"{self.prefix}/scaled/loss")
 
-        return self.Output(
+        return VaeLossNet.Output(
             kl_z,
             log_pxgz_reg,
             log_pxgz_bin,
