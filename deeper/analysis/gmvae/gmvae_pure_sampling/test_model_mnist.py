@@ -49,6 +49,7 @@ X_test = (X_test > 0.5).astype(float)
 
 
 #%% Instantiate the model
+BATCH_SIZE=24
 config = Gmvae.Config(
     components = 10,
     input_regression_dimension = 0 ,
@@ -62,14 +63,30 @@ config = Gmvae.Config(
     encoder_embedding_dimensions = [512, 512, 256],
     decoder_embedding_dimensions = [512, 512, 256][::-1],
     latent_dim = 64,
-    gumble_temperature_schedule = tf.keras.optimizers.schedules.PolynomialDecay(
-        initial_learning_rate=1.0, decay_steps=100000, end_learning_rate=0.01, power=1.0,
+    embedding_activation=tf.keras.layers.ELU(),
+    # gumble_temperature_schedule = tfa.optimizers.CyclicalLearningRate(
+    #     2.0, 0.5, step_size=90000.0, scale_fn=lambda x: 1.0**(-x), scale_mode="cycle"
+    # ),
+    gumble_temperature_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
+        boundaries=[
+            X_train.shape[0] * 5 // BATCH_SIZE , 
+            X_train.shape[0] * 10 // BATCH_SIZE,
+            X_train.shape[0] * 20 // BATCH_SIZE
+        ],
+        values=[5.0, 1.0, 0.75, 0.5],
+    ),
+    kld_y_schedule = tfa.optimizers.CyclicalLearningRate(
+        1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
+    ),
+    kld_z_schedule = tfa.optimizers.CyclicalLearningRate(
+        1.0, 0.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
     ),
     #bn_before=True        
 )
 
 model = Gmvae(config)
-model.compile(optimizer=tf.keras.optimizers.RMSprop())
+model.compile(optimizer=tf.keras.optimizers.Adam(1e-3))
+#model.compile()
 
 #%% AccuracyCallback 
 def purity_score(y_true, y_pred):
@@ -94,7 +111,8 @@ class PurityCallback(tf.keras.callbacks.Callback):
 model.fit(
     X_train, X_train,
     epochs = 10000,
-    callbacks=[PurityCallback()]
+    callbacks=[PurityCallback()],
+    batch_size=BATCH_SIZE,
 )
 
 #%% category 
