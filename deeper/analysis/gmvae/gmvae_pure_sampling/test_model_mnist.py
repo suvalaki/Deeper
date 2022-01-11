@@ -1,5 +1,6 @@
 #%%
-import sys 
+import sys
+
 sys.path.append("../../../..")
 import logging, os
 
@@ -14,9 +15,9 @@ from tqdm import tqdm
 import json
 import tensorflow_addons as tfa
 
-#tf.enable_eager_execution()
+# tf.enable_eager_execution()
 
-#tf.keras.backend.set_floatx("float64")
+# tf.keras.backend.set_floatx("float64")
 
 import numpy as np
 
@@ -27,7 +28,12 @@ from deeper.utils.cooling import exponential_multiplicative_cooling
 import deeper.utils.cooling as cooling
 
 from sklearn import metrics
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, adjusted_mutual_info_score
+from sklearn.metrics import (
+    confusion_matrix,
+    classification_report,
+    accuracy_score,
+    adjusted_mutual_info_score,
+)
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.preprocessing import OneHotEncoder
 
@@ -50,68 +56,64 @@ X_test = (X_test > 0.5).astype(float)
 
 
 #%% Instantiate the model
-BATCH_SIZE=24
+BATCH_SIZE = 24
 config = GumbleGmvae.Config(
-    components = 10,
-    input_regression_dimension = 0 ,
-    input_boolean_dimension = X_train.shape[-1],
-    input_ordinal_dimension = [0], 
-    input_categorical_dimension = [0],
-    output_regression_dimension= 0,
-    output_boolean_dimension = X_train.shape[-1],
-    output_ordinal_dimension = [0], 
-    output_categorical_dimension = [0],
-    cat_embedding_dimensions = [512, 512],
-    encoder_embedding_dimensions = [512, 512, 256],
-    decoder_embedding_dimensions = [512, 512, 256][::-1],
-    latent_dim = 64,
+    components=10,
+    input_regression_dimension=0,
+    input_boolean_dimension=X_train.shape[-1],
+    input_ordinal_dimension=[0],
+    input_categorical_dimension=[0],
+    output_regression_dimension=0,
+    output_boolean_dimension=X_train.shape[-1],
+    output_ordinal_dimension=[0],
+    output_categorical_dimension=[0],
+    cat_embedding_dimensions=[512, 512],
+    encoder_embedding_dimensions=[512, 512, 256],
+    decoder_embedding_dimensions=[512, 512, 256][::-1],
+    latent_dim=64,
     embedding_activation=tf.keras.layers.ELU(),
-    gumble_temperature_schedule = tfa.optimizers.CyclicalLearningRate(
-        0.5, 1.0, step_size=10000.0, scale_fn=lambda  x: 1 / (1.2 ** (x - 1)), scale_mode="cycle"
+    gumble_temperature_schedule=tfa.optimizers.CyclicalLearningRate(
+        0.5,
+        1.0,
+        step_size=10000.0,
+        scale_fn=lambda x: 1 / (1.2 ** (x - 1)),
+        scale_mode="cycle",
     ),
     # gumble_temperature_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
     #     boundaries=[
-    #         X_train.shape[0] * 5 // BATCH_SIZE , 
+    #         X_train.shape[0] * 5 // BATCH_SIZE ,
     #         X_train.shape[0] * 10 // BATCH_SIZE,
     #         X_train.shape[0] * 20 // BATCH_SIZE
     #     ],
     #     values=[5.0, 1.0, 0.75, 0.5],
     # ),
-    kld_y_schedule = tfa.optimizers.CyclicalLearningRate(
+    kld_y_schedule=tfa.optimizers.CyclicalLearningRate(
         1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
     ),
-    kld_z_schedule = tfa.optimizers.CyclicalLearningRate(
+    kld_z_schedule=tfa.optimizers.CyclicalLearningRate(
         1.5, 0.5, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
     ),
-    #bn_before=True        
+    # bn_before=True
 )
 
 model = GumbleGmvae(config)
-#model.compile(optimizer=tf.keras.optimizers.Adam(1e-3))
+# model.compile(optimizer=tf.keras.optimizers.Adam(1e-3))
 model.compile()
 
-#%% AccuracyCallback 
-def purity_score(y_true, y_pred):
-    # compute contingency matrix (also called confusion matrix)
-    contingency_matrix = metrics.cluster.contingency_matrix(y_true, y_pred)
-    # return purity
-    return np.sum(np.amax(contingency_matrix, axis=0)) / np.sum(
-        contingency_matrix
-    )
-
-
 #%% train
-tbc = tf.keras.callbacks.TensorBoard("./logs/trial_4_fix_z_sched_z_schedule_only")
+tbc = tf.keras.callbacks.TensorBoard(
+    "./logs/trial_4_fix_z_sched_z_schedule_only"
+)
 pc = PurityCallback(tbc, X_train, X_test, y_train, y_test)
 model.fit(
-    X_train, X_train,
-    epochs = 10000,
-    callbacks=[tbc,  pc],
+    X_train,
+    X_train,
+    epochs=10000,
+    callbacks=[tbc, pc],
     batch_size=BATCH_SIZE,
-    validation_data=(X_test, X_test)
+    validation_data=(X_test, X_test),
 )
 
-#%% category 
+#%% category
 
 y_pred_train = model.predict(X_train)
-
