@@ -14,15 +14,6 @@ from pydantic import BaseModel
 
 class GumbleGmvaeNet(GmvaeNetBase):
 
-    class Config(MarginalGmVaeNet.Config):
-        components: int = None
-        cat_embedding_dimensions: Sequence[int] = None
-        cat_embedding_kernel_initializer = "glorot_uniform"
-        cat_embedding_bias_initializer = "zeros"
-        cat_latent_kernel_initialiazer = "glorot_uniform"
-        cat_latent_bias_initializer = "zeros"
-        categorical_epsilon = 0.0
-
     class Output(NamedTuple):
         py: tf.Tensor
         qy_g_x: CategoricalEncoder.Output

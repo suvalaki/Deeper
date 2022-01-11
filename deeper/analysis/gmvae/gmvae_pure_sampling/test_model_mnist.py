@@ -20,7 +20,7 @@ import tensorflow_addons as tfa
 
 import numpy as np
 
-from deeper.models.gmvae.gmvae_pure_sampling import Gmvae
+from deeper.models.gmvae.gmvae_pure_sampling import GumbleGmvae
 from deeper.models.gmvae.metrics import PurityCallback
 
 from deeper.utils.cooling import exponential_multiplicative_cooling
@@ -51,7 +51,7 @@ X_test = (X_test > 0.5).astype(float)
 
 #%% Instantiate the model
 BATCH_SIZE=24
-config = Gmvae.Config(
+config = GumbleGmvae.Config(
     components = 10,
     input_regression_dimension = 0 ,
     input_boolean_dimension = X_train.shape[-1],
@@ -86,7 +86,7 @@ config = Gmvae.Config(
     #bn_before=True        
 )
 
-model = Gmvae(config)
+model = GumbleGmvae(config)
 #model.compile(optimizer=tf.keras.optimizers.Adam(1e-3))
 model.compile()
 

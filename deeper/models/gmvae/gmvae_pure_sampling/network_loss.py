@@ -4,21 +4,14 @@ import tensorflow as tf
 from typing import Union, Tuple, Sequence, Optional, NamedTuple
 from pydantic.dataclasses import dataclass
 
+from deeper.models.gmvae.base import GmvaeNetLossNetBase
 from deeper.models.gmvae.gmvae_pure_sampling.network import GumbleGmvaeNet
 from deeper.models.gmvae.marginalvae_loss import MarginalGmVaeLossNet
 from deeper.layers.categorical import CategoricalEncoder
 from deeper.models.vae.network_loss import VaeLossNet
 
 
-class GumbleGmvaeNetLossNet(tf.keras.layers.Layer):
-
-    class InputWeight(NamedTuple):
-        lambda_y: float  = 1.0
-        lambda_z: float = 1.0
-        lambda_reg: float = 1.0
-        lambda_bin: float = 1.0
-        lambda_ord: float = 1.0
-        lambda_cat: float = 1.0
+class GumbleGmvaeNetLossNet(GmvaeNetLossNetBase):
 
     class Input(NamedTuple):
         py: tf.Tensor 
@@ -41,24 +34,6 @@ class GumbleGmvaeNetLossNet(tf.keras.layers.Layer):
                 ),
                 weights[0]
             )
-
-    class Output(NamedTuple):
-        # y losses
-        kl_y: tf.Tensor
-        # marginal losses
-        kl_zgy: tf.Tensor
-        l_pxgzy_reg: tf.Tensor
-        l_pxgzy_bin: tf.Tensor
-        l_pxgzy_ord: tf.Tensor
-        l_pxgzy_cat: tf.Tensor
-        scaled_elbo: tf.Tensor
-        recon_loss: tf.Tensor
-        loss: tf.Tensor
-        lambda_z: tf.Tensor
-        lambda_reg: tf.Tensor
-        lambda_bin: tf.Tensor
-        lambda_ord: tf.Tensor
-        lambda_cat: tf.Tensor
 
     def __init__(
         self, 

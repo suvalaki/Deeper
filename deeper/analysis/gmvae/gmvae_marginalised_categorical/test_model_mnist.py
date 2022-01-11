@@ -20,7 +20,7 @@ import tensorflow_addons as tfa
 
 import numpy as np
 
-from deeper.models.gmvae.gmvae_marginalised_categorical import Gmvae
+from deeper.models.gmvae.gmvae_marginalised_categorical import StackedGmvae
 from deeper.models.gmvae.metrics import PurityCallback
 
 from deeper.utils.cooling import exponential_multiplicative_cooling
@@ -54,7 +54,7 @@ X_test = (X_test > 0.5).astype(float)
 BATCH_SIZE = 32
 ds_train = tf.data.Dataset.from_tensor_slices((X_train, X_train)).shuffle(X_train.shape[0], reshuffle_each_iteration=True).batch(BATCH_SIZE)
 ds_test = tf.data.Dataset.from_tensor_slices((X_test, X_test))
-config = Gmvae.Config(
+config = StackedGmvae.Config(
     components = 10,
     input_regression_dimension = 0 ,
     input_boolean_dimension = X_train.shape[-1],
@@ -83,7 +83,7 @@ config = Gmvae.Config(
     #bn_before=True 
 )
 
-model = Gmvae(config, dtype=tf.dtypes.float64)
+model = StackedGmvae(config, dtype=tf.dtypes.float64)
 #model.compile(optimizer=tf.keras.optimizers.Adam())
 model.compile()
 

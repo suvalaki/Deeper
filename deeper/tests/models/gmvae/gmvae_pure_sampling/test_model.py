@@ -9,9 +9,7 @@ import os
 
 from typing import NamedTuple
 from deeper.utils.data.dummy import generate_dummy_dataset_alltypes
-from deeper.models.gmvae.gmvae_pure_sampling.network import GumbleGmvaeNet
-from deeper.models.gmvae.gmvae_pure_sampling.network_loss import GumbleGmvaeNetLossNet
-from deeper.models.vae.network_loss import VaeLossNet
+from deeper.models.gmvae.gmvae_pure_sampling import GumbleGmvae
 
 
 N_ROWS = 25
@@ -24,7 +22,7 @@ EMB_DIM = 10
 LAT_DIM = 5
 NCATS=5
 
-config = GumbleGmvaeNet.Config(
+config = GumbleGmvae.Config(
     components = 2,
     cat_embedding_dimensions = [EMB_DIM],
     input_regression_dimension = DIM_REG,
@@ -41,39 +39,26 @@ config = GumbleGmvaeNet.Config(
 )
 
 
-class TestGumbleGmVaeNet(unittest.TestCase):
+class TestGumbleGmVae(unittest.TestCase):
     def setUp(self):
         state = np.random.RandomState(0)
         X = generate_dummy_dataset_alltypes(
             state, N_ROWS, DIM_REG, DIM_BOOL, DIM_ORD, DIM_CAT).X
         temps = state.random((N_ROWS, 1))
 
-        self.data = (X, temps)
-        self.network = GumbleGmvaeNet(config)
+        self.data = X
+        self.model = GumbleGmvae(config)
+        self.model.compile()
 
     def test_outputShapes(self):
-        pred = self.network([self.data[0][0:1,:], self.data[1][0:1,:]])
-        # Latent layers
+        pred = self.model(self.data)
+        self.assertEqual(pred.shape, (N_ROWS,))
 
-    def test_loss(self):
+    def test_train_step(self):
+        vals = self.model.train_step([self.data, self.data])
 
-        lossnet = GumbleGmvaeNetLossNet()
-        pred = self.network([self.data[0][0:1,:], self.data[1][0:1,:]])
-        y_true = self.network.graph_marginal_autoencoder.graph_px_g_z.splitter(
-            self.data[0][0:1,:])
-        inputs = GumbleGmvaeNetLossNet.Input.from_GumbleGmvaeNet_output(
-            y_true = y_true, 
-            model_output = pred, 
-            weights = GumbleGmvaeNetLossNet.InputWeight(1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
-        )
-        losses = lossnet(inputs)
-        print(losses)
-
-        from pprint import pp
-        getShape = lambda x: [v.shape for v in x] if isinstance(x, list) else x.shape
-        pp({k:v for k,v in losses._asdict().items()}, depth=6, indent=4)
-
-
+    def test_test_step(self):
+        vals = self.model.test_step([self.data, self.data])
 
 
 if __name__ == "__main__":

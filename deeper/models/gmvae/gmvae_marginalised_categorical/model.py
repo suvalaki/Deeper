@@ -7,6 +7,7 @@ from typing import Union, Tuple, Sequence, Optional, NamedTuple
 from pydantic.dataclasses import dataclass
 from pydantic import BaseModel
 
+from deeper.models.gmvae.base import GmvaeModelBase
 from deeper.models.gmvae.gmvae_marginalised_categorical.network import StackedGmvaeNet
 from deeper.models.gmvae.gmvae_marginalised_categorical.network_loss import StackedGmvaeLossNet
 from deeper.models.vae.network_loss import VaeLossNet
@@ -19,58 +20,10 @@ tfk = tf.keras
 Model = tfk.Model
 
 
-class Gmvae(Model):
-
-    class Config(StackedGmvaeNet.Config):        
-        kld_y_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
-        kld_z_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
-        recon_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
-        recon_reg_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
-        recon_bin_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
-        recon_ord_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
-        recon_cat_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
-
-
-    _output_keys_renamed = {
-        "kl_y" : "losses/kl_y",
-        "kl_zgy": "losses/kl_zgy",
-
-        "l_pxgzy_reg": "reconstruction/l_pxgzy_reg",
-        "l_pxgzy_bin": "reconstruction/l_pxgzy_bin",
-        "l_pxgzy_ord": "reconstruction/l_pxgzy_ord",
-        "l_pxgzy_cat": "reconstruction/l_pxgzy_cat",
-
-        "scaled_elbo": "losses/scaled_elbo",
-        "recon_loss": "losses/recon_loss",
-        "loss": "losses/loss", 
-
-        "lambda_z": "weight/lambda_z",
-        "lambda_reg": "weight/lambda_reg",
-        "lambda_bin": "weight/lambda_bin",
-        "lambda_ord": "weight/lambda_ord",
-        "lambda_cat": "weight/lambda_cat",
-        "kld_y_schedule": "weight/lambda_y", 
-        "kld_z_schedule": "weight/lambda_z",
-
-    }
-
+class StackedGmvae(GmvaeModelBase):
 
     def __init__(
-        self, config: Gmvae.Config, **kwargs
+        self, config: StackedGmvae.Config, **kwargs
     ):
         super().__init__(**kwargs)
         self.config = config
@@ -153,10 +106,10 @@ class Gmvae(Model):
         return {
             self._output_keys_renamed[k]: v for k,v in 
             {
-            #**{v.name: v.result() for v in self.metrics}
-            **losses._asdict(), 
-            "kld_y_schedule":kld_y_schedule, 
-            "kld_z_schedule": kld_z_schedule,
+                #**{v.name: v.result() for v in self.metrics}
+                **losses._asdict(), 
+                "kld_y_schedule":kld_y_schedule, 
+                "kld_z_schedule": kld_z_schedule,
             }.items() 
         }
 

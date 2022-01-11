@@ -7,6 +7,7 @@ from typing import Union, Tuple, Sequence, Optional, NamedTuple
 from pydantic.dataclasses import dataclass
 from pydantic import BaseModel
 
+from deeper.models.gmvae.base import GmvaeModelBase
 from deeper.models.gmvae.gmvae_pure_sampling.network import GumbleGmvaeNet
 from deeper.models.gmvae.gmvae_pure_sampling.network_loss import GumbleGmvaeNetLossNet
 from deeper.models.vae.network_loss import VaeLossNet
@@ -19,61 +20,21 @@ tfk = tf.keras
 Model = tfk.Model
 
 
-class Gmvae(Model):
+class GumbleGmvae(GmvaeModelBase):
 
-    class Config(GumbleGmvaeNet.Config):        
+    class Config(GmvaeModelBase.Config):        
         gumble_temperature_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tf.keras.optimizers.schedules.PolynomialDecay(
             initial_learning_rate=10.0, decay_steps=10000, end_learning_rate=0.01, power=1.0,
         )        
-        kld_y_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
-        kld_z_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
-        recon_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
-        recon_reg_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
-        recon_bin_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
-        recon_ord_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
-        recon_cat_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        )
 
     _output_keys_renamed = {
         "temp" : "weight/gumble_temperature",
-        "kl_y" : "losses/kl_y",
-        "kl_zgy": "losses/kl_zgy",
-
-        "l_pxgzy_reg": "reconstruction/l_pxgzy_reg",
-        "l_pxgzy_bin": "reconstruction/l_pxgzy_bin",
-        "l_pxgzy_ord": "reconstruction/l_pxgzy_ord",
-        "l_pxgzy_cat": "reconstruction/l_pxgzy_cat",
-
-        "scaled_elbo": "losses/scaled_elbo",
-        "recon_loss": "losses/recon_loss",
-        "loss": "losses/loss", 
-
-        "lambda_z": "weight/lambda_z",
-        "lambda_reg": "weight/lambda_reg",
-        "lambda_bin": "weight/lambda_bin",
-        "lambda_ord": "weight/lambda_ord",
-        "lambda_cat": "weight/lambda_cat",
-        "kld_y_schedule": "weight/lambda_y", 
-        "kld_z_schedule": "weight/lambda_z",
-
+        **GmvaeModelBase._output_keys_renamed
     }
 
 
     def __init__(
-        self, config: Gmvae.Config, **kwargs
+        self, config: GumbleGmvae.Config, **kwargs
     ):
         super().__init__(**kwargs)
         self.config = config
@@ -83,7 +44,7 @@ class Gmvae(Model):
     @tf.function
     def loss_fn(
         self, y_true, y_pred: GumbleGmvaeNet.Output, weight: GumbleGmvaeNetLossNet.InputWeight, training=False
-    ) -> VaeLossNet.output:
+    ) -> GumbleGmvaeNetLossNet.output:
 
         y_true = tf.cast(y_true, dtype=self.dtype)
         y_split = self.network.graph_marginal_autoencoder.graph_px_g_z.splitter(y_true)
@@ -159,11 +120,11 @@ class Gmvae(Model):
         return {
             self._output_keys_renamed[k]: v for k,v in 
             {
-            #**{v.name: v.result() for v in self.metrics}
-            **losses._asdict(), 
-            "temp":temp ,
-            "kld_y_schedule":kld_y_schedule, 
-            "kld_z_schedule": kld_z_schedule,
+                #**{v.name: v.result() for v in self.metrics}
+                **losses._asdict(), 
+                "temp":temp ,
+                "kld_y_schedule":kld_y_schedule, 
+                "kld_z_schedule": kld_z_schedule,
             }.items() 
         }
 

@@ -26,6 +26,7 @@ NCATS=5
 
 config = StackedGmvaeNet.Config(
     components = 2,
+    cat_embedding_dimensions = [EMB_DIM],
     input_regression_dimension = DIM_REG,
     input_boolean_dimension = DIM_BOOL,
     input_ordinal_dimension = DIM_ORD,
