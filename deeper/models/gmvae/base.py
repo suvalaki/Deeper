@@ -6,10 +6,7 @@ from pydantic import BaseModel
 from deeper.models.gmvae.marginalvae import MarginalGmVaeNet
 
 
-
 class GmvaeNetBase(tf.keras.layers.Layer):
-
-
     class Config(MarginalGmVaeNet.Config):
         components: int = None
         cat_embedding_dimensions: Sequence[int] = None
@@ -21,9 +18,8 @@ class GmvaeNetBase(tf.keras.layers.Layer):
 
 
 class GmvaeNetLossNetBase(tf.keras.layers.Layer):
-
     class InputWeight(NamedTuple):
-        lambda_y: float  = 1.0
+        lambda_y: float = 1.0
         lambda_z: float = 1.0
         lambda_reg: float = 1.0
         lambda_bin: float = 1.0
@@ -42,7 +38,7 @@ class GmvaeNetLossNetBase(tf.keras.layers.Layer):
         scaled_elbo: tf.Tensor
         recon_loss: tf.Tensor
         loss: tf.Tensor
-        # weights 
+        # weights
         lambda_z: tf.Tensor
         lambda_reg: tf.Tensor
         lambda_bin: tf.Tensor
@@ -51,48 +47,58 @@ class GmvaeNetLossNetBase(tf.keras.layers.Layer):
 
 
 class GmvaeModelBase(tf.keras.Model):
-
     class Config(GmvaeNetBase.Config):
-        kld_y_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        kld_y_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
         )
-        kld_z_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        kld_z_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
         )
-        recon_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        recon_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
         )
-        recon_reg_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        recon_reg_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
         )
-        recon_bin_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        recon_bin_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
         )
-        recon_ord_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        recon_ord_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
         )
-        recon_cat_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        recon_cat_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
         )
 
     _output_keys_renamed = {
-        "kl_y" : "losses/kl_y",
+        "kl_y": "losses/kl_y",
         "kl_zgy": "losses/kl_zgy",
-
         "l_pxgzy_reg": "reconstruction/l_pxgzy_reg",
         "l_pxgzy_bin": "reconstruction/l_pxgzy_bin",
         "l_pxgzy_ord": "reconstruction/l_pxgzy_ord",
         "l_pxgzy_cat": "reconstruction/l_pxgzy_cat",
-
         "scaled_elbo": "losses/scaled_elbo",
         "recon_loss": "losses/recon_loss",
-        "loss": "losses/loss", 
-
+        "loss": "losses/loss",
         "lambda_z": "weight/lambda_z",
         "lambda_reg": "weight/lambda_reg",
         "lambda_bin": "weight/lambda_bin",
         "lambda_ord": "weight/lambda_ord",
         "lambda_cat": "weight/lambda_cat",
-        "kld_y_schedule": "weight/lambda_y", 
+        "kld_y_schedule": "weight/lambda_y",
         "kld_z_schedule": "weight/lambda_z",
     }

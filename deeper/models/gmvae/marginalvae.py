@@ -28,6 +28,7 @@ from pydantic.dataclasses import dataclass
 from pydantic import Field
 from pydantic import BaseModel
 
+
 class MarginalGmVaeNet(VaeNet):
 
     """
@@ -155,7 +156,7 @@ class MarginalGmVaeNet(VaeNet):
         )
 
     # def call(self, inputs: Tuple[tf.Tensor, tf.Tensor], training=False):
-    #@tf.function
+    # @tf.function
     def call(self, inputs: Tuple[tf.Tensor, tf.Tensor], training=False):
         # v is the input data. y is the category.
         v, y = inputs

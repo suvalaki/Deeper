@@ -14,12 +14,10 @@ from pydantic import BaseModel
 
 
 class StackedGmvaeNet(GmvaeNetBase):
-
     class Output(NamedTuple):
         py: tf.Tensor
         qy_g_x: CategoricalEncoder.Output
         marginals: Sequence[MarginalGmVaeNet.Output]
-
 
     def __init__(self, config: GmvaeNet.Config, **kwargs):
         super(StackedGmvaeNet, self).__init__(**kwargs)
@@ -37,7 +35,7 @@ class StackedGmvaeNet(GmvaeNetBase):
             latent_bias_initializer=config.cat_latent_bias_initializer,
             name="ygx",
         )
-        self.graph_marginal_autoencoder = MarginalGmVaeNet( config, **kwargs )
+        self.graph_marginal_autoencoder = MarginalGmVaeNet(config, **kwargs)
 
     def call(self, inputs, training=False):
 
@@ -53,9 +51,7 @@ class StackedGmvaeNet(GmvaeNetBase):
         )
 
         qy_g_x = self.graph_qy_g_x(x, training=training)
-        y_ = tf.cast(
-            tf.fill(tf.stack([tf.shape(x)[0], self.components]), 0.0), x.dtype
-        )
+        y_ = tf.cast(tf.fill(tf.stack([tf.shape(x)[0], self.components]), 0.0), x.dtype)
         marginals = [None] * self.components
         for i in range(self.components):
             with tf.name_scope("mixture_{}".format(i)):
@@ -68,7 +64,6 @@ class StackedGmvaeNet(GmvaeNetBase):
                     ),
                     name="hot_at_{}".format(i),
                 )
-                marginals[i] = self.graph_marginal_autoencoder(
-                    [x, y_ohe], training)
+                marginals[i] = self.graph_marginal_autoencoder([x, y_ohe], training)
 
-        return StackedGmvaeNet.Output(py, qy_g_x,  marginals)
+        return StackedGmvaeNet.Output(py, qy_g_x, marginals)

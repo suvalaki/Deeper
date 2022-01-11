@@ -13,13 +13,11 @@ from pydantic import BaseModel
 
 
 class GumbleGmvaeNet(GmvaeNetBase):
-
     class Output(NamedTuple):
         py: tf.Tensor
         qy_g_x: CategoricalEncoder.Output
         qy_gumble_one_hot_sample: tf.Tensor
         marginal: MarginalGmVaeNet.Output
-
 
     def __init__(self, config: GmvaeNet.Config, **kwargs):
         super(GumbleGmvaeNet, self).__init__(**kwargs)
@@ -38,7 +36,7 @@ class GumbleGmvaeNet(GmvaeNetBase):
             name="ygx",
         )
         self.graph_qy_g_x_ohe = GumbleSoftmaxLayer()
-        self.graph_marginal_autoencoder = MarginalGmVaeNet( config, **kwargs )
+        self.graph_marginal_autoencoder = MarginalGmVaeNet(config, **kwargs)
 
     def call(self, inputs, training=False):
 

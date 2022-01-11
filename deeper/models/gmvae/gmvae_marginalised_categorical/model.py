@@ -21,10 +21,7 @@ Model = tfk.Model
 
 
 class StackedGmvae(GmvaeModelBase):
-
-    def __init__(
-        self, config: StackedGmvae.Config, **kwargs
-    ):
+    def __init__(self, config: StackedGmvae.Config, **kwargs):
         super().__init__(**kwargs)
         self.config = config
         self.network = StackedGmvaeNet(config)
@@ -32,7 +29,11 @@ class StackedGmvae(GmvaeModelBase):
 
     @tf.function
     def loss_fn(
-        self, y_true, y_pred: StackedGmvaeNet.Output, weight: StackedGmvaeLossNet.InputWeight, training=False
+        self,
+        y_true,
+        y_pred: StackedGmvaeNet.Output,
+        weight: StackedGmvaeLossNet.InputWeight,
+        training=False,
     ) -> VaeLossNet.output:
 
         y_true = tf.cast(y_true, dtype=self.dtype)
@@ -53,23 +54,17 @@ class StackedGmvae(GmvaeModelBase):
 
         return loss
 
-    def call(self, data, training:bool = False):
+    def call(self, data, training: bool = False):
         return self.network(data, training=False).qy_g_x.argmax
 
-    def train_step(self, data, training:bool = False):
+    def train_step(self, data, training: bool = False):
 
         data = data_adapter.expand_1d(data)
         x, y = data
 
-        kld_y_schedule = self.config.kld_y_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-        kld_z_schedule = self.config.kld_z_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-        recon_schedule = self.config.recon_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
+        kld_y_schedule = self.config.kld_y_schedule(tf.cast(self.optimizer.iterations, self.dtype))
+        kld_z_schedule = self.config.kld_z_schedule(tf.cast(self.optimizer.iterations, self.dtype))
+        recon_schedule = self.config.recon_schedule(tf.cast(self.optimizer.iterations, self.dtype))
         recon_reg_schedule = self.config.recon_reg_schedule(
             tf.cast(self.optimizer.iterations, self.dtype)
         )
@@ -86,10 +81,10 @@ class StackedGmvae(GmvaeModelBase):
         weights = StackedGmvaeLossNet.InputWeight(
             kld_y_schedule,
             kld_z_schedule,
-            recon_reg_schedule, 
-            recon_bin_schedule, 
-            recon_ord_schedule, 
-            recon_cat_schedule, 
+            recon_reg_schedule,
+            recon_bin_schedule,
+            recon_ord_schedule,
+            recon_cat_schedule,
         )
 
         with backprop.GradientTape() as tape:
@@ -104,25 +99,20 @@ class StackedGmvae(GmvaeModelBase):
 
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
         return {
-            self._output_keys_renamed[k]: v for k,v in 
-            {
-                #**{v.name: v.result() for v in self.metrics}
-                **losses._asdict(), 
-                "kld_y_schedule":kld_y_schedule, 
+            self._output_keys_renamed[k]: v
+            for k, v in {
+                # **{v.name: v.result() for v in self.metrics}
+                **losses._asdict(),
+                "kld_y_schedule": kld_y_schedule,
                 "kld_z_schedule": kld_z_schedule,
-            }.items() 
+            }.items()
         }
 
-    def test_step(self, data ):
+    def test_step(self, data):
         data = data_adapter.expand_1d(data)
         x, y = data
         y_pred = self.network(x, training=False)
-        losses = self.loss_fn(
-            y, y_pred, StackedGmvaeLossNet.InputWeight(), training=False
-        )
+        losses = self.loss_fn(y, y_pred, StackedGmvaeLossNet.InputWeight(), training=False)
         loss = tf.reduce_mean(losses.loss)
 
-        return {
-            self._output_keys_renamed[k]: v for k,v in 
-            losses._asdict().items()
-        }
+        return {self._output_keys_renamed[k]: v for k, v in losses._asdict().items()}
