@@ -17,6 +17,7 @@ class StackedGmvaeNet(GmvaeNetBase):
 
     class Config(MarginalGmVaeNet.Config):
         components: int = None
+        cat_embedding_dimensions: Sequence[int] = None
         cat_embedding_kernel_initializer = "glorot_uniform"
         cat_embedding_bias_initializer = "zeros"
         cat_latent_kernel_initialiazer = "glorot_uniform"
@@ -34,7 +35,7 @@ class StackedGmvaeNet(GmvaeNetBase):
         self.components = config.components
         self.graph_qy_g_x = CategoricalEncoder(
             latent_dimension=config.components,
-            embedding_dimensions=config.encoder_embedding_dimensions,
+            embedding_dimensions=config.cat_embedding_dimensions,
             embedding_activation=config.embedding_activations,
             bn_before=config.bn_before,
             bn_after=config.bn_after,

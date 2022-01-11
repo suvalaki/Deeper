@@ -47,6 +47,30 @@ class Gmvae(Model):
             1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
         )
 
+    _output_keys_renamed = {
+        "temp" : "weight/gumble_temperature",
+        "kl_y" : "losses/kl_y",
+        "kl_zgy": "losses/kl_zgy",
+
+        "l_pxgzy_reg": "reconstruction/l_pxgzy_reg",
+        "l_pxgzy_bin": "reconstruction/l_pxgzy_bin",
+        "l_pxgzy_ord": "reconstruction/l_pxgzy_ord",
+        "l_pxgzy_cat": "reconstruction/l_pxgzy_cat",
+
+        "scaled_elbo": "losses/scaled_elbo",
+        "recon_loss": "losses/recon_loss",
+        "loss": "losses/loss", 
+
+        "lambda_z": "weight/lambda_z",
+        "lambda_reg": "weight/lambda_reg",
+        "lambda_bin": "weight/lambda_bin",
+        "lambda_ord": "weight/lambda_ord",
+        "lambda_cat": "weight/lambda_cat",
+        "kld_y_schedule": "weight/lambda_y", 
+        "kld_z_schedule": "weight/lambda_z",
+
+    }
+
 
     def __init__(
         self, config: Gmvae.Config, **kwargs
@@ -133,11 +157,14 @@ class Gmvae(Model):
 
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
         return {
+            self._output_keys_renamed[k]: v for k,v in 
+            {
             #**{v.name: v.result() for v in self.metrics}
             **losses._asdict(), 
             "temp":temp ,
             "kld_y_schedule":kld_y_schedule, 
             "kld_z_schedule": kld_z_schedule,
+            }.items() 
         }
 
     def test_step(self, data ):
@@ -147,9 +174,9 @@ class Gmvae(Model):
         losses = self.loss_fn(
             y, y_pred, GumbleGmvaeNetLossNet.InputWeight(), training=False
         )
-        loss = tf.reduce_mean(losses.total_loss)
+        loss = tf.reduce_mean(losses.loss)
 
         return {
-            **losses._asdict(), 
-            #**{v.name: v.result() for v in self.metrics},
+            self._output_keys_renamed[k]: v 
+            for k,v in losses._asdict().items() 
         }

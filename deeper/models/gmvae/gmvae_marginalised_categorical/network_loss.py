@@ -90,12 +90,19 @@ class StackedGmvaeLossNet(tf.keras.layers.Layer):
         
         # y_entropy
         # E_q [log(p/q)] = sum q (log_p - log_q)
+        # y_entropy = tf.reduce_sum(
+        #     inputs.qy_g_x.probs * tf.math.log(inputs.py), -1
+        # ) + tf.nn.softmax_cross_entropy_with_logits(
+        #     logits = inputs.qy_g_x.logits, 
+        #     labels = inputs.qy_g_x.probs
+        # )
+
         y_entropy = tf.reduce_sum(
-            inputs.qy_g_x.probs * tf.math.log(inputs.py), -1
-        ) + tf.nn.softmax_cross_entropy_with_logits(
-            logits = inputs.qy_g_x.logits, 
-            labels=inputs.qy_g_x.probs
-        )
+            inputs.qy_g_x.probs * (
+                tf.math.log(inputs.py) 
+                - tf.nn.log_softmax(logits = inputs.qy_g_x.logits)
+            ), -1
+        ) 
 
         # loss = recon + z_ent + y_ent
         # loss = E[px_g_zy__logprob] + E[pz_g_y__logprob - qz_g_xy__logprob] + E_q [log(p/q)]
