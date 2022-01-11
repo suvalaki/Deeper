@@ -21,12 +21,13 @@ import tensorflow_addons as tfa
 import numpy as np
 
 from deeper.models.gmvae.gmvae_pure_sampling import Gmvae
+from deeper.models.gmvae.metrics import PurityCallback
 
 from deeper.utils.cooling import exponential_multiplicative_cooling
 import deeper.utils.cooling as cooling
 
 from sklearn import metrics
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, adjusted_mutual_info_score
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.preprocessing import OneHotEncoder
 
@@ -60,33 +61,34 @@ config = Gmvae.Config(
     output_boolean_dimension = X_train.shape[-1],
     output_ordinal_dimension = [0], 
     output_categorical_dimension = [0],
+    cat_embedding_dimensions = [512, 512],
     encoder_embedding_dimensions = [512, 512, 256],
     decoder_embedding_dimensions = [512, 512, 256][::-1],
     latent_dim = 64,
     embedding_activation=tf.keras.layers.ELU(),
-    # gumble_temperature_schedule = tfa.optimizers.CyclicalLearningRate(
-    #     2.0, 0.5, step_size=90000.0, scale_fn=lambda x: 1.0**(-x), scale_mode="cycle"
-    # ),
-    gumble_temperature_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
-        boundaries=[
-            X_train.shape[0] * 5 // BATCH_SIZE , 
-            X_train.shape[0] * 10 // BATCH_SIZE,
-            X_train.shape[0] * 20 // BATCH_SIZE
-        ],
-        values=[5.0, 1.0, 0.75, 0.5],
+    gumble_temperature_schedule = tfa.optimizers.CyclicalLearningRate(
+        0.5, 1.0, step_size=10000.0, scale_fn=lambda  x: 1 / (1.2 ** (x - 1)), scale_mode="cycle"
     ),
+    # gumble_temperature_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
+    #     boundaries=[
+    #         X_train.shape[0] * 5 // BATCH_SIZE , 
+    #         X_train.shape[0] * 10 // BATCH_SIZE,
+    #         X_train.shape[0] * 20 // BATCH_SIZE
+    #     ],
+    #     values=[5.0, 1.0, 0.75, 0.5],
+    # ),
     kld_y_schedule = tfa.optimizers.CyclicalLearningRate(
         1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
     ),
     kld_z_schedule = tfa.optimizers.CyclicalLearningRate(
-        1.0, 0.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        1.5, 0.5, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
     ),
     #bn_before=True        
 )
 
 model = Gmvae(config)
-model.compile(optimizer=tf.keras.optimizers.Adam(1e-3))
-#model.compile()
+#model.compile(optimizer=tf.keras.optimizers.Adam(1e-3))
+model.compile()
 
 #%% AccuracyCallback 
 def purity_score(y_true, y_pred):
@@ -97,24 +99,19 @@ def purity_score(y_true, y_pred):
         contingency_matrix
     )
 
-class PurityCallback(tf.keras.callbacks.Callback):
-    def on_epoch_end(self, *args):
-        y_train_pred = self.model.predict(X_train)
-        y_test_pred = self.model.predict(X_test)
-        pur_train = purity_score(y_train, y_train_pred)
-        pur_test = purity_score(y_test, y_test_pred)
-        print(f"PurityTrain: {pur_train:.3f} PurityTest {pur_test:.3f}")
-        print(metrics.cluster.contingency_matrix(y_train, y_train_pred))
-
 
 #%% train
+tbc = tf.keras.callbacks.TensorBoard("./logs/trial_4_fix_z_sched_z_schedule_only")
+pc = PurityCallback(tbc, X_train, X_test, y_train, y_test)
 model.fit(
     X_train, X_train,
     epochs = 10000,
-    callbacks=[PurityCallback()],
+    callbacks=[tbc,  pc],
     batch_size=BATCH_SIZE,
+    validation_data=(X_test, X_test)
 )
 
 #%% category 
 
 y_pred_train = model.predict(X_train)
+
