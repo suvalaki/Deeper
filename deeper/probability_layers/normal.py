@@ -16,34 +16,33 @@ coalesce = lambda w, num: tf.where(tf.math.is_nan(w), tf.ones_like(w) * num, w)
 
 
 class RandomNormalEncoder(Layer, Scope):
-    @dataclass
     class Config(BaseEncoderConfig):
-        embedding_activations: tf.keras.layers.Activation = tf.nn.relu
+        embedding_activations: tf.keras.layers.Layer = tf.keras.layers.ReLU()
         epsilon: float = 0.0
-        embedding_mu_kernel_initializer: tf.keras.initializers.Initializer = (
-            tf.initializers.glorot_normal()
-        )
-        embedding_mu_bias_initializer: tf.keras.initializers.Initializer = (
-            tf.initializers.zeros()
-        )
-        latent_mu_kernel_initialiazer: tf.keras.initializers.Initializer = (
-            tf.initializers.glorot_normal()
-        )
-        latent_mu_bias_initializer: tf.keras.initializers.Initializer = (
-            tf.initializers.zeros()
-        )
-        embedding_var_kernel_initializer: tf.keras.initializers.Initializer = (
-            tf.initializers.glorot_normal()
-        )
-        embedding_var_bias_initializer: tf.keras.initializers.Initializer = (
-            tf.initializers.zeros()
-        )
-        latent_var_kernel_initialiazer: tf.keras.initializers.Initializer = (
-            tf.initializers.glorot_normal()
-        )
-        latent_var_bias_initializer: tf.keras.initializers.Initializer = (
-            tf.initializers.ones()
-        )
+        embedding_mu_kernel_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.glorot_normal()
+        embedding_mu_bias_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.zeros()
+        latent_mu_kernel_initialiazer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.glorot_normal()
+        latent_mu_bias_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.zeros()
+        embedding_var_kernel_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.glorot_normal()
+        embedding_var_bias_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.zeros()
+        latent_var_kernel_initialiazer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.glorot_normal()
+        latent_var_bias_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.ones()
         fixed_mu: Optional[float] = None
         fixed_var: Optional[float] = None
         connected_weights: bool = True
@@ -55,32 +54,10 @@ class RandomNormalEncoder(Layer, Scope):
         ["sample", "logprob", "prob", "mu", "logvar", "var"],
     )
 
-    @classmethod
-    def from_config(cls, config: RandomNormalEncoder.Config, **kwargs):
-        return cls(**asdict(config), **kwargs)
-
     def __init__(
         self,
-        latent_dimension,
-        embedding_dimensions,
-        embedding_activations=tf.nn.relu,
-        var_scope="normal_encoder",
-        bn_before=False,
-        bn_after=False,
-        epsilon=0.0,
-        embedding_mu_kernel_initializer=tf.initializers.glorot_normal(),
-        embedding_mu_bias_initializer=tf.initializers.zeros(),
-        latent_mu_kernel_initialiazer=tf.initializers.glorot_normal(),
-        latent_mu_bias_initializer=tf.initializers.zeros(),
-        embedding_var_kernel_initializer=tf.initializers.glorot_normal(),
-        embedding_var_bias_initializer=tf.initializers.zeros(),
-        latent_var_kernel_initialiazer=tf.initializers.glorot_normal(),
-        latent_var_bias_initializer=tf.initializers.ones(),
-        fixed_mu=None,
-        fixed_var=None,
-        connected_weights=True,
-        embedding_mu_dropout=0.0,
-        embedding_var_dropout=0.0,
+        config: RandomNormalEncoder.Config,
+        **kwargs,
     ):
         """Probability Layer multivariate random normal
 
@@ -101,18 +78,18 @@ class RandomNormalEncoder(Layer, Scope):
             connected network.
 
         """
-        Layer.__init__(self)
-        Scope.__init__(self, var_scope)
+        Layer.__init__(self, **kwargs)
+        Scope.__init__(self, "normal_encoder")
 
-        self.latent_dimension = latent_dimension
-        self.embedding_dimensions = embedding_dimensions
-        self.embedding_activation = embedding_activations
-        self.bn_before = bn_before
-        self.bn_after = bn_after
-        self.epsilon = epsilon
-        self.fixed_mu = fixed_mu
-        self.fixed_var = fixed_var
-        self.connected_weights = connected_weights
+        self.latent_dimension = config.latent_dim
+        self.embedding_dimensions = config.embedding_dimensions
+        self.embedding_activation = config.embedding_activations
+        self.bn_before = config.bn_before
+        self.bn_after = config.bn_after
+        self.epsilon = config.epsilon
+        self.fixed_mu = config.fixed_mu
+        self.fixed_var = config.fixed_var
+        self.connected_weights = config.connected_weights
 
         if not self.connected_weights:
             self.mu = Encoder(
@@ -122,11 +99,11 @@ class RandomNormalEncoder(Layer, Scope):
                 var_scope=self.v_name("mu_encoder"),
                 bn_before=self.bn_before,
                 bn_after=self.bn_after,
-                embedding_kernel_initializer=embedding_mu_kernel_initializer,
-                embedding_bias_initializer=embedding_mu_bias_initializer,
-                latent_kernel_initialiazer=latent_mu_kernel_initialiazer,
-                latent_bias_initializer=latent_mu_bias_initializer,
-                embedding_dropout=embedding_mu_dropout,
+                embedding_kernel_initializer=config.embedding_mu_kernel_initializer,
+                embedding_bias_initializer=config.embedding_mu_bias_initializer,
+                latent_kernel_initialiazer=config.latent_mu_kernel_initialiazer,
+                latent_bias_initializer=config.latent_mu_bias_initializer,
+                embedding_dropout=config.embedding_mu_dropout,
             )
             self.logvar = Encoder(
                 latent_dim=self.latent_dimension,
@@ -135,11 +112,11 @@ class RandomNormalEncoder(Layer, Scope):
                 var_scope=self.v_name("logvar_encoder"),
                 bn_before=self.bn_before,
                 bn_after=self.bn_after,
-                embedding_kernel_initializer=embedding_var_kernel_initializer,
-                embedding_bias_initializer=embedding_var_bias_initializer,
-                latent_kernel_initialiazer=latent_var_kernel_initialiazer,
-                latent_bias_initializer=latent_var_bias_initializer,
-                embedding_dropout=embedding_var_dropout,
+                embedding_kernel_initializer=config.embedding_var_kernel_initializer,
+                embedding_bias_initializer=config.embedding_var_bias_initializer,
+                latent_kernel_initialiazer=config.latent_var_kernel_initialiazer,
+                latent_bias_initializer=config.latent_var_bias_initializer,
+                embedding_dropout=config.embedding_var_dropout,
             )
         else:
             self.mu_logvar = Encoder(
@@ -149,11 +126,11 @@ class RandomNormalEncoder(Layer, Scope):
                 var_scope=self.v_name("mu_encoder"),
                 bn_before=self.bn_before,
                 bn_after=self.bn_after,
-                embedding_kernel_initializer=embedding_mu_kernel_initializer,
-                embedding_bias_initializer=embedding_mu_bias_initializer,
-                latent_kernel_initialiazer=latent_mu_kernel_initialiazer,
-                latent_bias_initializer=latent_mu_bias_initializer,
-                embedding_dropout=embedding_mu_dropout,
+                embedding_kernel_initializer=config.embedding_mu_kernel_initializer,
+                embedding_bias_initializer=config.embedding_mu_bias_initializer,
+                latent_kernel_initialiazer=config.latent_mu_kernel_initialiazer,
+                latent_bias_initializer=config.latent_mu_bias_initializer,
+                embedding_dropout=config.embedding_mu_dropout,
             )
 
     @tf.function
@@ -302,9 +279,7 @@ class RandomNormalEncoder(Layer, Scope):
         name: name of output sample tensor
         """
         sample_shape = tf.shape(mu)
-        r_norm = tf.cast(
-            tf.random.normal(sample_shape, mean=0.0, stddev=1.0), mu.dtype
-        )
+        r_norm = tf.cast(tf.random.normal(sample_shape, mean=0.0, stddev=1.0), mu.dtype)
         sample = tf.add(mu, tf.multiply(r_norm, tf.sqrt(var)))
         return sample
 
@@ -405,8 +380,7 @@ def lognormal_pdf(x, mu, logvar, eps=0.0, axis=-1, clip=1e-18):
     var = tf.cond(eps > 0.0, lambda: tf.add(var, eps), lambda: var)
 
     logprob = -0.5 * (
-        tf.cast(tf.shape(x)[axis], x.dtype)
-        * (logvar + tf.cast(tf.math.log(2 * np.pi), x.dtype))
+        tf.cast(tf.shape(x)[axis], x.dtype) * (logvar + tf.cast(tf.math.log(2 * np.pi), x.dtype))
         + tf.reduce_sum(tf.square(x - mu) / tf.math.sqrt(var), axis)
     )
 
@@ -417,9 +391,7 @@ def lognormal_pdf(x, mu, logvar, eps=0.0, axis=-1, clip=1e-18):
     return logprob
 
 
-def lognormal_kl(
-    x, mu_x, mu_y, logvar_x, logvar_y, eps_x=0.0, eps_y=0.0, axis=-1, clip=0.0
-):
+def lognormal_kl(x, mu_x, mu_y, logvar_x, logvar_y, eps_x=0.0, eps_y=0.0, axis=-1, clip=0.0):
 
     var_x = tf.math.exp(logvar_x)
     if eps_x > 0.0:
@@ -429,13 +401,7 @@ def lognormal_kl(
     if eps_y > 0.0:
         var_y = tf.add(var_y, eps_y)
 
-    w = (
-        logvar_x
-        - logvar_y
-        + var_x / var_y
-        + tf.square(mu_x - mu_y) / var_y
-        - 1
-    )
+    w = logvar_x - logvar_y + var_x / var_y + tf.square(mu_x - mu_y) / var_y - 1
 
     # w_no_nan = tf.where(tf.math.is_nan(w), tf.zeros_like(w), w)
 

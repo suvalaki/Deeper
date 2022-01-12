@@ -16,23 +16,13 @@ from deeper.utils.function_helpers.decorators import inits_args
 
 
 class VaeEncoderNet(RandomNormalEncoder):
+    class Config(RandomNormalEncoder.Config):
+        pass
 
-    Config = RandomNormalEncoder.Config
     Output = RandomNormalEncoder.Output
 
-    @classmethod
-    def from_config(cls, config: VaeEncoderNet.Config, **kwargs):
-        kw_ = {
-            k: v
-            for k, v in asdict(config).items()
-            if k not in ["latent_dim", "embedding_dimensions"]
-        }
-        return cls(
-            config.latent_dim, config.embedding_dimensions, **kw_, **kwargs
-        )
-
-    def __init__(self, latent_dimension, embedding_dimensions, **kwargs):
-        super().__init__(latent_dimension, embedding_dimensions, **kwargs)
+    def __init__(self, config: VaeEncoderNet.Config, **kwargs):
+        super().__init__(config, **kwargs)
 
     @tf.function
     def call(self, x, training=False) -> VaeNet.VaeNetOutput:

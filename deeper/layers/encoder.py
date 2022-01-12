@@ -9,30 +9,40 @@ Layer = tfk.layers.Layer
 Model = tfk.Model
 
 from dataclasses import dataclass
+from pydantic import BaseModel
 
 
-@dataclass
-class BaseEncoderConfig:
+class BaseEncoderConfig(BaseModel):
     latent_dim: int = None
     embedding_dimensions: Sequence[int] = None
     var_scope: str = "encoder"
     bn_before: bool = False
     bn_after: bool = False
 
+    class Config:
+        arbitrary_types_allowed = True
+
 
 class Encoder(Layer):
-    @dataclass
     class Config(BaseEncoderConfig):
         activation: tf.keras.layers.Activation = tf.keras.layers.ReLU()
-        embedding_kernel_initializer = tf.initializers.glorot_uniform()
-        embedding_bias_initializer = tf.initializers.zeros()
-        latent_kernel_initialiazer = tf.initializers.glorot_uniform()
-        latent_bias_initializer = tf.initializers.zeros()
+        embedding_kernel_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.glorot_uniform()
+        embedding_bias_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.zeros()
+        latent_kernel_initialiazer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.glorot_uniform()
+        latent_bias_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.zeros()
         embedding_dropout: Optional[float] = None
-        embedding_kernel_regularizer = None
-        embedding_bias_regularizer = None
-        latent_kernel_regularizer = None
-        latent_bias_regularizer = None
+        embedding_kernel_regularizer: tf.keras.regularizers.Regularizer = None
+        embedding_bias_regularizer: tf.keras.regularizers.Regularizer = None
+        latent_kernel_regularizer: tf.keras.regularizers.Regularizer = None
+        latent_bias_regularizer: tf.keras.regularizers.Regularizer = None
 
     @classmethod
     def from_config(cls, config: Encoder.Config, **kwargs):
@@ -74,9 +84,7 @@ class Encoder(Layer):
         self.activation = activation
         self.bn_before = bn_before
         self.bn_after = bn_after
-        self.dropout_rate = (
-            embedding_dropout if embedding_dropout is not None else 0.0
-        )
+        self.dropout_rate = embedding_dropout if embedding_dropout is not None else 0.0
         self.dropout = [None] * self.n_em
 
         for i, em in enumerate(self.em_dim):
@@ -94,9 +102,7 @@ class Encoder(Layer):
                     **V1_PARMS,
                 )
                 if self.bn_before:
-                    self.embeddings_bn_before[
-                        i
-                    ] = tfk.layers.BatchNormalization(
+                    self.embeddings_bn_before[i] = tfk.layers.BatchNormalization(
                         axis=-1,
                         name="bn_before",
                         renorm=True,
@@ -104,9 +110,7 @@ class Encoder(Layer):
                     )
 
                 if self.bn_after:
-                    self.embeddings_bn_after[
-                        i
-                    ] = tfk.layers.BatchNormalization(
+                    self.embeddings_bn_after[i] = tfk.layers.BatchNormalization(
                         axis=-1,
                         name="bn_after",
                         renorm=True,

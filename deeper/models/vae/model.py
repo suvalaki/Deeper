@@ -1,6 +1,7 @@
 from __future__ import annotations
 import tensorflow as tf
 import numpy as np
+import tensorflow_addons as tfa
 from typing import Union, Tuple, Sequence
 
 from deeper.probability_layers.ops.normal import std_normal_kl_divergence
@@ -36,206 +37,143 @@ Layer = tfk.layers.Layer
 
 from collections import namedtuple
 from deeper.models.vae.utils import SplitCovariates
+from deeper.models.vae.network import VaeNet
 
 
 class VAE(GenerativeModel):
-    @inits_args
-    def __init__(
-        self,
-        input_regression_dimension: int,
-        input_boolean_dimension: int,
-        input_ordinal_dimension: Union[int, Sequence[int]],
-        input_categorical_dimension: Union[int, Tuple[int]],
-        output_regression_dimension: int,
-        output_boolean_dimension: int,
-        output_ordinal_dimension: Union[int, Sequence[int]],
-        output_categorical_dimension: Union[int, Tuple[int]],
-        encoder_embedding_dimensions: Tuple[int],
-        decoder_embedding_dimensions: Tuple[int],
-        latent_dim: int,
-        embedding_activations=tf.nn.relu,
-        optimizer=tf.keras.optimizers.Adam(1e-3),
-        gradient_clip=None,
-        **network_kwargs,
-    ):
-        GenerativeModel.__init__(self)
-        self.cooling_distance = 0
-        self.network = VaeNet(
-            input_regression_dimension,
-            input_boolean_dimension,
-            input_ordinal_dimension,
-            input_categorical_dimension,
-            output_regression_dimension,
-            output_boolean_dimension,
-            output_ordinal_dimension,
-            output_categorical_dimension,
-            encoder_embedding_dimensions,
-            decoder_embedding_dimensions,
-            latent_dim,
-            embedding_activations,
-            **network_kwargs,
+    class Config(VaeNet.Config):
+
+        kld_z_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0,
+                1.0,
+                step_size=1,
+                scale_fn=lambda x: 1.0,
+                scale_mode="cycle",
+            )
         )
-        self.lossnet = VaeLossNet(latent_eps=1e-6, prefix="loss")
-
-    def increment_cooling(self):
-        self.cooling_distance += 1
-
-    @tf.function
-    def sample_one(self, x, training=False):
-        return self.network(x, training)
-
-    @tf.function
-    def loss_fn_weighted(
-        self, weights, y_true, y_pred: VaeNet.VaeNetOutput, training=False
-    ) -> VaeLossNet.output:
-        y_true = tf.cast(y_true, dtype=self.dtype)
-        y_split = self.network.graph_px_g_z.splitter(y_true)
-
-        # This can be none?
-        # self.lossnet.categorical_accuracy_grouped(
-        #    y_split.categorical_groups, y_pred.x_recon_cat_groups
-        # )
-
-        loss = self.lossnet.Output(
-            *[
-                tf.reduce_mean(x)
-                for x in self.lossnet(
-                    self.lossnet.Input.from_vaenet_outputs(
-                        y_split,
-                        y_pred,
-                        self.lossnet.InputWeight(*weights),
-                    ),
-                    training,
-                )
-            ]
+        recon_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0,
+                1.0,
+                step_size=1,
+                scale_fn=lambda x: 1.0,
+                scale_mode="cycle",
+            )
+        )
+        recon_reg_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
+        )
+        recon_bin_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
+        )
+        recon_ord_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
+        )
+        recon_cat_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
         )
 
-        return loss
+    def __init__(self, config: VAE.Config, **kwargs):
+        super().__init__(**kwargs)
+        self.network = VaeNet(config, **kwargs)
+        self.lossnet = VaeLossNet(latent_eps=1e-6, prefix="loss", **kwargs)
 
     @tf.function
     def loss_fn(
-        self, y_true, y_pred: VaeNet.VaeNetOutput, training=False
+        self,
+        y_true,
+        y_pred: VaeNet.VaeNetOutput,
+        weight=VaeLossNet.InputWeight(),
+        training=False,
     ) -> VaeLossNet.output:
         y_true = tf.cast(y_true, dtype=self.dtype)
         y_split = self.network.graph_px_g_z.splitter(y_true)
-
-        # This can be none?
-        # self.lossnet.categorical_accuracy_grouped(
-        #    y_split.categorical_groups, y_pred.x_recon_cat_groups
-        # )
 
         loss = self.lossnet.Output(
             *[
                 tf.reduce_mean(x)
                 for x in self.lossnet(
-                    self.lossnet.Input.from_vaenet_outputs(
-                        y_split,
-                        y_pred,
-                        self.lossnet.InputWeight(1.0, 1.0, 1.0, 1.0, 1.0),
-                    ),
+                    self.lossnet.Input.from_vaenet_outputs(y_split, y_pred, weight),
                     training,
                 )
             ]
         )
-
         return loss
 
     @tf.function
-    def split_inputs(
-        self, x, reg_dim: int, bool_dim: int, cat_dim_tup: Tuple[int]
-    ):
-        x_reg, x_bin, x_ord, x_ord_g, x_cat, x_cat_g = split_inputs(
-            x, reg_dim, bool_dim, (0,), cat_dim_tup
-        )
-        return x_reg, x_bin, x_cat, x_cat_g
-
-    @tf.function
     def call(self, x, training=False):
-        return self.sample_one(x, training)
+        return self.network(x, training)
 
     @tf.function
     def latent_sample(self, inputs, y, training=False, samples=1):
-        output = self.monte_carlo_estimate(
-            samples, inputs, y, training=training
-        )
+        output = self.monte_carlo_estimate(samples, inputs, y, training=training)
         latent = outputs["px_g_z__sample"]
         return latent
 
-    @tf.function
-    def train_step(
-        self,
-        data,
-        samples=1,
-        tenorboard=False,
-        batch=False,
-        beta_reg=1.0,
-        beta_bin=1.0,
-        beta_cat=1.0,
-        beta_z=1.0,
-    ):
+    def train_step(self, data, training: bool = False):
+
         data = data_adapter.expand_1d(data)
-        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+        x, y = data
 
-        if tenorboard:
-            current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-            train_log_dir = "logs/gradient_tape/train"
+        kld_z_schedule = self.config.kld_z_schedule(tf.cast(self.optimizer.iterations, self.dtype))
+        recon_schedule = self.config.recon_schedule(tf.cast(self.optimizer.iterations, self.dtype))
+        recon_reg_schedule = self.config.recon_reg_schedule(
+            tf.cast(self.optimizer.iterations, self.dtype)
+        )
+        recon_bin_schedule = self.config.recon_bin_schedule(
+            tf.cast(self.optimizer.iterations, self.dtype)
+        )
+        recon_ord_schedule = self.config.recon_ord_schedule(
+            tf.cast(self.optimizer.iterations, self.dtype)
+        )
+        recon_cat_schedule = self.config.recon_cat_schedule(
+            tf.cast(self.optimizer.iterations, self.dtype)
+        )
 
-            writer = tf.summary.create_file_writer(train_log_dir)
+        weights = VaeLossNet.InputWeight(
+            kld_z_schedule,
+            recon_reg_schedule,
+            recon_bin_schedule,
+            recon_ord_schedule,
+            recon_cat_schedule,
+        )
 
-        with tf.GradientTape() as tape:
-            y_pred = self(x, True)
-            losses = self.loss_fn(y, y_pred, True)
+        with backprop.GradientTape() as tape:
+            y_pred = self.network((x, temp), training=True)
+            losses = self.loss_fn(
+                y,
+                y_pred,
+                weights,
+                training=True,
+            )
             loss = tf.reduce_mean(losses.loss)
 
-        gradients = tape.gradient(loss, self.trainable_variables)
-
-        # Clipping
-        gradients = [
-            None
-            if gradient is None
-            else tf.clip_by_value(
-                gradient, -self.gradient_clip, self.gradient_clip
-            )
-            if self.gradient_clip is not None
-            else gradient
-            # else tf.clip_by_norm(
-            #    gradient, self.gradient_clip
-            # )
-            for gradient in gradients
-        ]
-
-        if tenorboard:
-            with writer.as_default():
-                for gradient, variable in zip(
-                    gradients, self.trainable_variables
-                ):
-                    steps = steps + 1
-                    tf.summary.experimental.set_step(steps)
-                    stp = tf.summary.experimental.get_step()
-                    tf.summary.histogram(
-                        "gradients/" + variable.name,
-                        tf.nn.l2_normalize(gradient),
-                        step=stp,
-                    )
-                    tf.summary.histogram(
-                        "variables/" + variable.name,
-                        tf.nn.l2_normalize(variable),
-                        step=stp,
-                    )
-                writer.flush()
-
-        self.optimizer.apply_gradients(
-            zip(gradients, self.trainable_variables)
-        )
-        # self.compiled_metrics.update_state(y, y_pred)
-        # for m in self.intrinsic_metrics:
-        #   m.update_state(y, y_pred)
-        metval = self.metric_results
+        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
         return {
-            "loss": loss,
-            "latent_kl": metval["latent_kl"],
-            # "log_px_reg": logpx_reg,
-            # "log_px_bin": logpx_bin,
-            # "log_px_cat": logpx_cat,
-            **{m.name: m.result() for m in self.intrinsic_metrics},
+            self._output_keys_renamed[k]: v
+            for k, v in {
+                # **{v.name: v.result() for v in self.metrics}
+                **losses._asdict(),
+                "temp": temp,
+                "kld_y_schedule": kld_y_schedule,
+                "kld_z_schedule": kld_z_schedule,
+            }.items()
         }
+
+    def test_step(self, data):
+        data = data_adapter.expand_1d(data)
+        x, y = data
+        y_pred = self.network((x, 1.0), training=False)
+        losses = self.loss_fn(y, y_pred, GumbleGmvaeNetLossNet.InputWeight(), training=False)
+        loss = tf.reduce_mean(losses.loss)
+
+        return {self._output_keys_renamed[k]: v for k, v in losses._asdict().items()}
