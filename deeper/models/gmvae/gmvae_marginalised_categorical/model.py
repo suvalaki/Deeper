@@ -8,8 +8,12 @@ from pydantic.dataclasses import dataclass
 from pydantic import BaseModel
 
 from deeper.models.gmvae.base import GmvaeModelBase
-from deeper.models.gmvae.gmvae_marginalised_categorical.network import StackedGmvaeNet
-from deeper.models.gmvae.gmvae_marginalised_categorical.network_loss import StackedGmvaeLossNet
+from deeper.models.gmvae.gmvae_marginalised_categorical.network import (
+    StackedGmvaeNet,
+)
+from deeper.models.gmvae.gmvae_marginalised_categorical.network_loss import (
+    StackedGmvaeLossNet,
+)
 from deeper.models.vae.network_loss import VaeLossNet
 
 from tensorflow.python.keras.engine import data_adapter
@@ -96,7 +100,6 @@ class StackedGmvae(GmvaeModelBase):
                 training=True,
             )
             loss = tf.reduce_mean(losses.loss)
-
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
         return {
             self._output_keys_renamed[k]: v

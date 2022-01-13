@@ -53,20 +53,13 @@ def vae_categorical_dims_accuracy(
             tf.stack(
                 [
                     wt * categorical_accuracy(ytg, ypg)
-                    for (ytg, ypg, wt) in zip(
-                        yt_cat_grp, yp_cat_grp, group_weights
-                    )
+                    for (ytg, ypg, wt) in zip(yt_cat_grp, yp_cat_grp, group_weights)
                 ]
             )
         )
     else:
         grp_accs = tf.reduce_mean(
-            tf.stack(
-                [
-                    categorical_accuracy(ytg, ypg)
-                    for (ytg, ypg) in zip(yt_cat_grp, yp_cat_grp)
-                ]
-            )
+            tf.stack([categorical_accuracy(ytg, ypg) for (ytg, ypg) in zip(yt_cat_grp, yp_cat_grp)])
         )
 
     return grp_accs
@@ -87,9 +80,7 @@ class VaeCategoricalAvgAccuracy(MeanMetricWrapper):
         if (reg_dim + bool_dim + sum(ord_dim_tup) + sum(cat_dim_tup)) <= 0:
             raise ValueError("Zero Dimensions supplied as shape of output")
         if sum(cat_dim_tup) <= 0:
-            raise ValueError(
-                "Zero Dimensions supplied as categorical input shape"
-            )
+            raise ValueError("Zero Dimensions supplied as categorical input shape")
         if group_weights is not None:
             if len(group_weights) != len(cat_dim_tup):
                 raise ValueError(
@@ -153,9 +144,7 @@ class VaeCategoricalAvgAccuracy(MeanMetricWrapper):
 
         ag_fn = autograph.tf_convert(self._fn, ag_ctx.control_status_ctx())
         matches = ag_fn(y_true, y_pred, **self._fn_kwargs)
-        return super(MeanMetricWrapper, self).update_state(
-            matches, sample_weight=sample_weight
-        )
+        return super(MeanMetricWrapper, self).update_state(matches, sample_weight=sample_weight)
 
 
 def vae_elbo(

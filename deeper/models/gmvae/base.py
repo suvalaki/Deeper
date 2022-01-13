@@ -3,6 +3,7 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 from typing import NamedTuple, Sequence
 from pydantic import BaseModel
+from deeper.models.vae import Vae
 from deeper.models.gmvae.marginalvae import MarginalGmVaeNet
 
 
@@ -47,42 +48,19 @@ class GmvaeNetLossNetBase(tf.keras.layers.Layer):
 
 
 class GmvaeModelBase(tf.keras.Model):
-    class Config(GmvaeNetBase.Config):
+    class WeigtScheduleConfig(Vae.WeigtScheduleConfig):
         kld_y_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
             tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+                1.0,
+                1.0,
+                step_size=1,
+                scale_fn=lambda x: 1.0,
+                scale_mode="cycle",
             )
         )
-        kld_z_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-            )
-        )
-        recon_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-            )
-        )
-        recon_reg_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-            )
-        )
-        recon_bin_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-            )
-        )
-        recon_ord_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-            )
-        )
-        recon_cat_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-            )
-        )
+
+    class Config(GmvaeNetBase.Config, WeigtScheduleConfig):
+        pass
 
     _output_keys_renamed = {
         "kl_y": "losses/kl_y",

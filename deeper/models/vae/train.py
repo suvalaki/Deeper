@@ -35,9 +35,7 @@ def train(
     if tensorboard is not None:
         summary_writer = tf.summary.create_file_writer(tensorboard)
 
-    header_str = (
-        "{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}"
-    ).format(
+    header_str = ("{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}\t{:<10}").format(
         "epoch",
         "beta_z",
         "loss",
@@ -106,16 +104,10 @@ def train(
             cat_xent = np.array(cat_xent).mean()
             z_ent = np.array(z_ent).mean()
 
-            loss = -(
-                beta_reg * logpx_reg
-                - beta_bin * bin_xent
-                - beta_cat * cat_xent
-                + z_ent
-            )
+            loss = -(beta_reg * logpx_reg - beta_bin * bin_xent - beta_cat * cat_xent + z_ent)
 
             value_str = (
-                "{:d}\t{:10.5f}\t{:10.5f}\t{:10.5f}\t{:10.5f}"
-                "\t{:10.5f}\t{:10.5f}\t{:10.5f}"
+                "{:d}\t{:10.5f}\t{:10.5f}\t{:10.5f}\t{:10.5f}" "\t{:10.5f}\t{:10.5f}\t{:10.5f}"
             ).format(
                 int(model.cooling_distance),
                 beta_z,
@@ -140,9 +132,7 @@ def train(
 
             if tensorboard is not None:
                 # plot latent space
-                latent_vectors = chain_call(
-                    model.latent_sample, X_test, num_inference
-                )
+                latent_vectors = chain_call(model.latent_sample, X_test, num_inference)
                 plt_latent_true = plot_latent(latent_vectors, y_test, idx_te)
 
                 with summary_writer.as_default():
@@ -150,9 +140,7 @@ def train(
                     tf.summary.scalar("loss", loss, step=iter)
                     tf.summary.scalar("likelihood", recon, step=iter)
                     tf.summary.scalar("z_prior_entropy", z_ent, step=iter)
-                    tf.summary.image(
-                        "latent", plot_to_image(plt_latent_true), step=iter
-                    )
+                    tf.summary.image("latent", plot_to_image(plt_latent_true), step=iter)
 
         # t1.update(1)
         # t2.n = 0

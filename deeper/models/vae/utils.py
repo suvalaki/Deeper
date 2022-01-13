@@ -31,24 +31,16 @@ def chain_call(func, x, num, scalar_dict={}):
     j = 0
     while j * num < x[0].shape[0]:
         result = result + [
-            func(
-                *(y[j * num : min((j + 1) * num, y.shape[0])] for y in x),
-                **scalar_dict
-            )
+            func(*(y[j * num : min((j + 1) * num, y.shape[0])] for y in x), **scalar_dict)
         ]
         j += 1
 
     num_dats = len(result[0])
     # pivot the resultsif
     if type(result[0]) in [tuple, list]:
-        result_pivot = [
-            np.concatenate([y[i] for y in result], 0) for i in range(num_dats)
-        ]
+        result_pivot = [np.concatenate([y[i] for y in result], 0) for i in range(num_dats)]
     elif type(result[0]) == dict:
-        result_pivot = {
-            k: np.concatenate([y[k] for y in result], 0)
-            for k in result[0].keys()
-        }
+        result_pivot = {k: np.concatenate([y[k] for y in result], 0) for k in result[0].keys()}
     else:
         result_pivot = np.concatenate(result, axis=0)
     return result_pivot

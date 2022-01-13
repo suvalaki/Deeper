@@ -45,8 +45,9 @@ class VaeLossNet(tf.keras.layers.Layer):
         encoder_name="zgy",
         decoder_name="xgz",
         prefix="",
+        **kwargs,
     ):
-        super(VaeLossNet, self).__init__()
+        super(VaeLossNet, self).__init__(**kwargs)
         self.latent_eps = latent_eps
         self.encoder_name = encoder_name
         self.decoder_name = decoder_name
@@ -124,16 +125,13 @@ class VaeLossNet(tf.keras.layers.Layer):
             scaled_log_pxgz_ord,
             name=f"{self.prefix}/scaled/log_p_{self.decoder_name}_ord",
         )
-        scaled_log_pxgz_cat = lambda_reg * log_pxgz_cat
+        scaled_log_pxgz_cat = lambda_cat * log_pxgz_cat
         self.add_metric(
             scaled_log_pxgz_cat,
             name=f"{self.prefix}/scaled/log_p_{self.decoder_name}_cat",
         )
         scaled_log_pgz = (
-            scaled_log_pxgz_reg
-            + scaled_log_pxgz_bin
-            + scaled_log_pxgz_ord
-            + scaled_log_pxgz_cat
+            scaled_log_pxgz_reg + scaled_log_pxgz_bin + scaled_log_pxgz_ord + scaled_log_pxgz_cat
         )
         self.add_metric(
             scaled_log_pgz,
@@ -160,11 +158,11 @@ class VaeLossNet(tf.keras.layers.Layer):
         )
 
     class InputWeight(NamedTuple):
-        lambda_z: float
-        lambda_reg: float
-        lambda_bin: float
-        lambda_ord: float
-        lambda_cat: float
+        lambda_z: float = 1.0
+        lambda_reg: float = 1.0
+        lambda_bin: float = 1.0
+        lambda_ord: float = 1.0
+        lambda_cat: float = 1.0
 
     class Input(NamedTuple):
         latent: VaeLossNetLatent.Input
@@ -188,18 +186,14 @@ class VaeLossNet(tf.keras.layers.Layer):
             weights: VaeLossNet.InputWeight,
         ) -> VaeLossNet.Input:
             return VaeLossNet.Input(
-                VaeLossNetLatent.Input(
-                    model_output.qz_g_x.mu, model_output.qz_g_x.logvar
-                ),
+                VaeLossNetLatent.Input(model_output.qz_g_x.mu, model_output.qz_g_x.logvar),
                 VaeReconLossNet.InputYTrue(
                     y_true.regression,
                     y_true.binary,
                     y_true.ordinal_groups,
                     y_true.categorical_groups,
                 ),
-                VaeReconLossNet.InputYPred.from_VaeReconstructionNet(
-                    model_output.px_g_z
-                ),
+                VaeReconLossNet.InputYPred.from_VaeReconstructionNet(model_output.px_g_z),
                 weights,
             )
 
