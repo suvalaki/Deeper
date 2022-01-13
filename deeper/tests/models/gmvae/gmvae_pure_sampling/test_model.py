@@ -45,9 +45,7 @@ config = GumbleGmvae.Config(
 class TestGumbleGmVae(unittest.TestCase):
     def setUp(self):
         state = np.random.RandomState(0)
-        X = generate_dummy_dataset_alltypes(
-            state, N_ROWS, DIM_REG, DIM_BOOL, DIM_ORD, DIM_CAT
-        ).X
+        X = generate_dummy_dataset_alltypes(state, N_ROWS, DIM_REG, DIM_BOOL, DIM_ORD, DIM_CAT).X
         temps = state.random((N_ROWS, 1))
 
         self.data = X

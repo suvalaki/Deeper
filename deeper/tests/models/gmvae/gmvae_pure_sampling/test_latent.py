@@ -1,6 +1,5 @@
 import tensorflow as tf
 
-
 import pytest
 import unittest
 import numpy as np
@@ -8,8 +7,9 @@ import os
 
 from typing import NamedTuple
 from deeper.utils.data.dummy import generate_dummy_dataset_alltypes
-from deeper.models.vae.network import VaeNet, MultipleObjectiveDimensions
-from deeper.models.vae.network_loss import VaeLossNet
+from deeper.models.gmvae.gmvae_pure_sampling.network import GumbleGmvaeNet
+from deeper.models.gmvae.gmvae_pure_sampling.latent import GumbleGmvaeLatentParser
+from deeper.models.gmvae import MultipleObjectiveDimensions
 
 
 N_ROWS = 25
@@ -22,7 +22,9 @@ EMB_DIM = 10
 LAT_DIM = 5
 NCATS = 5
 
-config = VaeNet.Config(
+config = GumbleGmvaeNet.Config(
+    components=2,
+    cat_embedding_dimensions=[EMB_DIM],
     input_dimensions=MultipleObjectiveDimensions(
         regression=DIM_REG,
         boolean=DIM_BOOL,
@@ -41,33 +43,23 @@ config = VaeNet.Config(
 )
 
 
-class TestVaeNet(unittest.TestCase):
+class TestGumbleGmvaeLatentParser(unittest.TestCase):
     def setUp(self):
         state = np.random.RandomState(0)
         X = generate_dummy_dataset_alltypes(state, N_ROWS, DIM_REG, DIM_BOOL, DIM_ORD, DIM_CAT).X
         temps = state.random((N_ROWS, 1))
 
-        self.data = X
-        self.network = VaeNet(config, dtype=tf.dtypes.float64)
+        self.data = (X, temps)
+        self.network = GumbleGmvaeNet(config)
+        self.parser = GumbleGmvaeLatentParser()
 
     def test_outputShapes(self):
-        pred = self.network(self.data[0:1, :])
+        pred = self.network([self.data[0], self.data[1]])
+        latent = self.parser(pred)
+        self.assertEqual(latent.shape, (N_ROWS, LAT_DIM))
         # Latent layers
-
-    def test_loss(self):
-
-        lossnet = VaeLossNet(prefix="loss")
-        pred = self.network(self.data[0:1, :])
-        y_true = self.network.graph_px_g_z.splitter(self.data[0:1, :])
-        inputs = VaeLossNet.Input.from_output(
-            y_true=y_true,
-            model_output=pred,
-            weights=VaeLossNet.InputWeight(1.0, 1.0, 1.0, 1.0, 1.0),
-        )
-        losses = lossnet(inputs)
 
 
 if __name__ == "__main__":
-    # USE CPU ONLY
     tf.config.set_visible_devices([], "GPU")
     unittest.main()

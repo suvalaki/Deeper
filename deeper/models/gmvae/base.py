@@ -5,9 +5,10 @@ from typing import NamedTuple, Sequence
 from pydantic import BaseModel
 from deeper.models.vae import Vae
 from deeper.models.gmvae.marginalvae import MarginalGmVaeNet
+from deeper.models.generalised_autoencoder.base import AutoencoderBase
 
 
-class GmvaeNetBase(tf.keras.layers.Layer):
+class GmvaeNetBase(AutoencoderBase):
     class Config(MarginalGmVaeNet.Config):
         components: int = None
         cat_embedding_dimensions: Sequence[int] = None
@@ -16,6 +17,9 @@ class GmvaeNetBase(tf.keras.layers.Layer):
         cat_latent_kernel_initialiazer = "glorot_uniform"
         cat_latent_bias_initializer = "zeros"
         categorical_epsilon = 0.0
+
+    def split_outputs(self, y) -> SplitCovariates:
+        return self.graph_marginal_autoencoder.split_outputs(y)
 
 
 class GmvaeNetLossNetBase(tf.keras.layers.Layer):

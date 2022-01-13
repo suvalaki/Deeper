@@ -5,5 +5,6 @@ from .decoder import VaeReconstructionNet
 from .decoder_loss import VaeReconLossNet
 from .network import VaeNet
 from .network_loss import VaeLossNet
+from .latent import VaeLatentParser
 
 from .model import Vae

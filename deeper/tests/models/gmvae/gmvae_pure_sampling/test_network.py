@@ -11,6 +11,7 @@ from deeper.models.gmvae.gmvae_pure_sampling.network import GumbleGmvaeNet
 from deeper.models.gmvae.gmvae_pure_sampling.network_loss import (
     GumbleGmvaeNetLossNet,
 )
+from deeper.models.vae.network import VaeNet, MultipleObjectiveDimensions
 from deeper.models.vae.network_loss import VaeLossNet
 
 
@@ -48,9 +49,7 @@ config = GumbleGmvaeNet.Config(
 class TestGumbleGmVaeNet(unittest.TestCase):
     def setUp(self):
         state = np.random.RandomState(0)
-        X = generate_dummy_dataset_alltypes(
-            state, N_ROWS, DIM_REG, DIM_BOOL, DIM_ORD, DIM_CAT
-        ).X
+        X = generate_dummy_dataset_alltypes(state, N_ROWS, DIM_REG, DIM_BOOL, DIM_ORD, DIM_CAT).X
         temps = state.random((N_ROWS, 1))
 
         self.data = (X, temps)
@@ -64,24 +63,18 @@ class TestGumbleGmVaeNet(unittest.TestCase):
 
         lossnet = GumbleGmvaeNetLossNet()
         pred = self.network([self.data[0][0:1, :], self.data[1][0:1, :]])
-        y_true = self.network.graph_marginal_autoencoder.graph_px_g_z.splitter(
-            self.data[0][0:1, :]
-        )
-        inputs = GumbleGmvaeNetLossNet.Input.from_GumbleGmvaeNet_output(
+        y_true = self.network.graph_marginal_autoencoder.graph_px_g_z.splitter(self.data[0][0:1, :])
+        inputs = GumbleGmvaeNetLossNet.Input.from_output(
             y_true=y_true,
             model_output=pred,
-            weights=GumbleGmvaeNetLossNet.InputWeight(
-                1.0, 1.0, 1.0, 1.0, 1.0, 1.0
-            ),
+            weights=GumbleGmvaeNetLossNet.InputWeight(1.0, 1.0, 1.0, 1.0, 1.0, 1.0),
         )
         losses = lossnet(inputs)
         print(losses)
 
         from pprint import pp
 
-        getShape = (
-            lambda x: [v.shape for v in x] if isinstance(x, list) else x.shape
-        )
+        getShape = lambda x: [v.shape for v in x] if isinstance(x, list) else x.shape
         pp({k: v for k, v in losses._asdict().items()}, depth=6, indent=4)
 
 

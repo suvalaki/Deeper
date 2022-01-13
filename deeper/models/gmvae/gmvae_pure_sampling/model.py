@@ -57,7 +57,7 @@ class GumbleGmvae(GmvaeModelBase):
             *[
                 tf.reduce_mean(x)
                 for x in self.lossnet(
-                    self.lossnet.Input.from_GumbleGmvaeNet_output(
+                    self.lossnet.Input.from_output(
                         y_split,
                         y_pred,
                         weight,
