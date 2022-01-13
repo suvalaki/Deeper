@@ -10,6 +10,9 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 from pathlib import Path
 import tensorflow as tf
+
+# USE CPU ONLY
+tf.config.set_visible_devices([], "GPU")
 import numpy as np
 from tqdm import tqdm
 import json
@@ -21,6 +24,7 @@ import tensorflow_addons as tfa
 
 import numpy as np
 
+from deeper.models.gmvae import MultipleObjectiveDimensions
 from deeper.models.gmvae.gmvae_pure_sampling import GumbleGmvae
 from deeper.models.gmvae.metrics import PurityCallback
 
@@ -59,15 +63,19 @@ X_test = (X_test > 0.5).astype(float)
 BATCH_SIZE = 24
 config = GumbleGmvae.Config(
     components=10,
-    input_regression_dimension=0,
-    input_boolean_dimension=X_train.shape[-1],
-    input_ordinal_dimension=[0],
-    input_categorical_dimension=[0],
-    output_regression_dimension=0,
-    output_boolean_dimension=X_train.shape[-1],
-    output_ordinal_dimension=[0],
-    output_categorical_dimension=[0],
-    cat_embedding_dimensions=[512, 512],
+    cat_embedding_dimensions=[512, 512, 256],
+    input_dimensions=MultipleObjectiveDimensions(
+        regression=0,
+        boolean=X_train.shape[-1],
+        ordinal=(0,),
+        categorical=(0,),
+    ),
+    output_dimensions=MultipleObjectiveDimensions(
+        regression=0,
+        boolean=X_train.shape[-1],
+        ordinal=(0,),
+        categorical=(0,),
+    ),
     encoder_embedding_dimensions=[512, 512, 256],
     decoder_embedding_dimensions=[512, 512, 256][::-1],
     latent_dim=64,
@@ -91,14 +99,14 @@ config = GumbleGmvae.Config(
         1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
     ),
     kld_z_schedule=tfa.optimizers.CyclicalLearningRate(
-        1.5, 0.5, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
     ),
     # bn_before=True
 )
 
 model = GumbleGmvae(config)
-# model.compile(optimizer=tf.keras.optimizers.Adam(1e-3))
-model.compile()
+model.compile(optimizer=tf.keras.optimizers.Adam(1e-3))
+# model.compile()
 
 #%% train
 tbc = tf.keras.callbacks.TensorBoard(

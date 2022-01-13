@@ -5,6 +5,7 @@ import unittest
 import numpy as np
 import os
 
+from deeper.models.vae import MultipleObjectiveDimensions
 from deeper.models.vae.network_loss import VaeLossNet
 from deeper.models.gmvae.marginalvae import MarginalGmVaeNet
 from typing import NamedTuple
@@ -25,14 +26,18 @@ LAT_DIM = 5
 NCATS = 5
 
 config = MarginalGmVaeNet.Config(
-    input_regression_dimension=DIM_REG,
-    input_boolean_dimension=DIM_BOOL,
-    input_ordinal_dimension=DIM_ORD,
-    input_categorical_dimension=DIM_CAT,
-    output_regression_dimension=DIM_REG,
-    output_boolean_dimension=DIM_BOOL,
-    output_ordinal_dimension=DIM_ORD,
-    output_categorical_dimension=DIM_CAT,
+    input_dimensions=MultipleObjectiveDimensions(
+        regression=DIM_REG,
+        boolean=DIM_BOOL,
+        ordinal=DIM_ORD,
+        categorical=DIM_CAT,
+    ),
+    output_dimensions=MultipleObjectiveDimensions(
+        regression=DIM_REG,
+        boolean=DIM_BOOL,
+        ordinal=DIM_ORD,
+        categorical=DIM_CAT,
+    ),
     encoder_embedding_dimensions=[EMB_DIM],
     decoder_embedding_dimensions=[EMB_DIM],
     latent_dim=LAT_DIM,

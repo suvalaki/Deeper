@@ -14,7 +14,9 @@ from deeper.layers.data_splitter import split_inputs, unpack_dimensions
 from deeper.utils.function_helpers.decorators import inits_args
 from deeper.models.vae.encoder import VaeEncoderNet
 from deeper.models.vae.decoder import VaeReconstructionNet
-from deeper.models.vae.base import MultipleObjectiveDimensions
+from deeper.models.vae.base import (
+    MultipleObjectiveDimensions,
+)
 
 from deeper.probability_layers.normal import (
     lognormal_kl,
@@ -49,29 +51,41 @@ class VaeNet(Layer):
         enc_mu_embedding_kernel_initializer: Union[
             str, tf.keras.initializers.Initializer
         ] = "he_uniform"
-        enc_mu_embedding_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
+        enc_mu_embedding_bias_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = "zeros"
         enc_mu_latent_kernel_initialiazer: Union[
             str, tf.keras.initializers.Initializer
         ] = "random_normal"
-        enc_mu_latent_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
+        enc_mu_latent_bias_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = "zeros"
 
         enc_var_embedding_kernel_initializer: Union[
             str, tf.keras.initializers.Initializer
         ] = "he_uniform"
-        enc_var_embedding_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
+        enc_var_embedding_bias_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = "zeros"
         enc_var_latent_kernel_initialiazer: Union[
             str, tf.keras.initializers.Initializer
         ] = "random_normal"
-        enc_var_latent_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
+        enc_var_latent_bias_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = "zeros"
 
         recon_embedding_kernel_initializer: Union[
             str, tf.keras.initializers.Initializer
         ] = "he_uniform"
-        recon_embedding_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
+        recon_embedding_bias_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = "zeros"
         recon_latent_kernel_initialiazer: Union[
             str, tf.keras.initializers.Initializer
         ] = "random_normal"
-        recon_latent_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
+        recon_latent_bias_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = "zeros"
 
         connected_weights: bool = True
         latent_mu_embedding_dropout: Optional[float] = 0.0

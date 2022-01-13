@@ -6,6 +6,7 @@ import numpy as np
 import os
 
 from typing import NamedTuple
+from deeper.models.vae import MultipleObjectiveDimensions
 from deeper.utils.data.dummy import generate_dummy_dataset_alltypes
 from deeper.models.gmvae.gmvae_pure_sampling import GumbleGmvae
 
@@ -23,14 +24,18 @@ NCATS = 5
 config = GumbleGmvae.Config(
     components=2,
     cat_embedding_dimensions=[EMB_DIM],
-    input_regression_dimension=DIM_REG,
-    input_boolean_dimension=DIM_BOOL,
-    input_ordinal_dimension=DIM_ORD,
-    input_categorical_dimension=DIM_CAT,
-    output_regression_dimension=DIM_REG,
-    output_boolean_dimension=DIM_BOOL,
-    output_ordinal_dimension=DIM_ORD,
-    output_categorical_dimension=DIM_CAT,
+    input_dimensions=MultipleObjectiveDimensions(
+        regression=DIM_REG,
+        boolean=DIM_BOOL,
+        ordinal=DIM_ORD,
+        categorical=DIM_CAT,
+    ),
+    output_dimensions=MultipleObjectiveDimensions(
+        regression=DIM_REG,
+        boolean=DIM_BOOL,
+        ordinal=DIM_ORD,
+        categorical=DIM_CAT,
+    ),
     encoder_embedding_dimensions=[EMB_DIM],
     decoder_embedding_dimensions=[EMB_DIM],
     latent_dim=LAT_DIM,

@@ -40,30 +40,7 @@ class MarginalGmVaeNet(VaeNet):
 
     """
 
-    class Config(BaseModel):
-        input_regression_dimension: int = Field()
-        input_boolean_dimension: int = Field()
-        input_ordinal_dimension: Union[int, Sequence[int]] = Field()
-        input_categorical_dimension: Union[int, Sequence[int]] = Field()
-        output_regression_dimension: int = Field()
-        output_boolean_dimension: int = Field()
-        output_ordinal_dimension: Union[int, Sequence[int]] = Field()
-        output_categorical_dimension: Union[int, Sequence[int]] = Field()
-        encoder_embedding_dimensions: Sequence[int] = Field()
-        decoder_embedding_dimensions: Sequence[int] = Field()
-        latent_dim: int = Field()
-        embedding_activations = tf.keras.layers.ReLU()
-        bn_before: bool = False
-        bn_after: bool = False
-        latent_epsilon = 0.0
-        enc_mu_embedding_kernel_initializer = "glorot_uniform"
-        enc_mu_embedding_bias_initializer = "zeros"
-        enc_mu_latent_kernel_initialiazer = "glorot_uniform"
-        enc_mu_latent_bias_initializer = "zeros"
-        enc_var_embedding_kernel_initializer = "glorot_uniform"
-        enc_var_embedding_bias_initializer = "zeros"
-        enc_var_latent_kernel_initialiazer = "glorot_uniform"
-        enc_var_latent_bias_initializer = "zeros"
+    class Config(VaeNet.Config):
         posterior_mu_embedding_kernel_initializer = "glorot_uniform"
         posterior_mu_embedding_bias_initializer = "zeros"
         posterior_mu_latent_kernel_initialiazer = "glorot_uniform"
@@ -72,20 +49,8 @@ class MarginalGmVaeNet(VaeNet):
         posterior_var_embedding_bias_initializer = "zeros"
         posterior_var_latent_kernel_initialiazer = "glorot_uniform"
         posterior_var_latent_bias_initializer = "zeros"
-        recon_embedding_kernel_initializer = "glorot_uniform"
-        recon_embedding_bias_initializer = "zeros"
-        recon_latent_kernel_initialiazer = "glorot_uniform"
-        recon_latent_bias_initializer = "zeros"
-        connected_weights: bool = True
-        latent_mu_embedding_dropout: Optional[float] = 0.0
-        latent_var_embedding_dropout: Optional[float] = 0.0
         posterior_mu_dropout: Optional[float] = 0.0
         posterior_var_dropout: Optional[float] = 0.0
-        recon_dropouut: Optional[float] = 0.0
-        latent_fixed_var: Optional[float] = None
-
-        class Config:
-            arbitrary_types_allowed = True
 
     class Output(NamedTuple):
         # Encoder/Latent variables
@@ -106,18 +71,8 @@ class MarginalGmVaeNet(VaeNet):
 
         super().__init__(
             VaeNet.Config(
-                input_dimensions=MultipleObjectiveDimensions(
-                    regression=config.input_regression_dimension,
-                    boolean=config.input_boolean_dimension,
-                    ordinal=config.input_ordinal_dimension,
-                    categorical=config.input_categorical_dimension,
-                ),
-                output_dimensions=MultipleObjectiveDimensions(
-                    regression=config.output_regression_dimension,
-                    boolean=config.output_boolean_dimension,
-                    ordinal=config.output_ordinal_dimension,
-                    categorical=config.output_categorical_dimension,
-                ),
+                input_dimensions=config.input_dimensions,
+                output_dimensions=config.output_dimensions,
                 encoder_embedding_dimensions=config.encoder_embedding_dimensions,
                 decoder_embedding_dimensions=config.decoder_embedding_dimensions,
                 latent_dim=config.latent_dim,
@@ -137,7 +92,7 @@ class MarginalGmVaeNet(VaeNet):
                 connected_weights=config.connected_weights,
                 latent_mu_embedding_dropout=config.latent_mu_embedding_dropout,
                 latent_var_embedding_dropout=config.latent_var_embedding_dropout,
-                recon_dropouut=config.recon_dropouut,
+                recon_dropout=config.recon_dropout,
                 latent_fixed_var=config.latent_fixed_var,
             ),
             **kwargs,
