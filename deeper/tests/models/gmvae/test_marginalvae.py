@@ -52,9 +52,7 @@ class Inputs(NamedTuple):
 class TestMarginalVae(unittest.TestCase):
     def setUp(self):
         state = np.random.RandomState(0)
-        X_all = generate_dummy_dataset_alltypes(
-            state, N_ROWS, DIM_REG, DIM_BOOL, DIM_ORD, DIM_CAT
-        )
+        X_all = generate_dummy_dataset_alltypes(state, N_ROWS, DIM_REG, DIM_BOOL, DIM_ORD, DIM_CAT)
         X = X_all.X
         # categories
         y = (state.random((N_ROWS, NCATS)) > 0.5).astype(float)
@@ -74,32 +72,22 @@ class TestMarginalVae(unittest.TestCase):
         self.assertEqual(pred.px_g_zy.regression.shape[-1], DIM_REG)
         self.assertEqual(pred.px_g_zy.logits_binary.shape[-1], DIM_BOOL)
         self.assertEqual(pred.px_g_zy.binary.shape[-1], DIM_BOOL)
-        self.assertEqual(
-            pred.px_g_zy.logits_ordinal_groups_concat.shape[-1], sum(DIM_ORD)
-        )
+        self.assertEqual(pred.px_g_zy.logits_ordinal_groups_concat.shape[-1], sum(DIM_ORD))
         self.assertEqual(
             tuple([x.shape[-1] for x in pred.px_g_zy.logits_ordinal_groups]),
             DIM_ORD,
         )
-        self.assertEqual(
-            pred.px_g_zy.ord_groups_concat.shape[-1], sum(DIM_ORD)
-        )
-        self.assertEqual(
-            tuple([x.shape[-1] for x in pred.px_g_zy.ord_groups]), DIM_ORD
-        )
+        self.assertEqual(pred.px_g_zy.ord_groups_concat.shape[-1], sum(DIM_ORD))
+        self.assertEqual(tuple([x.shape[-1] for x in pred.px_g_zy.ord_groups]), DIM_ORD)
         self.assertEqual(
             pred.px_g_zy.logits_categorical_groups_concat.shape[-1],
             sum(DIM_CAT),
         )
         self.assertEqual(
-            tuple(
-                [x.shape[-1] for x in pred.px_g_zy.logits_categorical_groups]
-            ),
+            tuple([x.shape[-1] for x in pred.px_g_zy.logits_categorical_groups]),
             DIM_CAT,
         )
-        self.assertEqual(
-            pred.px_g_zy.categorical_groups_concat.shape[-1], sum(DIM_CAT)
-        )
+        self.assertEqual(pred.px_g_zy.categorical_groups_concat.shape[-1], sum(DIM_CAT))
         self.assertEqual(
             tuple([x.shape[-1] for x in pred.px_g_zy.categorical_groups]),
             DIM_CAT,

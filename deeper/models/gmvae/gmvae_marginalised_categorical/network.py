@@ -14,6 +14,9 @@ from pydantic import BaseModel
 
 
 class StackedGmvaeNet(GmvaeNetBase):
+    class Config(GmvaeNetBase.Config):
+        ...
+
     class Output(NamedTuple):
         py: tf.Tensor
         qy_g_x: CategoricalEncoder.Output

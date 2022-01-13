@@ -63,17 +63,25 @@ class Vae(tf.keras.Model):
                 scale_mode="cycle",
             )
         )
-        recon_reg_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        recon_reg_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
         )
-        recon_bin_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        recon_bin_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
         )
-        recon_ord_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        recon_ord_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
         )
-        recon_cat_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        recon_cat_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+            tfa.optimizers.CyclicalLearningRate(
+                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            )
         )
 
         class Config:
@@ -103,9 +111,7 @@ class Vae(tf.keras.Model):
             *[
                 tf.reduce_mean(x)
                 for x in self.lossnet(
-                    self.lossnet.Input.from_vaenet_outputs(
-                        y_split, y_pred, weight
-                    ),
+                    self.lossnet.Input.from_output(y_split, y_pred, weight),
                     training,
                 )
             ]
@@ -118,9 +124,7 @@ class Vae(tf.keras.Model):
 
     @tf.function
     def latent_sample(self, inputs, y, training=False, samples=1):
-        output = self.monte_carlo_estimate(
-            samples, inputs, y, training=training
-        )
+        output = self.monte_carlo_estimate(samples, inputs, y, training=training)
         latent = outputs["px_g_z__sample"]
         return latent
 
@@ -129,12 +133,8 @@ class Vae(tf.keras.Model):
         data = data_adapter.expand_1d(data)
         x, y = data
 
-        kld_z_schedule = self.config.kld_z_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-        recon_schedule = self.config.recon_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
+        kld_z_schedule = self.config.kld_z_schedule(tf.cast(self.optimizer.iterations, self.dtype))
+        recon_schedule = self.config.recon_schedule(tf.cast(self.optimizer.iterations, self.dtype))
         recon_reg_schedule = self.config.recon_reg_schedule(
             tf.cast(self.optimizer.iterations, self.dtype)
         )
@@ -180,15 +180,10 @@ class Vae(tf.keras.Model):
         data = data_adapter.expand_1d(data)
         x, y = data
         y_pred = self.network(x, training=False)
-        losses = self.loss_fn(
-            y, y_pred, VaeLossNet.InputWeight(), training=False
-        )
+        losses = self.loss_fn(y, y_pred, VaeLossNet.InputWeight(), training=False)
         loss = tf.reduce_mean(losses.loss)
 
-        return {
-            self._output_keys_renamed[k]: v
-            for k, v in losses._asdict().items()
-        }
+        return {self._output_keys_renamed[k]: v for k, v in losses._asdict().items()}
 
     _output_keys_renamed = {
         "kl_z": "losses/kl_z",

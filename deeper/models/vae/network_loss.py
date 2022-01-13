@@ -180,7 +180,7 @@ class VaeLossNet(tf.keras.layers.Layer):
             )
 
         @staticmethod
-        def from_vaenet_outputs(
+        def from_output(
             y_true: SplitCovariates,
             model_output: VaeNet.VaeNetOutput,
             weights: VaeLossNet.InputWeight,

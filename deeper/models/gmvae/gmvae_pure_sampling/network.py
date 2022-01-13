@@ -13,6 +13,9 @@ from pydantic import BaseModel
 
 
 class GumbleGmvaeNet(GmvaeNetBase):
+    class Config(GmvaeNetBase.Config):
+        ...
+
     class Output(NamedTuple):
         py: tf.Tensor
         qy_g_x: CategoricalEncoder.Output
@@ -57,3 +60,6 @@ class GumbleGmvaeNet(GmvaeNetBase):
         marginal = self.graph_marginal_autoencoder([x, qy_g_x_ohe], training)
 
         return self.Output(py, qy_g_x, qy_g_x_ohe, marginal)
+
+    def split_outputs(self, y) -> SplitCovariates:
+        return self.graph_marginal_autoencoder.split_outputs(y)

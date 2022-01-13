@@ -42,9 +42,7 @@ config = Vae.Config(
 class TestVaeModel(unittest.TestCase):
     def setUp(self):
         state = np.random.RandomState(0)
-        X = generate_dummy_dataset_alltypes(
-            state, N_ROWS, DIM_REG, DIM_BOOL, DIM_ORD, DIM_CAT
-        ).X
+        X = generate_dummy_dataset_alltypes(state, N_ROWS, DIM_REG, DIM_BOOL, DIM_ORD, DIM_CAT).X
 
         self.data = X
         self.model = Vae(config)
@@ -61,22 +59,16 @@ class TestVaeModel(unittest.TestCase):
             DIM_ORD,
         )
         self.assertEqual(pred.px_g_z.ord_groups_concat.shape[-1], sum(DIM_ORD))
-        self.assertEqual(
-            tuple([x.shape[-1] for x in pred.px_g_z.ord_groups]), DIM_ORD
-        )
+        self.assertEqual(tuple([x.shape[-1] for x in pred.px_g_z.ord_groups]), DIM_ORD)
         self.assertEqual(
             pred.px_g_z.logits_categorical_groups_concat.shape[-1],
             sum(DIM_CAT),
         )
         self.assertEqual(
-            tuple(
-                [x.shape[-1] for x in pred.px_g_z.logits_categorical_groups]
-            ),
+            tuple([x.shape[-1] for x in pred.px_g_z.logits_categorical_groups]),
             DIM_CAT,
         )
-        self.assertEqual(
-            pred.px_g_z.categorical_groups_concat.shape[-1], sum(DIM_CAT)
-        )
+        self.assertEqual(pred.px_g_z.categorical_groups_concat.shape[-1], sum(DIM_CAT))
         self.assertEqual(
             tuple([x.shape[-1] for x in pred.px_g_z.categorical_groups]),
             DIM_CAT,

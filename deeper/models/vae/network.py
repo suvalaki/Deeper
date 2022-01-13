@@ -25,6 +25,7 @@ from deeper.probability_layers.normal import (
 from tensorflow.python.keras.metrics import categorical_accuracy, accuracy
 
 from deeper.utils.tf.keras.models import Model
+from deeper.models.generalised_autoencoder.base import AutoencoderBase
 from pydantic import BaseModel, Field
 
 
@@ -34,58 +35,37 @@ def reduce_groups(fn, x_grouped: Sequence[tf.Tensor]):
     return tf.concat([fn(z) for z in x_grouped], -1)
 
 
-class VaeNet(Layer):
-    class Config(BaseModel):
+class VaeNet(AutoencoderBase):
+    class Config(AutoencoderBase.Config):
 
-        input_dimensions: MultipleObjectiveDimensions = Field()
-        output_dimensions: MultipleObjectiveDimensions = Field()
-        encoder_embedding_dimensions: Sequence[int] = Field()
-        decoder_embedding_dimensions: Sequence[int] = Field()
-        latent_dim: int = Field()
-
-        embedding_activations: tf.keras.layers.Layer = tf.keras.layers.ReLU()
-        bn_before: bool = False
-        bn_after: bool = False
         latent_epsilon: float = 0.0
 
         enc_mu_embedding_kernel_initializer: Union[
             str, tf.keras.initializers.Initializer
         ] = "he_uniform"
-        enc_mu_embedding_bias_initializer: Union[
-            str, tf.keras.initializers.Initializer
-        ] = "zeros"
+        enc_mu_embedding_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
         enc_mu_latent_kernel_initialiazer: Union[
             str, tf.keras.initializers.Initializer
         ] = "random_normal"
-        enc_mu_latent_bias_initializer: Union[
-            str, tf.keras.initializers.Initializer
-        ] = "zeros"
+        enc_mu_latent_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
 
         enc_var_embedding_kernel_initializer: Union[
             str, tf.keras.initializers.Initializer
         ] = "he_uniform"
-        enc_var_embedding_bias_initializer: Union[
-            str, tf.keras.initializers.Initializer
-        ] = "zeros"
+        enc_var_embedding_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
         enc_var_latent_kernel_initialiazer: Union[
             str, tf.keras.initializers.Initializer
         ] = "random_normal"
-        enc_var_latent_bias_initializer: Union[
-            str, tf.keras.initializers.Initializer
-        ] = "zeros"
+        enc_var_latent_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
 
         recon_embedding_kernel_initializer: Union[
             str, tf.keras.initializers.Initializer
         ] = "he_uniform"
-        recon_embedding_bias_initializer: Union[
-            str, tf.keras.initializers.Initializer
-        ] = "zeros"
+        recon_embedding_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
         recon_latent_kernel_initialiazer: Union[
             str, tf.keras.initializers.Initializer
         ] = "random_normal"
-        recon_latent_bias_initializer: Union[
-            str, tf.keras.initializers.Initializer
-        ] = "zeros"
+        recon_latent_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
 
         connected_weights: bool = True
         latent_mu_embedding_dropout: Optional[float] = 0.0
@@ -189,6 +169,9 @@ class VaeNet(Layer):
             self.input_ordinal_dimension,
             self.input_categorical_dimension,
         )
+
+    def split_outputs(self, y) -> SplitCovariates:
+        return self.graph_px_g_z.splitter(y)
 
     @tf.function
     def call(self, x, training=False) -> VaeNet.VaeNetOutput:

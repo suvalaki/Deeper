@@ -5,7 +5,9 @@ from typing import Union, Tuple, Sequence, Optional, NamedTuple
 from pydantic.dataclasses import dataclass
 
 from deeper.models.gmvae.base import GmvaeNetLossNetBase
-from deeper.models.gmvae.gmvae_marginalised_categorical.network import StackedGmvaeNet
+from deeper.models.gmvae.gmvae_marginalised_categorical.network import (
+    StackedGmvaeNet,
+)
 from deeper.models.gmvae.marginalvae_loss import MarginalGmVaeLossNet
 from deeper.layers.categorical import CategoricalEncoder
 from deeper.models.vae.network_loss import VaeLossNet
@@ -19,7 +21,7 @@ class StackedGmvaeLossNet(GmvaeNetLossNetBase):
         weight_component: tf.Tensor
 
         @staticmethod
-        def from_StackedGmvaeNet_output(
+        def from_output(
             y_true: SplitCovariates,
             model_output: StackedGmvaeNet.Output,
             weights: StackedGmvaeLossNet.InputWeight,

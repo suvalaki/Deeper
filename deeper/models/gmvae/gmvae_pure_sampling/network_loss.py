@@ -19,7 +19,7 @@ class GumbleGmvaeNetLossNet(GmvaeNetLossNetBase):
         weight_component: tf.Tensor
 
         @staticmethod
-        def from_GumbleGmvaeNet_output(
+        def from_output(
             y_true: SplitCovariates,
             model_output: GumbleGmvaeNet.Output,
             weights: GumbleGmvaeNetLossNet.InputWeight,
