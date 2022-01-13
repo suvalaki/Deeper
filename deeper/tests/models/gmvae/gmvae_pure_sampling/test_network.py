@@ -1,8 +1,5 @@
 import tensorflow as tf
 
-# USE CPU ONLY
-tf.config.set_visible_devices([], "GPU")
-
 import pytest
 import unittest
 import numpy as np
@@ -85,4 +82,5 @@ class TestGumbleGmVaeNet(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    tf.config.set_visible_devices([], "GPU")
     unittest.main()

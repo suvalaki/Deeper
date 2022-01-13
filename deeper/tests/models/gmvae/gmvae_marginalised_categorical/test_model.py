@@ -1,6 +1,5 @@
 import tensorflow as tf
 
-
 import pytest
 import unittest
 import numpy as np

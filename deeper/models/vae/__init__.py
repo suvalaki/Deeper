@@ -6,4 +6,4 @@ from .decoder_loss import VaeReconLossNet
 from .network import VaeNet
 from .network_loss import VaeLossNet
 
-from .model import VAE
+from .model import Vae

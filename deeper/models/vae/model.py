@@ -23,6 +23,7 @@ from deeper.layers.data_splitter import split_inputs
 from deeper.models.vae.network import VaeNet
 from deeper.models.vae.network_loss import VaeLossNet
 from tensorflow.python.keras.engine import data_adapter
+from tensorflow.python.eager import backprop
 
 from types import SimpleNamespace
 from deeper.utils.tf.keras.models import GenerativeModel
@@ -39,10 +40,11 @@ from collections import namedtuple
 from deeper.models.vae.utils import SplitCovariates
 from deeper.models.vae.network import VaeNet
 
+from pydantic import BaseModel
 
-class VAE(GenerativeModel):
-    class Config(VaeNet.Config):
 
+class Vae(tf.keras.Model):
+    class WeigtScheduleConfig(BaseModel):
         kld_z_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
             tfa.optimizers.CyclicalLearningRate(
                 1.0,
@@ -61,29 +63,28 @@ class VAE(GenerativeModel):
                 scale_mode="cycle",
             )
         )
-        recon_reg_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-            )
+        recon_reg_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
+            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
         )
-        recon_bin_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-            )
+        recon_bin_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
+            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
         )
-        recon_ord_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-            )
+        recon_ord_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
+            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
         )
-        recon_cat_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
-            )
+        recon_cat_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tfa.optimizers.CyclicalLearningRate(
+            1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
         )
+
+        class Config:
+            arbitrary_types_allowed = True
+
+    class Config(VaeNet.Config, WeigtScheduleConfig):
+        pass
 
     def __init__(self, config: VAE.Config, **kwargs):
         super().__init__(**kwargs)
+        self.config = config
         self.network = VaeNet(config, **kwargs)
         self.lossnet = VaeLossNet(latent_eps=1e-6, prefix="loss", **kwargs)
 
@@ -102,7 +103,9 @@ class VAE(GenerativeModel):
             *[
                 tf.reduce_mean(x)
                 for x in self.lossnet(
-                    self.lossnet.Input.from_vaenet_outputs(y_split, y_pred, weight),
+                    self.lossnet.Input.from_vaenet_outputs(
+                        y_split, y_pred, weight
+                    ),
                     training,
                 )
             ]
@@ -115,7 +118,9 @@ class VAE(GenerativeModel):
 
     @tf.function
     def latent_sample(self, inputs, y, training=False, samples=1):
-        output = self.monte_carlo_estimate(samples, inputs, y, training=training)
+        output = self.monte_carlo_estimate(
+            samples, inputs, y, training=training
+        )
         latent = outputs["px_g_z__sample"]
         return latent
 
@@ -124,8 +129,12 @@ class VAE(GenerativeModel):
         data = data_adapter.expand_1d(data)
         x, y = data
 
-        kld_z_schedule = self.config.kld_z_schedule(tf.cast(self.optimizer.iterations, self.dtype))
-        recon_schedule = self.config.recon_schedule(tf.cast(self.optimizer.iterations, self.dtype))
+        kld_z_schedule = self.config.kld_z_schedule(
+            tf.cast(self.optimizer.iterations, self.dtype)
+        )
+        recon_schedule = self.config.recon_schedule(
+            tf.cast(self.optimizer.iterations, self.dtype)
+        )
         recon_reg_schedule = self.config.recon_reg_schedule(
             tf.cast(self.optimizer.iterations, self.dtype)
         )
@@ -148,7 +157,7 @@ class VAE(GenerativeModel):
         )
 
         with backprop.GradientTape() as tape:
-            y_pred = self.network((x, temp), training=True)
+            y_pred = self.network(x, training=True)
             losses = self.loss_fn(
                 y,
                 y_pred,
@@ -163,8 +172,6 @@ class VAE(GenerativeModel):
             for k, v in {
                 # **{v.name: v.result() for v in self.metrics}
                 **losses._asdict(),
-                "temp": temp,
-                "kld_y_schedule": kld_y_schedule,
                 "kld_z_schedule": kld_z_schedule,
             }.items()
         }
@@ -172,8 +179,30 @@ class VAE(GenerativeModel):
     def test_step(self, data):
         data = data_adapter.expand_1d(data)
         x, y = data
-        y_pred = self.network((x, 1.0), training=False)
-        losses = self.loss_fn(y, y_pred, GumbleGmvaeNetLossNet.InputWeight(), training=False)
+        y_pred = self.network(x, training=False)
+        losses = self.loss_fn(
+            y, y_pred, VaeLossNet.InputWeight(), training=False
+        )
         loss = tf.reduce_mean(losses.loss)
 
-        return {self._output_keys_renamed[k]: v for k, v in losses._asdict().items()}
+        return {
+            self._output_keys_renamed[k]: v
+            for k, v in losses._asdict().items()
+        }
+
+    _output_keys_renamed = {
+        "kl_z": "losses/kl_z",
+        "l_pxgz_reg": "reconstruction/l_pxgz_reg",
+        "l_pxgz_bin": "reconstruction/l_pxgz_bin",
+        "l_pxgz_ord": "reconstruction/l_pxgz_ord",
+        "l_pxgz_cat": "reconstruction/l_pxgz_cat",
+        "scaled_elbo": "losses/scaled_elbo",
+        "recon_loss": "losses/recon_loss",
+        "loss": "losses/loss",
+        "lambda_z": "weight/lambda_z",
+        "lambda_reg": "weight/lambda_reg",
+        "lambda_bin": "weight/lambda_bin",
+        "lambda_ord": "weight/lambda_ord",
+        "lambda_cat": "weight/lambda_cat",
+        "kld_z_schedule": "weight/lambda_z",
+    }
