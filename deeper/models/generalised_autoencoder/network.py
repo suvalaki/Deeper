@@ -25,23 +25,38 @@ class GeneralisedAutoencoderNet(tf.keras.layers.Layer):
         latent: tf.Tensor
 
     @staticmethod
-    def _network_switch(config: ConfigType):
+    def network_type_switch(config: ConfigType, **kwargs):
+
+        # check in decreasing inheritance order
+        if isinstance(config, StackedGmvaeNet.Config):
+            return (StackedGmvaeNet, StackedGmvaeLossNet, StackedGmvaeLatentParser)
+        elif isinstance(config, GumbleGmvaeNet.Config):
+            return (GumbleGmvaeNet, GumbleGmvaeNetLossNet, GumbleGmvaeLatentParser)
+        elif isinstance(config, VaeNet.Config, **kwargs):
+            return (VaeNet, VaeLossNet, VaeLatentParser)
+
+    @staticmethod
+    def _network_switch(config: ConfigType, **kwargs):
 
         # check in decreasing inheritance order
         if isinstance(config, StackedGmvaeNet.Config):
             return (
-                StackedGmvaeNet(config),
-                StackedGmvaeLossNet(),
-                StackedGmvaeLatentParser(),
+                StackedGmvaeNet(config, **kwargs),
+                StackedGmvaeLossNet(**kwargs),
+                StackedGmvaeLatentParser(**kwargs),
             )
         elif isinstance(config, GumbleGmvaeNet.Config):
             return (
-                GumbleGmvaeNet(config),
-                GumbleGmvaeNetLossNet(),
-                GumbleGmvaeLatentParser(),
+                GumbleGmvaeNet(config, **kwargs),
+                GumbleGmvaeNetLossNet(**kwargs),
+                GumbleGmvaeLatentParser(**kwargs),
             )
-        elif isinstance(config, VaeNet.Config):
-            return VaeNet(config), VaeLossNet(prefix="loss"), VaeLatentParser()
+        elif isinstance(config, VaeNet.Config, **kwargs):
+            return (
+                VaeNet(config, **kwargs),
+                VaeLossNet(prefix="loss", **kwargs),
+                VaeLatentParser(**kwargs),
+            )
 
     def __init__(self, config: ConfigType, **kwargs):
         super().__init__(**kwargs)
