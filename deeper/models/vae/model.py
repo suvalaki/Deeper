@@ -44,50 +44,71 @@ from pydantic import BaseModel
 
 
 class Vae(tf.keras.Model):
-    class WeigtScheduleConfig(BaseModel):
-        kld_z_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0,
-                1.0,
-                step_size=1,
-                scale_fn=lambda x: 1.0,
-                scale_mode="cycle",
+    class CoolingRegime(tf.keras.layers.Layer):
+        class Config(BaseModel):
+            kld_z_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+                tfa.optimizers.CyclicalLearningRate(
+                    1.0,
+                    1.0,
+                    step_size=1,
+                    scale_fn=lambda x: 1.0,
+                    scale_mode="cycle",
+                )
             )
-        )
-        recon_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0,
-                1.0,
-                step_size=1,
-                scale_fn=lambda x: 1.0,
-                scale_mode="cycle",
+            recon_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+                tfa.optimizers.CyclicalLearningRate(
+                    1.0,
+                    1.0,
+                    step_size=1,
+                    scale_fn=lambda x: 1.0,
+                    scale_mode="cycle",
+                )
             )
-        )
-        recon_reg_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            recon_reg_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+                tfa.optimizers.CyclicalLearningRate(
+                    1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+                )
             )
-        )
-        recon_bin_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            recon_bin_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+                tfa.optimizers.CyclicalLearningRate(
+                    1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+                )
             )
-        )
-        recon_ord_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            recon_ord_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+                tfa.optimizers.CyclicalLearningRate(
+                    1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+                )
             )
-        )
-        recon_cat_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+            recon_cat_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+                tfa.optimizers.CyclicalLearningRate(
+                    1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+                )
             )
-        )
 
-        class Config:
-            arbitrary_types_allowed = True
+            class Config:
+                arbitrary_types_allowed = True
 
-    class Config(VaeNet.Config, WeigtScheduleConfig):
+        def __init__(self, config: CoolingRegime.Config, **kwargs):
+            super().__init__(**kwargs)
+            self.config = config
+
+        def call(self, step):
+            cstep = tf.cast(step, self.dtype)
+            kld_z_schedule = self.config.kld_z_schedule(cstep)
+            recon_schedule = self.config.recon_schedule(cstep)
+            recon_reg_schedule = self.config.recon_reg_schedule(cstep)
+            recon_bin_schedule = self.config.recon_bin_schedule(cstep)
+            recon_ord_schedule = self.config.recon_ord_schedule(cstep)
+            recon_cat_schedule = self.config.recon_cat_schedule(cstep)
+            return VaeLossNet.InputWeight(
+                kld_z_schedule,
+                recon_reg_schedule,
+                recon_bin_schedule,
+                recon_ord_schedule,
+                recon_cat_schedule,
+            )
+
+    class Config(VaeNet.Config, CoolingRegime.Config):
         pass
 
     def __init__(self, config: VAE.Config, **kwargs):
@@ -95,6 +116,7 @@ class Vae(tf.keras.Model):
         self.config = config
         self.network = VaeNet(config, **kwargs)
         self.lossnet = VaeLossNet(latent_eps=1e-6, prefix="loss", **kwargs)
+        self.weight_getter = Vae.CoolingRegime(config, dtype=self.dtype)
 
     @tf.function
     def loss_fn(
@@ -132,29 +154,7 @@ class Vae(tf.keras.Model):
 
         data = data_adapter.expand_1d(data)
         x, y = data
-
-        kld_z_schedule = self.config.kld_z_schedule(tf.cast(self.optimizer.iterations, self.dtype))
-        recon_schedule = self.config.recon_schedule(tf.cast(self.optimizer.iterations, self.dtype))
-        recon_reg_schedule = self.config.recon_reg_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-        recon_bin_schedule = self.config.recon_bin_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-        recon_ord_schedule = self.config.recon_ord_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-        recon_cat_schedule = self.config.recon_cat_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-
-        weights = VaeLossNet.InputWeight(
-            kld_z_schedule,
-            recon_reg_schedule,
-            recon_bin_schedule,
-            recon_ord_schedule,
-            recon_cat_schedule,
-        )
+        weights = self.weight_getter(self.optimizer.iterations)
 
         with backprop.GradientTape() as tape:
             y_pred = self.network(x, training=True)
@@ -172,7 +172,7 @@ class Vae(tf.keras.Model):
             for k, v in {
                 # **{v.name: v.result() for v in self.metrics}
                 **losses._asdict(),
-                "kld_z_schedule": kld_z_schedule,
+                "kld_z_schedule": weights.lambda_z,
             }.items()
         }
 

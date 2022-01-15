@@ -21,15 +21,38 @@ Model = tfk.Model
 
 
 class GumbleGmvae(GmvaeModelBase):
-    class Config(GmvaeModelBase.Config):
-        gumble_temperature_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tf.keras.optimizers.schedules.PolynomialDecay(
-                initial_learning_rate=10.0,
-                decay_steps=10000,
-                end_learning_rate=0.01,
-                power=1.0,
+    class CoolingRegime(GmvaeModelBase.CoolingRegime):
+        class Config(GmvaeModelBase.CoolingRegime.Config):
+            gumble_temperature_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+                tf.keras.optimizers.schedules.PolynomialDecay(
+                    initial_learning_rate=10.0,
+                    decay_steps=10000,
+                    end_learning_rate=0.01,
+                    power=1.0,
+                )
             )
-        )
+
+        def call(self, step):
+            cstep = tf.cast(step, self.dtype)
+            temp = self.config.gumble_temperature_schedule(cstep)
+            kld_y_schedule = self.config.kld_y_schedule(cstep)
+            kld_z_schedule = self.config.kld_z_schedule(cstep)
+            recon_schedule = self.config.recon_schedule(cstep)
+            recon_reg_schedule = self.config.recon_reg_schedule(cstep)
+            recon_bin_schedule = self.config.recon_bin_schedule(cstep)
+            recon_ord_schedule = self.config.recon_ord_schedule(cstep)
+            recon_cat_schedule = self.config.recon_cat_schedule(cstep)
+            return temp, GumbleGmvaeNetLossNet.InputWeight(
+                kld_y_schedule,
+                kld_z_schedule,
+                recon_reg_schedule,
+                recon_bin_schedule,
+                recon_ord_schedule,
+                recon_cat_schedule,
+            )
+
+    class Config(GmvaeModelBase.Config, CoolingRegime.Config):
+        ...
 
     _output_keys_renamed = {
         "temp": "weight/gumble_temperature",
@@ -41,6 +64,7 @@ class GumbleGmvae(GmvaeModelBase):
         self.config = config
         self.network = GumbleGmvaeNet(config)
         self.lossnet = GumbleGmvaeNetLossNet()
+        self.weight_getter = GumbleGmvae.CoolingRegime(config, dtype=self.dtype)
 
     @tf.function
     def loss_fn(
@@ -76,34 +100,7 @@ class GumbleGmvae(GmvaeModelBase):
 
         data = data_adapter.expand_1d(data)
         x, y = data
-
-        temp = self.config.gumble_temperature_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-        kld_y_schedule = self.config.kld_y_schedule(tf.cast(self.optimizer.iterations, self.dtype))
-        kld_z_schedule = self.config.kld_z_schedule(tf.cast(self.optimizer.iterations, self.dtype))
-        recon_schedule = self.config.recon_schedule(tf.cast(self.optimizer.iterations, self.dtype))
-        recon_reg_schedule = self.config.recon_reg_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-        recon_bin_schedule = self.config.recon_bin_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-        recon_ord_schedule = self.config.recon_ord_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-        recon_cat_schedule = self.config.recon_cat_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-
-        weights = GumbleGmvaeNetLossNet.InputWeight(
-            kld_y_schedule,
-            kld_z_schedule,
-            recon_reg_schedule,
-            recon_bin_schedule,
-            recon_ord_schedule,
-            recon_cat_schedule,
-        )
+        temp, weights = self.weight_getter(self.optimizer.iterations)
 
         with backprop.GradientTape() as tape:
             y_pred = self.network((x, temp), training=True)
@@ -122,8 +119,8 @@ class GumbleGmvae(GmvaeModelBase):
                 # **{v.name: v.result() for v in self.metrics}
                 **losses._asdict(),
                 "temp": temp,
-                "kld_y_schedule": kld_y_schedule,
-                "kld_z_schedule": kld_z_schedule,
+                "kld_y_schedule": weights.lambda_y,
+                "kld_z_schedule": weights.lambda_z,
             }.items()
         }
 

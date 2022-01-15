@@ -25,11 +25,34 @@ Model = tfk.Model
 
 
 class StackedGmvae(GmvaeModelBase):
+    class CoolingRegime(GmvaeModelBase.CoolingRegime):
+        def call(self, step):
+            cstep = tf.cast(step, self.dtype)
+            kld_y_schedule = self.config.kld_y_schedule(cstep)
+            kld_z_schedule = self.config.kld_z_schedule(cstep)
+            recon_schedule = self.config.recon_schedule(cstep)
+            recon_reg_schedule = self.config.recon_reg_schedule(cstep)
+            recon_bin_schedule = self.config.recon_bin_schedule(cstep)
+            recon_ord_schedule = self.config.recon_ord_schedule(cstep)
+            recon_cat_schedule = self.config.recon_cat_schedule(cstep)
+            return StackedGmvaeLossNet.InputWeight(
+                kld_y_schedule,
+                kld_z_schedule,
+                recon_reg_schedule,
+                recon_bin_schedule,
+                recon_ord_schedule,
+                recon_cat_schedule,
+            )
+
+    class Config(GmvaeModelBase.Config, CoolingRegime.Config):
+        ...
+
     def __init__(self, config: StackedGmvae.Config, **kwargs):
         super().__init__(**kwargs)
         self.config = config
         self.network = StackedGmvaeNet(config)
         self.lossnet = StackedGmvaeLossNet()
+        self.weight_getter = StackedGmvae.CoolingRegime(config, dtype=self.dtype)
 
     @tf.function
     def loss_fn(
@@ -65,31 +88,7 @@ class StackedGmvae(GmvaeModelBase):
 
         data = data_adapter.expand_1d(data)
         x, y = data
-
-        kld_y_schedule = self.config.kld_y_schedule(tf.cast(self.optimizer.iterations, self.dtype))
-        kld_z_schedule = self.config.kld_z_schedule(tf.cast(self.optimizer.iterations, self.dtype))
-        recon_schedule = self.config.recon_schedule(tf.cast(self.optimizer.iterations, self.dtype))
-        recon_reg_schedule = self.config.recon_reg_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-        recon_bin_schedule = self.config.recon_bin_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-        recon_ord_schedule = self.config.recon_ord_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-        recon_cat_schedule = self.config.recon_cat_schedule(
-            tf.cast(self.optimizer.iterations, self.dtype)
-        )
-
-        weights = StackedGmvaeLossNet.InputWeight(
-            kld_y_schedule,
-            kld_z_schedule,
-            recon_reg_schedule,
-            recon_bin_schedule,
-            recon_ord_schedule,
-            recon_cat_schedule,
-        )
+        weights = self.weight_getter(self.optimizer.iterations)
 
         with backprop.GradientTape() as tape:
             y_pred = self.network(x, training=True)
@@ -106,8 +105,8 @@ class StackedGmvae(GmvaeModelBase):
             for k, v in {
                 # **{v.name: v.result() for v in self.metrics}
                 **losses._asdict(),
-                "kld_y_schedule": kld_y_schedule,
-                "kld_z_schedule": kld_z_schedule,
+                "kld_y_schedule": weights.lambda_y,
+                "kld_z_schedule": weights.lambda_z,
             }.items()
         }
 

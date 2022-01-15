@@ -52,18 +52,37 @@ class GmvaeNetLossNetBase(tf.keras.layers.Layer):
 
 
 class GmvaeModelBase(tf.keras.Model):
-    class WeigtScheduleConfig(Vae.WeigtScheduleConfig):
-        kld_y_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-            tfa.optimizers.CyclicalLearningRate(
-                1.0,
-                1.0,
-                step_size=1,
-                scale_fn=lambda x: 1.0,
-                scale_mode="cycle",
+    class CoolingRegime(Vae.CoolingRegime):
+        class Config(Vae.CoolingRegime.Config):
+            kld_y_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
+                tfa.optimizers.CyclicalLearningRate(
+                    1.0,
+                    1.0,
+                    step_size=1,
+                    scale_fn=lambda x: 1.0,
+                    scale_mode="cycle",
+                )
             )
-        )
 
-    class Config(GmvaeNetBase.Config, WeigtScheduleConfig):
+        def call(self, step):
+            cstep = tf.cast(step, self.dtype)
+            kld_y_schedule = self.config.kld_y_schedule(cstep)
+            kld_z_schedule = self.config.kld_z_schedule(cstep)
+            recon_schedule = self.config.recon_schedule(cstep)
+            recon_reg_schedule = self.config.recon_reg_schedule(cstep)
+            recon_bin_schedule = self.config.recon_bin_schedule(cstep)
+            recon_ord_schedule = self.config.recon_ord_schedule(cstep)
+            recon_cat_schedule = self.config.recon_cat_schedule(cstep)
+            return GmvaeNetLossNetBase.InputWeight(
+                kld_y_schedule,
+                kld_z_schedule,
+                recon_reg_schedule,
+                recon_bin_schedule,
+                recon_ord_schedule,
+                recon_cat_schedule,
+            )
+
+    class Config(GmvaeNetBase.Config, CoolingRegime.Config):
         pass
 
     _output_keys_renamed = {
