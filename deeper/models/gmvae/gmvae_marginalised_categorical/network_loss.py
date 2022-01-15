@@ -38,9 +38,20 @@ class StackedGmvaeLossNet(GmvaeNetLossNetBase):
                 weights[0],
             )
 
-    def __init__(self, cat_latent_eps=0.0, latent_eps=0.0, posterior_eps=0.0, **kwargs):
+    def __init__(
+        self,
+        cat_latent_eps=0.0,
+        latent_eps=0.0,
+        posterior_eps=0.0,
+        encoder_name="zgy",
+        decoder_name="xgz",
+        prefix="",
+        **kwargs
+    ):
         super().__init__(**kwargs)
-        self.marginal_lossnet = MarginalGmVaeLossNet(latent_eps, posterior_eps, **kwargs)
+        self.marginal_lossnet = MarginalGmVaeLossNet(
+            latent_eps, posterior_eps, encoder_name, decoder_name, prefix, **kwargs
+        )
 
     def call(self, inputs: StackedGmvaeLossNet.Input, training: bool = False):
 

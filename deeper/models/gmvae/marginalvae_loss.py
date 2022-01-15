@@ -14,8 +14,18 @@ from deeper.probability_layers.ops.normal import normal_kl, lognormal_pdf
 
 
 class MarginalGmVaeLossNet(VaeLossNet):
-    def __init__(self, latent_eps=0.0, posterior_eps=0.0, **kwargs):
-        super(MarginalGmVaeLossNet, self).__init__(latent_eps, prefix="marginal_ae", **kwargs)
+    def __init__(
+        self,
+        latent_eps=0.0,
+        posterior_eps=0.0,
+        encoder_name="zgy",
+        decoder_name="xgz",
+        prefix="",
+        **kwargs
+    ):
+        super(MarginalGmVaeLossNet, self).__init__(
+            latent_eps=latent_eps, prefix="marginal_ae", **kwargs
+        )
         self.posterior_eps = posterior_eps
 
     class Input(NamedTuple):
