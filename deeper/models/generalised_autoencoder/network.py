@@ -3,13 +3,15 @@ import tensorflow as tf
 
 from typing import Union, NamedTuple
 
-from deeper.models.vae import VaeNet, VaeLossNet, VaeLatentParser
+from deeper.models.vae import Vae, VaeNet, VaeLossNet, VaeLatentParser
 from deeper.models.gmvae.gmvae_marginalised_categorical import (
+    StackedGmvae,
     StackedGmvaeNet,
     StackedGmvaeLossNet,
     StackedGmvaeLatentParser,
 )
 from deeper.models.gmvae.gmvae_pure_sampling import (
+    GumbleGmvae,
     GumbleGmvaeNet,
     GumbleGmvaeNetLossNet,
     GumbleGmvaeLatentParser,
@@ -29,11 +31,11 @@ class GeneralisedAutoencoderNet(tf.keras.layers.Layer):
 
         # check in decreasing inheritance order
         if isinstance(config, StackedGmvaeNet.Config):
-            return (StackedGmvaeNet, StackedGmvaeLossNet, StackedGmvaeLatentParser)
+            return (StackedGmvaeNet, StackedGmvaeLossNet, StackedGmvaeLatentParser, StackedGmvae)
         elif isinstance(config, GumbleGmvaeNet.Config):
-            return (GumbleGmvaeNet, GumbleGmvaeNetLossNet, GumbleGmvaeLatentParser)
+            return (GumbleGmvaeNet, GumbleGmvaeNetLossNet, GumbleGmvaeLatentParser, GumbleGmvae)
         elif isinstance(config, VaeNet.Config, **kwargs):
-            return (VaeNet, VaeLossNet, VaeLatentParser)
+            return (VaeNet, VaeLossNet, VaeLatentParser, Vae)
 
     @staticmethod
     def _network_switch(config: ConfigType, **kwargs):
