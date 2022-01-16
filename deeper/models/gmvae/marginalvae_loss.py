@@ -18,8 +18,8 @@ class MarginalGmVaeLossNet(VaeLossNet):
         self,
         latent_eps=0.0,
         posterior_eps=0.0,
-        encoder_name="zgy",
-        decoder_name="xgz",
+        encoder_name="qzgy",
+        decoder_name="pxgz",
         prefix="",
         **kwargs
     ):
@@ -82,7 +82,7 @@ class MarginalGmVaeLossNet(VaeLossNet):
             self.posterior_eps,
             self.latent_eps,
         )
-        self.add_metric(kl, name="zgy_latent_kl")
+        self.add_metric(kl, name="{self.prefix}/weight/pzgy_latent_kl")
         return kl
 
     def call(
