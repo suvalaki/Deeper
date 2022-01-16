@@ -9,7 +9,9 @@ from pydantic import BaseModel
 
 from deeper.models.gmvae.base import GmvaeModelBase
 from deeper.models.gmvae.gmvae_pure_sampling.network import GumbleGmvaeNet
-from deeper.models.gmvae.gmvae_pure_sampling.network_loss import GumbleGmvaeNetLossNet
+from deeper.models.gmvae.gmvae_pure_sampling.network_loss import (
+    GumbleGmvaeNetLossNet,
+)
 from deeper.models.vae.network_loss import VaeLossNet
 
 from tensorflow.python.keras.engine import data_adapter
@@ -23,13 +25,11 @@ Model = tfk.Model
 class GumbleGmvae(GmvaeModelBase):
     class CoolingRegime(GmvaeModelBase.CoolingRegime):
         class Config(GmvaeModelBase.CoolingRegime.Config):
-            gumble_temperature_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
-                tf.keras.optimizers.schedules.PolynomialDecay(
-                    initial_learning_rate=10.0,
-                    decay_steps=10000,
-                    end_learning_rate=0.01,
-                    power=1.0,
-                )
+            gumble_temperature_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = tf.keras.optimizers.schedules.PolynomialDecay(
+                initial_learning_rate=1.0,
+                decay_steps=10000,
+                end_learning_rate=0.5,
+                power=1.0,
             )
 
         def call(self, step):
@@ -64,7 +64,9 @@ class GumbleGmvae(GmvaeModelBase):
         self.config = config
         self.network = GumbleGmvaeNet(config)
         self.lossnet = GumbleGmvaeNetLossNet()
-        self.weight_getter = GumbleGmvae.CoolingRegime(config, dtype=self.dtype)
+        self.weight_getter = GumbleGmvae.CoolingRegime(
+            config, dtype=self.dtype
+        )
 
     @tf.function
     def loss_fn(
@@ -76,7 +78,11 @@ class GumbleGmvae(GmvaeModelBase):
     ) -> GumbleGmvaeNetLossNet.output:
 
         y_true = tf.cast(y_true, dtype=self.dtype)
-        y_split = self.network.graph_marginal_autoencoder.graph_px_g_z.splitter(y_true)
+        y_split = (
+            self.network.graph_marginal_autoencoder.graph_px_g_z.splitter(
+                y_true
+            )
+        )
         loss = self.lossnet.Output(
             *[
                 tf.reduce_mean(x)
@@ -128,7 +134,12 @@ class GumbleGmvae(GmvaeModelBase):
         data = data_adapter.expand_1d(data)
         x, y = data
         y_pred = self.network((x, 1.0), training=False)
-        losses = self.loss_fn(y, y_pred, GumbleGmvaeNetLossNet.InputWeight(), training=False)
+        losses = self.loss_fn(
+            y, y_pred, GumbleGmvaeNetLossNet.InputWeight(), training=False
+        )
         loss = tf.reduce_mean(losses.loss)
 
-        return {self._output_keys_renamed[k]: v for k, v in losses._asdict().items()}
+        return {
+            self._output_keys_renamed[k]: v
+            for k, v in losses._asdict().items()
+        }
