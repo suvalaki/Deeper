@@ -87,6 +87,7 @@ class Vae(tf.keras.Model):
 
             class Config:
                 arbitrary_types_allowed = True
+                smart_union = True
 
         def __init__(self, config: CoolingRegime.Config, **kwargs):
             super().__init__(**kwargs)

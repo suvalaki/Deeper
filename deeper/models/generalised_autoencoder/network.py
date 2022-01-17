@@ -30,11 +30,21 @@ class GeneralisedAutoencoderNet(tf.keras.layers.Layer):
     def network_type_switch(config: ConfigType, **kwargs):
 
         # check in decreasing inheritance order
-        if isinstance(config, StackedGmvaeNet.Config):
-            return (StackedGmvaeNet, StackedGmvaeLossNet, StackedGmvaeLatentParser, StackedGmvae)
-        elif isinstance(config, GumbleGmvaeNet.Config):
-            return (GumbleGmvaeNet, GumbleGmvaeNetLossNet, GumbleGmvaeLatentParser, GumbleGmvae)
-        elif isinstance(config, VaeNet.Config, **kwargs):
+        if isinstance(config, StackedGmvaeNet.Config) or isinstance(config, StackedGmvae.Config):
+            return (
+                StackedGmvaeNet,
+                StackedGmvaeLossNet,
+                StackedGmvaeLatentParser,
+                StackedGmvae,
+            )
+        elif isinstance(config, GumbleGmvaeNet.Config) or isinstance(config, GumbleGmvae.Config):
+            return (
+                GumbleGmvaeNet,
+                GumbleGmvaeNetLossNet,
+                GumbleGmvaeLatentParser,
+                GumbleGmvae,
+            )
+        elif isinstance(config, VaeNet.Config) or isinstance(config, Vae.Config):
             return (VaeNet, VaeLossNet, VaeLatentParser, Vae)
 
     @staticmethod

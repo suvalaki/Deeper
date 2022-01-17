@@ -30,6 +30,7 @@ class AutoencoderBase(ABC, tf.keras.layers.Layer):
 
         class Config:
             arbitrary_types_allowed = True
+            smart_union = True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

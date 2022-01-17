@@ -21,6 +21,7 @@ class BaseEncoderConfig(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+        smart_union = True
 
 
 class Encoder(Layer):
@@ -84,7 +85,9 @@ class Encoder(Layer):
         self.activation = activation
         self.bn_before = bn_before
         self.bn_after = bn_after
-        self.dropout_rate = embedding_dropout if embedding_dropout is not None else 0.0
+        self.dropout_rate = (
+            embedding_dropout if embedding_dropout is not None else 0.0
+        )
         self.dropout = [None] * self.n_em
 
         for i, em in enumerate(self.em_dim):
@@ -102,7 +105,9 @@ class Encoder(Layer):
                     **V1_PARMS,
                 )
                 if self.bn_before:
-                    self.embeddings_bn_before[i] = tfk.layers.BatchNormalization(
+                    self.embeddings_bn_before[
+                        i
+                    ] = tfk.layers.BatchNormalization(
                         axis=-1,
                         name="bn_before",
                         renorm=True,
@@ -110,7 +115,9 @@ class Encoder(Layer):
                     )
 
                 if self.bn_after:
-                    self.embeddings_bn_after[i] = tfk.layers.BatchNormalization(
+                    self.embeddings_bn_after[
+                        i
+                    ] = tfk.layers.BatchNormalization(
                         axis=-1,
                         name="bn_after",
                         renorm=True,

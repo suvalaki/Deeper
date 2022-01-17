@@ -36,6 +36,7 @@ class VaeReconstructionNet(Layer):
 
         class Config:
             arbitrary_types_allowed = True
+            smart_union = True
 
     class Output(NamedTuple):
         hidden_logits: tf.Tensor

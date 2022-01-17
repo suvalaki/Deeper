@@ -44,7 +44,7 @@ class StackedGmvae(GmvaeModelBase):
                 recon_cat_schedule,
             )
 
-    class Config(GmvaeModelBase.Config, CoolingRegime.Config):
+    class Config(CoolingRegime.Config, StackedGmvaeNet.Config):
         ...
 
     def __init__(self, config: StackedGmvae.Config, **kwargs):
