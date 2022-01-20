@@ -41,6 +41,7 @@ class GumbleGmvaeNet(GmvaeNetBase):
         self.graph_qy_g_x_ohe = GumbleSoftmaxLayer()
         self.graph_marginal_autoencoder = MarginalGmVaeNet(config, **kwargs)
 
+    @tf.function
     def call(self, inputs, training=False):
 
         x, temperature = inputs
@@ -61,5 +62,6 @@ class GumbleGmvaeNet(GmvaeNetBase):
 
         return self.Output(py, qy_g_x, qy_g_x_ohe, marginal)
 
+    @tf.function
     def split_outputs(self, y) -> SplitCovariates:
         return self.graph_marginal_autoencoder.split_outputs(y)

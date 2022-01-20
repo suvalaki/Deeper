@@ -72,6 +72,7 @@ class MarginalGmVaeLossNet(VaeLossNet):
         lambda_ord: tf.Tensor
         lambda_cat: tf.Tensor
 
+    @tf.function
     def latent_kl(self, z, mu_pz, mu_qzgy, logvar_pz, logvar_qzgy, training: bool = False):
         kl = normal_kl(
             z,
@@ -85,6 +86,7 @@ class MarginalGmVaeLossNet(VaeLossNet):
         self.add_metric(kl, name="{self.prefix}/weight/pzgy_latent_kl")
         return kl
 
+    @tf.function
     def call(
         self, inputs: MarginalGmVaeLossNet.Input, training=False
     ) -> MarginalGmVaeLossNet.Output:

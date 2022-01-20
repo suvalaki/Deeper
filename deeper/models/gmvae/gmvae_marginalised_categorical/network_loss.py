@@ -53,6 +53,7 @@ class StackedGmvaeLossNet(GmvaeNetLossNetBase):
             latent_eps, posterior_eps, encoder_name, decoder_name, prefix, **kwargs
         )
 
+    @tf.function
     def call(self, inputs: StackedGmvaeLossNet.Input, training: bool = False):
 
         # Component losses

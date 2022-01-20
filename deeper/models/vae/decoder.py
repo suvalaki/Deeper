@@ -81,6 +81,7 @@ class VaeReconstructionNet(Layer):
             embedding_dropout=config.recon_dropouut,
         )
 
+    @tf.function
     def logits_to_actuals(
         self, output_logits_concat: tf.Tensor, training=False
     ) -> self.ReconstructionOutput:

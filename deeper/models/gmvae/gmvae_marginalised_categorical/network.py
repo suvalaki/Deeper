@@ -40,6 +40,7 @@ class StackedGmvaeNet(GmvaeNetBase):
         )
         self.graph_marginal_autoencoder = MarginalGmVaeNet(config, **kwargs)
 
+    @tf.function
     def call(self, inputs, training=False):
 
         x = inputs

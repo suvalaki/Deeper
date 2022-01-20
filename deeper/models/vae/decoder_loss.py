@@ -171,34 +171,31 @@ class VaeReconLossNet(tf.keras.layers.Layer):
             return 0.0
 
         elif len(y_ord_logits_true) == 1:
-            if y_ord_logits_true[-1].get_shape()[-1] <= 1:
-                self.add_metric(0, name=f"{self.prefix}/xent/{self.decoder_name}_cat_xent")
-                return 0.0
-            else:
-                xent = tf.nn.softmax_cross_entropy_with_logits(
+            xent = tf.cond(tf.rank(y_ord_logits_true[-1])<=1,
+                lambda: 0.0,
+                lambda: tf.nn.softmax_cross_entropy_with_logits(
                     y_ord_logits_true[0],
                     y_ord_logits_pred[0],
                     name=f"{self.prefix}/xent/{self.decoder_name}_cat_xent",
                 )
-
-                self.add_metric(
-                    xent,
-                    name=f"{self.prefix}/xent/{self.decoder_name}_cat_xent",
-                )
-                return xent
+            )
         else:
             xents = [
-                wt
-                * tf.nn.softmax_cross_entropy_with_logits(
-                    yolt,
-                    yolp,
-                    name=f"{self.prefix}/xent/{self.decoder_name}_cat_xent_group_{i}",
-                    axis=-1,
+                tf.cond(
+                    tf.rank(yolt) > 0,
+                    lambda:
+                        wt
+                        * tf.nn.softmax_cross_entropy_with_logits(
+                            yolt,
+                            yolp,
+                            name=f"{self.prefix}/xent/{self.decoder_name}_cat_xent_group_{i}",
+                            axis=-1,
+                        ),
+                    lambda : 0.0
                 )
                 for i, (wt, yolt, yolp) in enumerate(
                     zip(class_weights, y_ord_logits_true, y_ord_logits_pred)
                 )
-                if yolt.shape[-1] > 0
             ]
             xent = tf.math.add_n(xents) if len(xents) > 0 else 0.0
             for i, x in enumerate(xents):
@@ -284,6 +281,7 @@ class VaeReconLossNet(tf.keras.layers.Layer):
         else:
             return x
 
+    @tf.function
     def call(self, x: VaeReconLossNet.Input, training=False) -> VaeReconLossNet.Output:
         l_pxgz_reg = self.log_pxgz_regression(
             x.y_true.regression_value,

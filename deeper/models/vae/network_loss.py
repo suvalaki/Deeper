@@ -178,6 +178,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         weight: VaeLossNet.InputWeight
 
         @staticmethod
+        @tf.function
         def from_nested_sequence(inputs) -> VaeLossNet.Input:
             return VaeLossNet.Input(
                 VaeLossNetLatent.Input(*inputs[0]),
@@ -187,6 +188,7 @@ class VaeLossNet(tf.keras.layers.Layer):
             )
 
         @staticmethod
+        @tf.function
         def from_output(
             y_true: SplitCovariates,
             model_output: VaeNet.VaeNetOutput,

@@ -48,6 +48,7 @@ class GumbleGmvaeNetLossNet(GmvaeNetLossNetBase):
             latent_eps, posterior_eps, encoder_name, decoder_name, prefix, **kwargs
         )
 
+    @tf.function
     def call(self, inputs: GumbleGmvaeNetLossNet.Input, training: bool = False):
         losses_marginal = self.marginal_lossnet(inputs.marginal)
 

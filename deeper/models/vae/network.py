@@ -161,6 +161,7 @@ class VaeNet(AutoencoderBase):
     def output_dim(self):
         return self.graph_px_g_z.output_dim
 
+    @tf.function
     def split_inputs(self, x) -> SplitCovariates:
         return split_inputs(
             x,
@@ -170,6 +171,7 @@ class VaeNet(AutoencoderBase):
             self.input_categorical_dimension,
         )
 
+    @tf.function
     def split_outputs(self, y) -> SplitCovariates:
         return self.graph_px_g_z.splitter(y)
 
