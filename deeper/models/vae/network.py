@@ -87,7 +87,7 @@ class VaeNet(AutoencoderBase):
         config: VaeNet.Config,
         **kwargs,
     ):
-        Layer.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.config = config
 
         # Input Dimension Calculation

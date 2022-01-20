@@ -98,7 +98,7 @@ class DataSplitter(Layer):
     Config = Config
 
     def __init__(self, config: DataSplitter.Config, **kwargs):
-        super().__init__(self, **kwargs)
+        super().__init__(**kwargs)
 
         for k, v in asdict(config).items():
             setattr(self, k, v)

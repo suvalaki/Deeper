@@ -4,7 +4,7 @@ from tensorflow.keras.layers import Layer
 from tensorflow.keras.initializers import Initializer
 from tensorflow.keras.layers import Activation
 
-from typing import Tuple, Union, Optional, Sequence, NamedTuple
+from typing import Tuple, Union, Optional, Sequence, NamedTuple, List, Tuple
 from dataclasses import dataclass
 
 from deeper.layers.encoder import Encoder
@@ -21,17 +21,17 @@ from tensorflow.python.keras.metrics import categorical_accuracy, accuracy
 
 
 class VaeReconLossNet(tf.keras.layers.Layer):
-    class InputYTrue(NamedTuple):
+    class InputYTrue(tf.experimental.ExtensionType):
         regression_value: tf.Tensor
         binary_prob: tf.Tensor
-        ordinal_prob: tf.Tensor
-        categorical_prob: tf.Tensor
+        ordinal_prob: Tuple[tf.Tensor, ...]
+        categorical_prob: Tuple[tf.Tensor, ...]
 
-    class InputYPred(NamedTuple):
+    class InputYPred(tf.experimental.ExtensionType):
         regression_value: tf.Tensor
         binary_logit: tf.Tensor
-        ordinal_logit: tf.Tensor
-        categorical_logit: tf.Tensor
+        ordinal_logit: Tuple[tf.Tensor, ...]
+        categorical_logit: Tuple[tf.Tensor, ...]
 
         @classmethod
         def from_VaeReconstructionNet(cls, x: VaeReconstructionNet.Output):
@@ -57,7 +57,7 @@ class VaeReconLossNet(tf.keras.layers.Layer):
         decoder_name="xgz",
         prefix="",  # Must be non null for freestanding scope. Cannot start with "/"
     ):
-        super().__init__(self)
+        super().__init__()
         self.decoder_name = decoder_name
         self.prefix = prefix
 
@@ -90,8 +90,8 @@ class VaeReconLossNet(tf.keras.layers.Layer):
         if y_bin_logits_true.shape[-1] > 0:
             xent = tf.reduce_sum(
                 tf.nn.sigmoid_cross_entropy_with_logits(
-                    y_bin_logits_true,
-                    y_bin_logits_pred,
+                    tf.cast(y_bin_logits_true, dtype=self.dtype),
+                    tf.cast(y_bin_logits_pred, dtype=self.dtype),
                     name=f"{self.prefix}/xent/{self.decoder_name}_binary_xent",
                 ),
                 -1,
@@ -101,7 +101,7 @@ class VaeReconLossNet(tf.keras.layers.Layer):
                 name=f"{self.prefix}/xent/{self.decoder_name}_binary_xent",
             )
         else:
-            xent = y_bin_logits_true[:, 0:0]
+            xent = tf.cast(y_bin_logits_true[:, 0:0], dtype=self.dtype)
         return xent
 
     @tf.function
@@ -127,8 +127,8 @@ class VaeReconLossNet(tf.keras.layers.Layer):
             else:
                 xent = tf.reduce_sum(
                     tf.nn.sigmoid_cross_entropy_with_logits(
-                        y_ord_logits_true[0],
-                        y_ord_logits_pred[0],
+                        tf.cast(y_ord_logits_true[0], dtype=self.dtype),
+                        tf.cast(y_ord_logits_pred[0], dtype=self.dtype),
                         name=f"{self.prefix}/xent/{self.decoder_name}_ord_xent",
                     ),
                     -1,
@@ -156,8 +156,8 @@ class VaeReconLossNet(tf.keras.layers.Layer):
     @tf.function
     def xent_categorical(
         self,
-        y_ord_logits_true: Sequence[tf.Tensor],
-        y_ord_logits_pred: Sequence[tf.Tensor],
+        y_ord_logits_true: List[tf.Tensor],
+        y_ord_logits_pred: List[tf.Tensor],
         training: bool = False,
         class_weights: Optional[Sequence[float]] = None,
     ):
@@ -171,38 +171,37 @@ class VaeReconLossNet(tf.keras.layers.Layer):
             return 0.0
 
         elif len(y_ord_logits_true) == 1:
-            xent = tf.cond(tf.rank(y_ord_logits_true[-1])<=1,
+            xent = tf.cond(
+                tf.rank(y_ord_logits_true[-1]) <= 1,
                 lambda: 0.0,
                 lambda: tf.nn.softmax_cross_entropy_with_logits(
                     y_ord_logits_true[0],
                     y_ord_logits_pred[0],
                     name=f"{self.prefix}/xent/{self.decoder_name}_cat_xent",
-                )
+                ),
             )
         else:
-            xents = [
-                tf.cond(
-                    tf.rank(yolt) > 0,
-                    lambda:
-                        wt
-                        * tf.nn.softmax_cross_entropy_with_logits(
-                            yolt,
-                            yolp,
-                            name=f"{self.prefix}/xent/{self.decoder_name}_cat_xent_group_{i}",
-                            axis=-1,
-                        ),
-                    lambda : 0.0
+            xent = tf.zeros(
+                (tf.shape(y_ord_logits_true[0])[0], 1),
+                dtype=self.dtype,
+            )
+
+            for i in range(len(y_ord_logits_true)):
+                wt = class_weights[i]
+                yolt = y_ord_logits_true[i]
+                yolp = y_ord_logits_pred[i]
+                class_xent = wt * tf.nn.softmax_cross_entropy_with_logits(
+                    yolt,
+                    yolp,
+                    name=f"{self.prefix}/xent/{self.decoder_name}_cat_xent_group_{i}",
+                    axis=-1,
                 )
-                for i, (wt, yolt, yolp) in enumerate(
-                    zip(class_weights, y_ord_logits_true, y_ord_logits_pred)
-                )
-            ]
-            xent = tf.math.add_n(xents) if len(xents) > 0 else 0.0
-            for i, x in enumerate(xents):
                 self.add_metric(
-                    x,
+                    class_xent,
                     name=f"{self.prefix}/xent/{self.decoder_name}_cat_xent_group_{i}",
                 )
+                xent += class_xent
+
         self.add_metric(xent, name=f"{self.prefix}/xent/{self.decoder_name}_cat_xent")
         return xent
 

@@ -57,9 +57,11 @@ class VaeReconstructionNet(Layer):
         config: VaeReconstructionNet.Config,
         **kwargs,
     ):
-        Layer.__init__(self, **kwargs)
+        super().__init__(**kwargs)
 
-        self.splitter = DataSplitter(DataSplitter.Config(*config.output_dimensions.as_list()))
+        self.splitter = DataSplitter(
+            DataSplitter.Config(*config.output_dimensions.as_list()), **kwargs
+        )
         (
             self.output_ordinal_dimension,
             self.output_ordinal_dimension_tot,
