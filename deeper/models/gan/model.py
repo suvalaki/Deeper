@@ -16,6 +16,7 @@ Model = tfk.Model
 class Gan(Model):
     class Config(GanNet.Config):
         generator: ModelConfigType
+        training_ratio: int = 3
 
         class Config:
             arbitrary_types_allowed = True
@@ -53,25 +54,28 @@ class Gan(Model):
             temp, weight = weights
         inputs = (x, temp) if temp else x
 
-        with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
+        # Use a single pass over the network for efficiency.
+        # Normaly would sequentially call generative and then descrimnative nets
+        for i in range(self.config.training_ratio):
+            with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
 
-            y_pred = self.network(inputs, y, training=True)
-            gen_losses, descrim_losses = self.lossnet(y, y_pred, training=True)
-            descrim_loss = tf.reduce_mean(descrim_losses)
-            gen_loss = tf.reduce_mean(gen_losses)
+                y_pred = self.network(inputs, y, training=True)
+                gen_losses, descrim_losses = self.lossnet(y, y_pred, training=True)
+                descrim_loss = tf.reduce_mean(descrim_losses)
+                gen_loss = tf.reduce_mean(gen_losses)
+
+            # Train the generator to fool the descriminator
+            self.optimizer.minimize(
+                gen_loss,
+                self.network.generatornet.trainable_variables,
+                tape=gen_tape,
+            )
 
         # Train the descriminator to identify real from fake samples
         self.optimizer.minimize(
             descrim_loss,
             self.network.descriminator.trainable_variables,
             tape=disc_tape,
-        )
-
-        # Train the generator to fool the descriminator
-        self.optimizer.minimize(
-            gen_loss,
-            self.network.generatornet.trainable_variables,
-            tape=gen_tape,
         )
 
         return {

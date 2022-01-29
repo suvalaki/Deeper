@@ -100,7 +100,7 @@ class GanDescriminationLossNet(tf.keras.layers.Layer):
         self.add_metric(acc_real, aggregation="mean", name="descriminator_real_accuracy")
         self.add_metric(acc, aggregation="mean", name="descriminator_accuracy")
 
-        return (descrim_real_loss + descrim_fake_loss) / 2
+        return descrim_real_loss + descrim_fake_loss
 
 
 class GanLossNet(tf.keras.layers.Layer):

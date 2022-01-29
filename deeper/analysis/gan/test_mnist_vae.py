@@ -60,11 +60,12 @@ X_train = (X_train > 0.5).astype(float)
 X_test = (X_test > 0.5).astype(float)
 
 #%% Instantiate the model
-BATCH_SIZE = 12
+BATCH_SIZE = 128
 desciminatorConfig = DescriminatorNet.Config(
-    embedding_dimensions=[512, 256, 128],
-    activation=tf.keras.layers.Activation("elu"),
-    embedding_dropout=0.5,
+    embedding_dimensions=[512, 512, 128],
+    activation=tf.keras.layers.Activation("relu"),
+    embedding_dropout=0.25,
+    # bn_before=True,
 )
 vaeConfig = Vae.Config(
     input_dimensions=MultipleObjectiveDimensions(
@@ -82,17 +83,15 @@ vaeConfig = Vae.Config(
     encoder_embedding_dimensions=[512, 512, 256],
     decoder_embedding_dimensions=[512, 512, 256][::-1],
     latent_dim=64,
-    embedding_activation=tf.keras.layers.ReLU(),
-    kld_z_schedule=tfa.optimizers.CyclicalLearningRate(
-        1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
-    ),
+    embedding_activations=tf.keras.layers.ELU(),
+    # bn_before=True,
 )
 
 
-config = Gan.Config(descriminator=desciminatorConfig, generator=vaeConfig)
+config = Gan.Config(descriminator=desciminatorConfig, generator=vaeConfig, training_ratio=1)
 
 model = Gan(config)
-model.compile(optimizer=tf.keras.optimizers.RMSprop(1e-4))
+model.compile(optimizer=tf.keras.optimizers.RMSprop(0.00005))
 # model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
 # model.compile(optimizer=tf.keras.optimizers.SGD(1e-3))
 # model.compile()
@@ -157,7 +156,7 @@ model.fit(
         tf.keras.callbacks.TensorBoard("./logs/gan_mnist_vae"),
         PlotterCallback("./logs/gan_mnist_vae"),
     ],
-    epochs=100,
+    epochs=10000,
     batch_size=BATCH_SIZE,
     validation_data=(X_test, X_test),
 )
@@ -168,3 +167,6 @@ plt.imshow(X_train_og[0], cmap="gray")
 y_pred_train = model(X_train[0:1])
 plt.imshow(y_pred_train.numpy().reshape((28, 28)), cmap="gray")
 # %%
+# By the nature of the GAN just trying to learn how to fool the descriminator
+# we have no garuantee that the input digit will look like the output digit.
+# The output could be any of the digits which fools the descriminator.
