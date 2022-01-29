@@ -129,11 +129,11 @@ class GanLossNet(tf.keras.layers.Layer):
     def call(
         self,
         y_true: Union[tf.Tensor, NamedTuple, tf.experimental.ExtensionType],
-        y_pred: GanGenerativeNet.Output,
+        y_pred: GanNet.Output,
         training: bool = False,
     ):
 
         return (
-            self.gen_lossnet(y_true, y_pred, training),
-            self.descrim_lossnet(y_true, y_pred, training),
+            self.gen_lossnet(y_true, y_pred.generative, training),
+            self.descrim_lossnet(y_true, y_pred.descriminative, training),
         )
