@@ -56,6 +56,8 @@ class Gan(Model):
 
         # Use a single pass over the network for efficiency.
         # Normaly would sequentially call generative and then descrimnative nets
+        # Take multiple passes of the descriminator player according to 4.4 of
+        # https://arxiv.org/pdf/1701.00160.pdf to ballance G and D.
         for i in range(self.config.training_ratio):
             with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
 
@@ -64,18 +66,18 @@ class Gan(Model):
                 descrim_loss = tf.reduce_mean(descrim_losses)
                 gen_loss = tf.reduce_mean(gen_losses)
 
-            # Train the generator to fool the descriminator
+            # Train the descriminator to identify real from fake samples
             self.optimizer.minimize(
-                gen_loss,
-                self.network.generatornet.trainable_variables,
-                tape=gen_tape,
+                descrim_loss,
+                self.network.descriminator.trainable_variables,
+                tape=disc_tape,
             )
 
-        # Train the descriminator to identify real from fake samples
+        # Train the generator to fool the descriminator
         self.optimizer.minimize(
-            descrim_loss,
-            self.network.descriminator.trainable_variables,
-            tape=disc_tape,
+            gen_loss,
+            self.network.generatornet.trainable_variables,
+            tape=gen_tape,
         )
 
         return {

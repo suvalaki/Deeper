@@ -13,7 +13,7 @@ import tensorflow as tf
 import io
 
 # USE CPU ONLY
-tf.config.set_visible_devices([], "GPU")
+# tf.config.set_visible_devices([], "GPU")
 import numpy as np
 from tqdm import tqdm
 import json
@@ -61,16 +61,17 @@ X_train = (X_train > 0.5).astype(float)
 X_test = (X_test > 0.5).astype(float)
 
 #%% Filter to a single label
-LABEL = 9
-X_train_og = X_train_og[y_train == LABEL]
-X_test_og = X_test_og[y_test == LABEL]
+if False:
+    LABEL = 9
+    X_train_og = X_train_og[y_train == LABEL]
+    X_test_og = X_test_og[y_test == LABEL]
 
-X_train = X_train[y_train == LABEL]
-X_test = X_test[y_test == LABEL]
+    X_train = X_train[y_train == LABEL]
+    X_test = X_test[y_test == LABEL]
 
 
 #%% Instantiate the model
-BATCH_SIZE = 128
+BATCH_SIZE = 12
 desciminatorConfig = DescriminatorNet.Config(
     embedding_dimensions=[512, 512, 128],
     activation=tf.keras.layers.Activation("relu"),
@@ -98,10 +99,10 @@ vaeConfig = Vae.Config(
 )
 
 
-config = Gan.Config(descriminator=desciminatorConfig, generator=vaeConfig, training_ratio=1)
+config = Gan.Config(descriminator=desciminatorConfig, generator=vaeConfig, training_ratio=5)
 
 model = Gan(config)
-model.compile(optimizer=tf.keras.optimizers.RMSprop(0.00005))
+model.compile(optimizer=tf.keras.optimizers.RMSprop(0.000005))
 # model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
 # model.compile(optimizer=tf.keras.optimizers.SGD(1e-3))
 # model.compile()
@@ -163,6 +164,7 @@ class PlotterCallback(tf.keras.callbacks.Callback):
                     ),
                     step=epoch,
                 )
+            plt.close()
 
     def on_train_begin(self, args):
         # with self.file_writer.as_default():
