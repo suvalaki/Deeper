@@ -10,6 +10,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 from pathlib import Path
 import tensorflow as tf
+import io
 
 # USE CPU ONLY
 tf.config.set_visible_devices([], "GPU")
@@ -58,6 +59,15 @@ X_train = X_train.reshape(X_train.shape[0], 28 * 28)
 X_test = X_test.reshape(X_test.shape[0], 28 * 28)
 X_train = (X_train > 0.5).astype(float)
 X_test = (X_test > 0.5).astype(float)
+
+#%% Filter to a single label
+LABEL = 9
+X_train_og = X_train_og[y_train == LABEL]
+X_test_og = X_test_og[y_test == LABEL]
+
+X_train = X_train[y_train == LABEL]
+X_test = X_test[y_test == LABEL]
+
 
 #%% Instantiate the model
 BATCH_SIZE = 128
@@ -121,14 +131,15 @@ class PlotterCallback(tf.keras.callbacks.Callback):
         return image
 
     @staticmethod
-    def image_grid():
+    def image_grid(y):
         """Return a 5x5 grid of the MNIST images as a matplotlib figure."""
         # Create a figure to contain the plot.
         figure = plt.figure(figsize=(10, 10))
         for i in range(25):
             # Start next subplot.
-            img = y_pred_train.numpy().reshape((-1, 28, 28, 1))
-            plt.subplot(5, 5, i + 1, title=class_names[train_labels[i]])
+            y_pred_train = y[i]
+            img = y_pred_train.reshape((28, 28))
+            plt.subplot(5, 5, i + 1)
             plt.xticks([])
             plt.yticks([])
             plt.grid(False)
@@ -138,15 +149,26 @@ class PlotterCallback(tf.keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs):
 
-        y_pred_train = model(X_train[0:1])
         with self.file_writer.as_default():
-            img = y_pred_train.numpy().reshape((-1, 28, 28, 1))
-            tf.summary.image("Training data", img, step=epoch)
+            # img = y_pred_train.numpy().reshape((-1, 28, 28, 1))
+            # tf.summary.image("Training data", img, step=epoch)
+            for i in range(10):
+                tf.summary.image(
+                    f"generated_data/idx_{i}",
+                    self.plot_to_image(
+                        self.image_grid(
+                            [X_train[i : i + 1]]
+                            + [model(X_train[i : (i + 1)]).numpy() for j in range(24)]
+                        )
+                    ),
+                    step=epoch,
+                )
 
     def on_train_begin(self, args):
-        with self.file_writer.as_default():
-            img = X_train[0:1].reshape((-1, 28, 28, 1))
-            tf.summary.image("Real data", img, step=0)
+        # with self.file_writer.as_default():
+        #    img = X_train[0:1].reshape((-1, 28, 28, 1))
+        #    tf.summary.image("Real data", img, step=0)
+        ...
 
 
 model.fit(
