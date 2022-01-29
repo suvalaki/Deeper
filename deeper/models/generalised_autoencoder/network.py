@@ -18,6 +18,7 @@ from deeper.models.gmvae.gmvae_pure_sampling import (
 )
 
 ConfigType = Union[VaeNet.Config, StackedGmvaeNet.Config, GumbleGmvaeNet.Config]
+ModelConfigType = Union[Vae.Config, StackedGmvae.Config, GumbleGmvae.Config]
 
 
 class GeneralisedAutoencoderNet(tf.keras.layers.Layer):

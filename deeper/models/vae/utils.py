@@ -9,6 +9,7 @@ from collections import namedtuple
 from deeper.models.generalised_autoencoder.base import (
     AutoencoderTypeGetterBase,
 )
+from deeper.models.gan.base_getter import GanTypeGetter
 
 SplitCovariates = namedtuple(
     "SplitInputs",
@@ -23,7 +24,10 @@ SplitCovariates = namedtuple(
 )
 
 
-class VaeTypeGetter(AutoencoderTypeGetterBase):
+class VaeTypeGetter(AutoencoderTypeGetterBase, GanTypeGetter):
+
+    # Autoencoder Getters
+
     def get_network_type(self):
         from deeper.models.vae.network import VaeNet
 
@@ -43,3 +47,20 @@ class VaeTypeGetter(AutoencoderTypeGetterBase):
         from deeper.models.vae.latent import VaeLatentParser
 
         return VaeLatentParser
+
+    # Gan getters
+
+    def get_generatornet_type(self):
+        from deeper.models.vae.network import VaeNet
+
+        return VaeNet
+
+    def get_real_output_getter(self):
+        from deeper.models.vae.parser import InputParser
+
+        return InputParser
+
+    def get_fake_output_getter(self):
+        from deeper.models.vae.parser import OutputParser
+
+        return OutputParser

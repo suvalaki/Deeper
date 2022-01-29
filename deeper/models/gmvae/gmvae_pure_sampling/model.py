@@ -44,14 +44,17 @@ class GumbleGmvae(GmvaeModelBase):
             recon_bin_schedule = self.config.recon_bin_schedule(cstep)
             recon_ord_schedule = self.config.recon_ord_schedule(cstep)
             recon_cat_schedule = self.config.recon_cat_schedule(cstep)
-            return temp, GumbleGmvaeNetLossNet.InputWeight(
-                kld_y_schedule,
-                kld_z_schedule,
-                recon_reg_schedule,
-                recon_bin_schedule,
-                recon_ord_schedule,
-                recon_cat_schedule,
-            )
+            return [
+                temp,
+                GumbleGmvaeNetLossNet.InputWeight(
+                    kld_y_schedule,
+                    kld_z_schedule,
+                    recon_reg_schedule,
+                    recon_bin_schedule,
+                    recon_ord_schedule,
+                    recon_cat_schedule,
+                ),
+            ]
 
     class Config(CoolingRegime.Config, GumbleGmvaeNet.Config):
         ...
