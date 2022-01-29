@@ -6,6 +6,14 @@ from pydantic import BaseModel, Field
 from typing import Sequence
 from abc import ABC, abstractmethod
 
+from deeper.utils.type_getter import NetworkTypeGetterBase
+
+
+class AutoencoderTypeGetterBase(NetworkTypeGetterBase):
+    @abstractmethod
+    def get_latent_parser_type(self):
+        ...
+
 
 class LatentParser(tf.keras.layers.Layer):
     def __init__(self, **kwargs):

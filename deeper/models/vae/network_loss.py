@@ -44,7 +44,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         latent_eps=0.0,
         encoder_name="zgy",
         decoder_name="xgz",
-        prefix="",
+        prefix="loss",
         **kwargs,
     ):
         super(VaeLossNet, self).__init__(**kwargs)
@@ -52,8 +52,8 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.encoder_name = encoder_name
         self.decoder_name = decoder_name
         self.prefix = prefix
-        self.latent_lossnet = VaeLossNetLatent(latent_eps, name="latent_kl")
-        self.recon_lossnet = VaeReconLossNet(decoder_name, prefix)
+        self.latent_lossnet = VaeLossNetLatent(latent_eps, name="latent_kl", **kwargs)
+        self.recon_lossnet = VaeReconLossNet(decoder_name, prefix, **kwargs)
 
     @tf.function
     def log_pxgz(
@@ -110,22 +110,22 @@ class VaeLossNet(tf.keras.layers.Layer):
     ):
         scaled_kl_z = lambda_z * kl_z
         self.add_metric(scaled_kl_z, name="scaled_latent_kl")
-        scaled_log_pxgz_reg = lambda_reg * log_pxgz_reg
+        scaled_log_pxgz_reg = tf.cast(lambda_reg, self.dtype) * log_pxgz_reg
         self.add_metric(
             scaled_log_pxgz_reg,
             name=f"{self.prefix}/scaled/log_p_{self.decoder_name}_reg",
         )
-        scaled_log_pxgz_bin = lambda_bin * log_pxgz_bin
+        scaled_log_pxgz_bin = tf.cast(lambda_bin, self.dtype) * log_pxgz_bin
         self.add_metric(
             scaled_log_pxgz_bin,
             name=f"{self.prefix}/scaled/log_p_{self.decoder_name}_bin",
         )
-        scaled_log_pxgz_ord = lambda_ord * log_pxgz_ord
+        scaled_log_pxgz_ord = tf.cast(lambda_ord, self.dtype) * log_pxgz_ord
         self.add_metric(
             scaled_log_pxgz_ord,
             name=f"{self.prefix}/scaled/log_p_{self.decoder_name}_ord",
         )
-        scaled_log_pxgz_cat = lambda_cat * log_pxgz_cat
+        scaled_log_pxgz_cat = tf.cast(lambda_cat, self.dtype) * log_pxgz_cat
         self.add_metric(
             scaled_log_pxgz_cat,
             name=f"{self.prefix}/scaled/log_p_{self.decoder_name}_cat",

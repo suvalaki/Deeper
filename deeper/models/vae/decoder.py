@@ -21,7 +21,7 @@ class VaeReconstructionNet(Layer):
     class Config(BaseModel):
         output_dimensions: MultipleObjectiveDimensions
         decoder_embedding_dimensions: Sequence[int]
-        embedding_activations:tf.keras.layers.Layer = tf.keras.layers.ReLU()
+        embedding_activations: tf.keras.layers.Layer = tf.keras.layers.ReLU()
         bn_before: bool = False
         bn_after: bool = False
         recon_embedding_kernel_initializer: Union[

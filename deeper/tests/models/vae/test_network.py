@@ -50,6 +50,18 @@ class TestVaeNet(unittest.TestCase):
         self.data = X
         self.network = VaeNet(config, dtype=tf.dtypes.float64)
 
+    def test_getNetworkFromConfig(self):
+        net = config.get_network_type()(config)
+        lossnet = config.get_lossnet_type()(prefix="loss")
+        pred = net(self.data[0:1, :])
+        y_true = net.graph_px_g_z.splitter(self.data[0:1, :])
+        inputs = config.get_lossnet_type().Input.from_output(
+            y_true=y_true,
+            model_output=pred,
+            weights=VaeLossNet.InputWeight(1.0, 1.0, 1.0, 1.0, 1.0),
+        )
+        losses = lossnet(inputs)
+
     def test_outputShapes(self):
         pred = self.network(self.data[0:1, :])
         # Latent layers

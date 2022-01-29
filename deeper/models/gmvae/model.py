@@ -20,11 +20,7 @@ class Gmvae(GmvaeModelBase):
 
     def __new__(cls, config: Gmvae.Config, **kwargs):
 
-        if isinstance(config, GumbleGmvae.Config):
-            return GumbleGmvae(config, **kwargs)
-        elif isinstance(config, StackedGmvae.Config):
-            return StackedGmvae(config, **kwargs)
-        else:
-            raise InvalidModelTypeError(
-                "Invalid Config Supplied. Use GumbleGmvae.Config or StackedGmvae.Config"
-            )
+        return config.get_model_type()(config, **kwargs)
+        raise InvalidModelTypeError(
+            "Invalid Config Supplied. Use GumbleGmvae.Config or StackedGmvae.Config"
+        )

@@ -29,46 +29,28 @@ class GeneralisedAutoencoderNet(tf.keras.layers.Layer):
     @staticmethod
     def network_type_switch(config: ConfigType, **kwargs):
 
-        # check in decreasing inheritance order
-        if isinstance(config, StackedGmvaeNet.Config) or isinstance(config, StackedGmvae.Config):
-            return (
-                StackedGmvaeNet,
-                StackedGmvaeLossNet,
-                StackedGmvaeLatentParser,
-                StackedGmvae,
-            )
-        elif isinstance(config, GumbleGmvaeNet.Config) or isinstance(config, GumbleGmvae.Config):
-            return (
-                GumbleGmvaeNet,
-                GumbleGmvaeNetLossNet,
-                GumbleGmvaeLatentParser,
-                GumbleGmvae,
-            )
-        elif isinstance(config, VaeNet.Config) or isinstance(config, Vae.Config):
-            return (VaeNet, VaeLossNet, VaeLatentParser, Vae)
+        return (
+            config.get_network_type(),
+            config.get_lossnet_type(),
+            config.get_latent_parser_type(),
+            config.get_model_type(),
+        )
 
     @staticmethod
     def _network_switch(config: ConfigType, **kwargs):
 
-        # check in decreasing inheritance order
-        if isinstance(config, StackedGmvaeNet.Config):
-            return (
-                StackedGmvaeNet(config, **kwargs),
-                StackedGmvaeLossNet(**kwargs),
-                StackedGmvaeLatentParser(**kwargs),
-            )
-        elif isinstance(config, GumbleGmvaeNet.Config):
-            return (
-                GumbleGmvaeNet(config, **kwargs),
-                GumbleGmvaeNetLossNet(**kwargs),
-                GumbleGmvaeLatentParser(**kwargs),
-            )
-        elif isinstance(config, VaeNet.Config, **kwargs):
-            return (
-                VaeNet(config, **kwargs),
-                VaeLossNet(prefix="loss", **kwargs),
-                VaeLatentParser(**kwargs),
-            )
+        (
+            network_t,
+            lossnet_t,
+            latent_t,
+            model_t,
+        ) = GeneralisedAutoencoderNet.network_type_switch(config)
+
+        return (
+            network_t(config, **kwargs),
+            lossnet_t(**kwargs),
+            latent_t(**kwargs),
+        )
 
     def __init__(self, config: ConfigType, **kwargs):
         super().__init__(**kwargs)

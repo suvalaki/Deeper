@@ -8,12 +8,13 @@ from deeper.layers.categorical import CategoricalEncoder
 from deeper.probability_layers.gumble_softmax import GumbleSoftmaxLayer
 from deeper.models.gmvae.marginalvae import MarginalGmVaeNet
 from deeper.models.gmvae.base import GmvaeNetBase
+from deeper.models.gmvae.gmvae_pure_sampling.utils import GumbleGmvaeTypeGetter
 
 from pydantic import BaseModel
 
 
 class GumbleGmvaeNet(GmvaeNetBase):
-    class Config(GmvaeNetBase.Config):
+    class Config(GumbleGmvaeTypeGetter, GmvaeNetBase.Config):
         ...
 
     class Output(NamedTuple):
