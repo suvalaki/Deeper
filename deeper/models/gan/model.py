@@ -40,7 +40,10 @@ class Gan(Model):
             if type(weights) == list:
                 temp, weight = weights
 
-        inputs = (x, temp) if temp else x
+        if temp is not None:
+            inputs = (x, temp)
+        else:
+            inputs = x
         return self.network.fake_getter(self.network.generatornet(inputs, training=training))
 
     def train_step(self, data, training: bool = False):
@@ -52,7 +55,10 @@ class Gan(Model):
         weights = self.weight_getter(self.optimizer.iterations)
         if type(weights) == list:
             temp, weight = weights
-        inputs = (x, temp) if temp else x
+        if temp is not None:
+            inputs = (x, temp)
+        else:
+            inputs = x
 
         # Use a single pass over the network for efficiency.
         # Normaly would sequentially call generative and then descrimnative nets
@@ -96,8 +102,11 @@ class Gan(Model):
         weights = self.weight_getter(0)
         if type(weights) == list:
             temp, weight = weights
+        if temp is not None:
+            inputs = (x, temp)
+        else:
+            inputs = x
 
-        inputs = (x, temp) if temp else x
         y_pred = self.network(inputs, y, training=False)
         gen_losses, descrim_losses = self.lossnet(y, y_pred, training=False)
         descrim_loss = tf.reduce_mean(descrim_losses)

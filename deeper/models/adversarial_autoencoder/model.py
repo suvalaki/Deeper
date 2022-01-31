@@ -4,8 +4,12 @@ import tensorflow as tf
 from tensorflow.python.keras.engine import data_adapter
 from tensorflow.python.eager import backprop
 
-from deeper.models.adversarial_autoencoder.network import AdversarialAuoencoderNet
-from deeper.models.adversarial_autoencoder.network_loss import AdverasrialAutoencoderLossNet
+from deeper.models.adversarial_autoencoder.network import (
+    AdversarialAuoencoderNet,
+)
+from deeper.models.adversarial_autoencoder.network_loss import (
+    AdverasrialAutoencoderLossNet,
+)
 from deeper.models.gan.descriminator import DescriminatorNet
 from deeper.models.generalised_autoencoder.network import ModelConfigType
 
@@ -40,8 +44,11 @@ class AdversarialAutoencoder(Model):
             weights = self.weight_getter(self.optimizer.iterations)
             if type(weights) == list:
                 temp, weight = weights
+        if temp is not None:
+            inputs = (x, temp)
+        else:
+            intputs = x
 
-        inputs = (x, temp) if temp else x
         return self.output_parser(self.network.generatornet(inputs, training=training))
 
     def train_step(self, data, training: bool = False):
@@ -53,7 +60,10 @@ class AdversarialAutoencoder(Model):
         weights = self.weight_getter(self.optimizer.iterations)
         if type(weights) == list:
             temp, weights = weights
-        inputs = (x, temp) if temp else x
+        if temp is not None:
+            inputs = (x, temp)
+        else:
+            intputs = x
 
         # Use a single pass over the network for efficiency.
         # Normaly would sequentially call generative and then descrimnative nets
@@ -65,7 +75,11 @@ class AdversarialAutoencoder(Model):
                 y_pred = self.network(inputs, y, training=True)
                 gen_losses, descrim_losses, recon_losses = self.lossnet(
                     self.lossnet.Input.from_output(
-                        self.network, self.lossnet.generator_lossnet, y, y_pred, weights
+                        self.network,
+                        self.lossnet.generator_lossnet,
+                        y,
+                        y_pred,
+                        weights,
                     ),
                     training=True,
                 )
@@ -93,7 +107,11 @@ class AdversarialAutoencoder(Model):
             y_pred = self.network(inputs, y, training=True)
             gen_losses, descrim_losses, recon_losses = self.lossnet(
                 self.lossnet.Input.from_output(
-                    self.network, self.lossnet.generator_lossnet, y, y_pred, weights
+                    self.network,
+                    self.lossnet.generator_lossnet,
+                    y,
+                    y_pred,
+                    weights,
                 ),
                 training=True,
             )
@@ -125,12 +143,19 @@ class AdversarialAutoencoder(Model):
         weights = self.weight_getter(0)
         if type(weights) == list:
             temp, weights = weights
+        if temp is not None:
+            inputs = (x, temp)
+        else:
+            intputs = x
 
-        inputs = (x, temp) if temp else x
         y_pred = self.network(inputs, y, training=False)
         gen_losses, descrim_losses, recon_losses = self.lossnet(
             self.lossnet.Input.from_output(
-                self.network, self.lossnet.generator_lossnet, y, y_pred, weights
+                self.network,
+                self.lossnet.generator_lossnet,
+                y,
+                y_pred,
+                weights,
             ),
             training=True,
         )
