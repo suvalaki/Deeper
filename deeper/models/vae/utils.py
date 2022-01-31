@@ -6,6 +6,11 @@ import pandas as pd
 import io
 from typing import Union, Tuple, Sequence
 from collections import namedtuple
+from deeper.models.generalised_autoencoder.base import (
+    AutoencoderTypeGetterBase,
+)
+from deeper.models.gan.base_getter import GanTypeGetter
+from deeper.models.adversarial_autoencoder.base_getter import AdversarialAutoencoderTypeGetter
 
 SplitCovariates = namedtuple(
     "SplitInputs",
@@ -20,48 +25,60 @@ SplitCovariates = namedtuple(
 )
 
 
-def chain_call(func, x, num, scalar_dict={}):
+class VaeTypeGetter(AutoencoderTypeGetterBase, GanTypeGetter, AdversarialAutoencoderTypeGetter):
 
-    if type(x) != list and type(x) != tuple:
-        x = [x]
+    # Autoencoder Getters Mixin
 
-    iters = x[0].shape[0] // num
+    def get_network_type(self):
+        from deeper.models.vae.network import VaeNet
 
-    result = []
-    j = 0
-    while j * num < x[0].shape[0]:
-        result = result + [
-            func(*(y[j * num : min((j + 1) * num, y.shape[0])] for y in x), **scalar_dict)
-        ]
-        j += 1
+        return VaeNet
 
-    num_dats = len(result[0])
-    # pivot the resultsif
-    if type(result[0]) in [tuple, list]:
-        result_pivot = [np.concatenate([y[i] for y in result], 0) for i in range(num_dats)]
-    elif type(result[0]) == dict:
-        result_pivot = {k: np.concatenate([y[k] for y in result], 0) for k in result[0].keys()}
-    else:
-        result_pivot = np.concatenate(result, axis=0)
-    return result_pivot
+    def get_lossnet_type(self):
+        from deeper.models.vae.network_loss import VaeLossNet
 
+        return VaeLossNet
 
-def plot_latent(latent_vectors):
+    def get_model_type(self):
+        from deeper.models.vae.model import Vae
 
-    pca = PCA(2)
-    X_pca = pca.fit_transform(latent_vectors)
-    df_latent = pd.DataFrame(
-        {
-            "x1": X_pca[:, 0],
-            "x2": X_pca[:, 1],
-        }
-    )
+        return Vae
 
-    f, (ax1) = plt.subplots(1, 1, sharey=True, figsize=(10, 10))
-    ax1.scatter(
-        df_latent.x1,
-        df_latent.x2,
-    )
-    ax1.set_title("Latent Space")
+    def get_latent_parser_type(self):
+        from deeper.models.vae.latent import VaeLatentParser
 
-    return f
+        return VaeLatentParser
+
+    # Gan getters Mixin
+
+    def get_generatornet_type(self):
+        from deeper.models.vae.network import VaeNet
+
+        return VaeNet
+
+    def get_real_output_getter(self):
+        from deeper.models.vae.parser import InputParser
+
+        return InputParser
+
+    def get_fake_output_getter(self):
+        from deeper.models.vae.parser import OutputParser
+
+        return OutputParser
+
+    # Adversarial Autoencoder getters Mixin
+
+    def get_adversarialae_real_output_getter(self):
+        from deeper.models.vae.parser import LatentPriorParser
+
+        return LatentPriorParser
+
+    def get_adversarialae_fake_output_getter(self):
+        from deeper.models.vae.parser import LatentPosteriorParser
+
+        return LatentPosteriorParser
+
+    def get_adversarialae_recon_loss_getter(self):
+        from deeper.models.vae.parser import ReconstructionOnlyLossOutputParser
+
+        return ReconstructionOnlyLossOutputParser

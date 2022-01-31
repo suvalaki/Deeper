@@ -4,8 +4,12 @@ import tensorflow as tf
 from tensorflow.python.keras.engine import data_adapter
 from tensorflow.python.eager import backprop
 
-from deeper.models.gan.network import GanNet
-from deeper.models.gan.network_loss import GanLossNet
+from deeper.models.adversarial_autoencoder.network import (
+    AdversarialAuoencoderNet,
+)
+from deeper.models.adversarial_autoencoder.network_loss import (
+    AdverasrialAutoencoderLossNet,
+)
 from deeper.models.gan.descriminator import DescriminatorNet
 from deeper.models.generalised_autoencoder.network import ModelConfigType
 
@@ -13,8 +17,8 @@ tfk = tf.keras
 Model = tfk.Model
 
 
-class Gan(Model):
-    class Config(GanNet.Config):
+class AdversarialAutoencoder(Model):
+    class Config(AdversarialAuoencoderNet.Config):
         generator: ModelConfigType
         training_ratio: int = 3
 
@@ -24,14 +28,16 @@ class Gan(Model):
 
     Config.update_forward_refs()
 
-    def __init__(self, config: Gan.Config, **kwargs):
+    def __init__(self, config: AdversarialAutoencoder.Config, **kwargs):
         super().__init__(**kwargs)
         self.config = config
-        self.network = GanNet(config, **kwargs)
-        self.lossnet = GanLossNet(**kwargs)
+        self.network = AdversarialAuoencoderNet(config, **kwargs)
+        self.lossnet = AdverasrialAutoencoderLossNet(config, self.network.generatornet, **kwargs)
         self.weight_getter = self.config.generator.get_model_type().CoolingRegime(
             self.config.generator, dtype=self.dtype
         )
+        self.output_parser = config.generator.get_fake_output_getter()()
+        self.latent_parser = config.generator.get_adversarialae_fake_output_getter()()
 
     def call(self, x, temp=None, training=False):
 
@@ -39,12 +45,26 @@ class Gan(Model):
             weights = self.weight_getter(self.optimizer.iterations)
             if type(weights) == list:
                 temp, weight = weights
-
         if temp is not None:
             inputs = (x, temp)
         else:
             inputs = x
-        return self.network.fake_getter(self.network.generatornet(inputs, training=training))
+
+        return self.output_parser(self.network.generatornet(inputs, training=training))
+
+    def call_latent(self, x, temp=None, training=False):
+
+        if not temp:
+            weights = self.weight_getter(self.optimizer.iterations)
+            if type(weights) == list:
+                temp, weight = weights
+        if temp is not None:
+            inputs = (x, temp)
+        else:
+            inputs = x
+
+        return self.latent_parser(self.network.generatornet(inputs, training=training))
+
 
     def train_step(self, data, training: bool = False):
 
@@ -54,7 +74,7 @@ class Gan(Model):
         temp = None
         weights = self.weight_getter(self.optimizer.iterations)
         if type(weights) == list:
-            temp, weight = weights
+            temp, weights = weights
         if temp is not None:
             inputs = (x, temp)
         else:
@@ -68,9 +88,19 @@ class Gan(Model):
             with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
 
                 y_pred = self.network(inputs, y, training=True)
-                gen_losses, descrim_losses = self.lossnet(y, y_pred, training=True)
+                gen_losses, descrim_losses, recon_losses = self.lossnet(
+                    self.lossnet.Input.from_output(
+                        self.network,
+                        self.lossnet.generator_lossnet,
+                        y,
+                        y_pred,
+                        weights,
+                    ),
+                    training=True,
+                )
                 descrim_loss = tf.reduce_mean(descrim_losses)
                 gen_loss = tf.reduce_mean(gen_losses)
+                recon_loss = tf.reduce_mean(recon_losses)
 
             # Train the descriminator to identify real from fake samples
             self.optimizer.minimize(
@@ -86,9 +116,35 @@ class Gan(Model):
             tape=gen_tape,
         )
 
+        # instead of doing this maybe train only encoder on GAN generator and
+        # train ae decoder on this step.
+        with tf.GradientTape() as recon_tape:
+            y_pred = self.network(inputs, y, training=True)
+            gen_losses, descrim_losses, recon_losses = self.lossnet(
+                self.lossnet.Input.from_output(
+                    self.network,
+                    self.lossnet.generator_lossnet,
+                    y,
+                    y_pred,
+                    weights,
+                ),
+                training=True,
+            )
+            descrim_loss = tf.reduce_mean(descrim_losses)
+            gen_loss = tf.reduce_mean(gen_losses)
+            recon_loss = tf.reduce_mean(recon_losses)
+
+        # Train the reconstruction network
+        self.optimizer.minimize(
+            recon_loss,
+            self.network.generatornet.trainable_variables,
+            tape=recon_tape,
+        )
+
         return {
             "loss/loss_generative": gen_loss,
             "loss/loss_descriminative": descrim_loss,
+            "loss/loss_reconstruction": recon_loss,
             **{"loss/" + v.name: v.result() for v in self.metrics if "accuracy" not in v.name},
             **{"acc/" + v.name: v.result() for v in self.metrics if "accuracy" in v.name},
         }
@@ -101,20 +157,31 @@ class Gan(Model):
         temp = None
         weights = self.weight_getter(0)
         if type(weights) == list:
-            temp, weight = weights
+            temp, weights = weights
         if temp is not None:
             inputs = (x, temp)
         else:
             inputs = x
 
         y_pred = self.network(inputs, y, training=False)
-        gen_losses, descrim_losses = self.lossnet(y, y_pred, training=False)
+        gen_losses, descrim_losses, recon_losses = self.lossnet(
+            self.lossnet.Input.from_output(
+                self.network,
+                self.lossnet.generator_lossnet,
+                y,
+                y_pred,
+                weights,
+            ),
+            training=True,
+        )
         descrim_loss = tf.reduce_mean(descrim_losses)
         gen_loss = tf.reduce_mean(gen_losses)
+        recon_loss = tf.reduce_mean(recon_losses)
 
         return {
             "loss/loss_generative": gen_loss,
             "loss/loss_descriminative": descrim_loss,
+            "loss/loss_reconstruction": recon_loss,
             **{"loss/" + v.name: v.result() for v in self.metrics if "accuracy" not in v.name},
             **{"acc/" + v.name: v.result() for v in self.metrics if "accuracy" in v.name},
         }

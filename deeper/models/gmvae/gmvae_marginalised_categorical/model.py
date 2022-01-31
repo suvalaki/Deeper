@@ -47,6 +47,9 @@ class StackedGmvae(GmvaeModelBase):
     class Config(CoolingRegime.Config, StackedGmvaeNet.Config):
         ...
 
+        def get_model_type(self):
+            return StackedGmvae
+
     def __init__(self, config: StackedGmvae.Config, **kwargs):
         super().__init__(**kwargs)
         self.config = config

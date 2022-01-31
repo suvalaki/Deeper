@@ -111,7 +111,6 @@ class DataSplitter(Layer):
             self.input_dim,
         ) = self.unpack_dimensions()
 
-    @tf.function
     def unpack_dimensions(self):
         return unpack_dimensions(
             self.dim_regression,
@@ -120,7 +119,6 @@ class DataSplitter(Layer):
             self.dim_categorical,
         )
 
-    @tf.function
     def call(self, x, training=False):
         return split_inputs(
             x,

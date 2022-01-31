@@ -139,8 +139,8 @@ class VaeReconLossNet(tf.keras.layers.Layer):
                     wt
                     * tf.reduce_sum(
                         tf.nn.sigmoid_cross_entropy_with_logits(
-                            yolt,
-                            yolp,
+                            tf.cast(yolt, self.dtype),
+                            tf.cast(yolp, self.dtype),
                             name=f"{self.prefix}/xent/{self.decoder_name}_ord_xent_group_{i}",
                         ),
                         -1,
@@ -188,8 +188,8 @@ class VaeReconLossNet(tf.keras.layers.Layer):
 
             for i in range(len(y_ord_logits_true)):
                 wt = class_weights[i]
-                yolt = y_ord_logits_true[i]
-                yolp = y_ord_logits_pred[i]
+                yolt = tf.cast(y_ord_logits_true[i], self.dtype)
+                yolp = tf.cast(y_ord_logits_pred[i], self.dtype)
                 class_xent = wt * tf.nn.softmax_cross_entropy_with_logits(
                     yolt,
                     yolp,
@@ -212,6 +212,9 @@ class VaeReconLossNet(tf.keras.layers.Layer):
         y_reg_pred,
         training: bool = False,
     ):
+
+        y_reg_true = tf.cast(y_reg_true, self.dtype)
+        y_reg_pred = tf.cast(y_reg_pred, self.dtype)
 
         if y_reg_true.shape[-1] > 0:
             log_p = lognormal_pdf(y_reg_true, y_reg_pred, 1.0)

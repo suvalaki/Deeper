@@ -14,6 +14,8 @@ from deeper.layers.data_splitter import split_inputs, unpack_dimensions
 from deeper.utils.function_helpers.decorators import inits_args
 from deeper.models.vae.encoder import VaeEncoderNet
 from deeper.models.vae.decoder import VaeReconstructionNet
+from deeper.models.vae.utils import VaeTypeGetter
+
 from deeper.models.vae.base import (
     MultipleObjectiveDimensions,
 )
@@ -36,7 +38,7 @@ def reduce_groups(fn, x_grouped: Sequence[tf.Tensor]):
 
 
 class VaeNet(AutoencoderBase):
-    class Config(AutoencoderBase.Config):
+    class Config(VaeTypeGetter, AutoencoderBase.Config):
 
         latent_epsilon: float = 0.0
 

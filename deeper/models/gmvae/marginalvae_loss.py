@@ -63,6 +63,7 @@ class MarginalGmVaeLossNet(VaeLossNet):
         l_pxgzy_bin: tf.Tensor
         l_pxgzy_ord: tf.Tensor
         l_pxgzy_cat: tf.Tensor
+        scaled_l_pxgzy: tf.Tensor
         scaled_elbo: tf.Tensor
         recon_loss: tf.Tensor
         loss: tf.Tensor
@@ -116,6 +117,7 @@ class MarginalGmVaeLossNet(VaeLossNet):
             l_pxgzy_bin=outs.l_pxgz_bin,
             l_pxgzy_ord=outs.l_pxgz_ord,
             l_pxgzy_cat=outs.l_pxgz_cat,
+            scaled_l_pxgzy=outs.scaled_l_pxgz,
             scaled_elbo=-loss,
             recon_loss=recon_loss,
             loss=loss,
