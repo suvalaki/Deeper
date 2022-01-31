@@ -74,7 +74,7 @@ class LatentPriorParser(BaseGanRealOutputGetter):
         return tf.reduce_sum(
             tf.stack(
                 [
-                    y_pred.py[:, i] * marginal.pz_g_y.sample
+                    y_pred.py[:, i, None] * marginal.pz_g_y.sample
                     for i, marginal in enumerate(y_pred.marginals)
                 ],
                 axis=0,
@@ -92,7 +92,16 @@ class LatentPosteriorParser(BaseGanFakeOutputGetter):
         y_pred: StackedGmvaeNet.Output,
         training: bool = False,
     ) -> tf.Tensor:
-        return y_pred.marginal.qz_g_xy.sample
+        return tf.reduce_sum(
+            tf.stack(
+                [
+                    y_pred.qy_g_x.probs[:, i, None] * marginal.qz_g_xy.sample
+                    for i, marginal in enumerate(y_pred.marginals)
+                ],
+                axis=0,
+            ),
+            axis=0,
+        )
 
 
 class ReconstructionOnlyLossOutputParser(AdversarialAutoencoderReconstructionLossGetter):
