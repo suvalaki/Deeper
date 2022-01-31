@@ -43,6 +43,7 @@ from sklearn.preprocessing import OneHotEncoder
 
 from deeper.models.gan.model import Gan
 from deeper.models.gan.descriminator import DescriminatorNet
+from deeper.models.gmvae.gmvae_pure_sampling import GumbleGmvae
 
 from deeper.analysis.gan.callbacks import PlotterCallback
 
@@ -80,7 +81,9 @@ desciminatorConfig = DescriminatorNet.Config(
     embedding_dropout=0.25,
     # bn_before=True,
 )
-vaeConfig = Vae.Config(
+vaeConfig = GumbleGmvae.Config(
+    components=10,
+    cat_embedding_dimensions=[512, 512, 256],
     input_dimensions=MultipleObjectiveDimensions(
         regression=0,
         boolean=X_train.shape[-1],
@@ -96,18 +99,38 @@ vaeConfig = Vae.Config(
     encoder_embedding_dimensions=[512, 512, 256],
     decoder_embedding_dimensions=[512, 512, 256][::-1],
     latent_dim=64,
-    embedding_activations=tf.keras.layers.ELU(),
-    # bn_before=True,
+    embedding_activation=tf.keras.layers.ELU(),
+    gumble_temperature_schedule=tfa.optimizers.CyclicalLearningRate(
+        0.5,
+        1.0,
+        step_size=10000.0,
+        scale_fn=lambda x: 1 / (1.2 ** (x - 1)),
+        scale_mode="cycle",
+    ),
+    # gumble_temperature_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
+    #     boundaries=[
+    #         X_train.shape[0] * 5 // BATCH_SIZE ,
+    #         X_train.shape[0] * 10 // BATCH_SIZE,
+    #         X_train.shape[0] * 20 // BATCH_SIZE
+    #     ],
+    #     values=[5.0, 1.0, 0.75, 0.5],
+    # ),
+    kld_y_schedule=tfa.optimizers.CyclicalLearningRate(
+        1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
+    ),
+    kld_z_schedule=tfa.optimizers.CyclicalLearningRate(
+        1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
+    ),
+    # bn_before=True
 )
 
 
-config = Gan.Config(descriminator=desciminatorConfig, generator=vaeConfig, training_ratio=5)
+config = Gan.Config(
+    descriminator=desciminatorConfig, generator=vaeConfig, training_ratio=5
+)
 
 model = Gan(config)
 model.compile(optimizer=tf.keras.optimizers.RMSprop(0.000005))
-# model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
-# model.compile(optimizer=tf.keras.optimizers.SGD(1e-3))
-# model.compile()
 
 #%% train
 fp = "./logs/gan/test_mnist_gumblegmvae"
@@ -122,13 +145,3 @@ model.fit(
     batch_size=BATCH_SIZE,
     validation_data=(X_test, X_test),
 )
-
-# %% Real
-plt.imshow(X_train_og[0], cmap="gray")
-# %% Fake
-y_pred_train = model(X_train[0:1])
-plt.imshow(y_pred_train.numpy().reshape((28, 28)), cmap="gray")
-# %%
-# By the nature of the GAN just trying to learn how to fool the descriminator
-# we have no garuantee that the input digit will look like the output digit.
-# The output could be any of the digits which fools the descriminator.
