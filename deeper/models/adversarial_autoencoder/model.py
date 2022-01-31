@@ -37,6 +37,7 @@ class AdversarialAutoencoder(Model):
             self.config.generator, dtype=self.dtype
         )
         self.output_parser = config.generator.get_fake_output_getter()()
+        self.latent_parser = config.generator.get_adversarialae_fake_output_getter()()
 
     def call(self, x, temp=None, training=False):
 
@@ -47,9 +48,23 @@ class AdversarialAutoencoder(Model):
         if temp is not None:
             inputs = (x, temp)
         else:
-            intputs = x
+            inputs = x
 
         return self.output_parser(self.network.generatornet(inputs, training=training))
+
+    def call_latent(self, x, temp=None, training=False):
+
+        if not temp:
+            weights = self.weight_getter(self.optimizer.iterations)
+            if type(weights) == list:
+                temp, weight = weights
+        if temp is not None:
+            inputs = (x, temp)
+        else:
+            inputs = x
+
+        return self.latent_parser(self.network.generatornet(inputs, training=training))
+
 
     def train_step(self, data, training: bool = False):
 
@@ -63,14 +78,14 @@ class AdversarialAutoencoder(Model):
         if temp is not None:
             inputs = (x, temp)
         else:
-            intputs = x
+            inputs = x
 
         # Use a single pass over the network for efficiency.
         # Normaly would sequentially call generative and then descrimnative nets
         # Take multiple passes of the descriminator player according to 4.4 of
         # https://arxiv.org/pdf/1701.00160.pdf to ballance G and D.
         for i in range(self.config.training_ratio):
-            with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape, tf.GradientTape() as recon_tape:
+            with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
 
                 y_pred = self.network(inputs, y, training=True)
                 gen_losses, descrim_losses, recon_losses = self.lossnet(
@@ -146,7 +161,7 @@ class AdversarialAutoencoder(Model):
         if temp is not None:
             inputs = (x, temp)
         else:
-            intputs = x
+            inputs = x
 
         y_pred = self.network(inputs, y, training=False)
         gen_losses, descrim_losses, recon_losses = self.lossnet(
