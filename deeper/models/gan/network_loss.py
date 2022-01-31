@@ -10,7 +10,6 @@ from deeper.models.gan.network import (
     GanGenerativeNet,
     GanDescriminativeNet,
 )
-from deeper.models.gan.base_getter import BaseGanGenerativeLossGetter
 
 
 class GanGeneratorLossNet(tf.keras.layers.Layer):

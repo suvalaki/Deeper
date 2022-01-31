@@ -192,6 +192,7 @@ class Vae(tf.keras.Model):
         "l_pxgz_bin": "reconstruction/l_pxgz_bin",
         "l_pxgz_ord": "reconstruction/l_pxgz_ord",
         "l_pxgz_cat": "reconstruction/l_pxgz_cat",
+        "scaled_l_pxgz": "reconstruction/l_pxgz",
         "scaled_elbo": "losses/scaled_elbo",
         "recon_loss": "losses/recon_loss",
         "loss": "losses/loss",

@@ -40,6 +40,7 @@ class GmvaeNetLossNetBase(tf.keras.layers.Layer):
         l_pxgzy_bin: tf.Tensor
         l_pxgzy_ord: tf.Tensor
         l_pxgzy_cat: tf.Tensor
+        scaled_l_pxgzy: tf.Tensor
         scaled_elbo: tf.Tensor
         recon_loss: tf.Tensor
         loss: tf.Tensor
@@ -92,6 +93,7 @@ class GmvaeModelBase(tf.keras.Model):
         "l_pxgzy_bin": "reconstruction/l_pxgzy_bin",
         "l_pxgzy_ord": "reconstruction/l_pxgzy_ord",
         "l_pxgzy_cat": "reconstruction/l_pxgzy_cat",
+        "scaled_l_pxgzy": "reconstruction/scaled_l_pxgzy",
         "scaled_elbo": "losses/scaled_elbo",
         "recon_loss": "losses/recon_loss",
         "loss": "losses/loss",

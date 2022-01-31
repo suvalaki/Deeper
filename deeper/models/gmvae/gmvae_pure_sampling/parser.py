@@ -1,7 +1,10 @@
 from __future__ import annotations
 import tensorflow as tf
 
-from deeper.models.vae.network import VaeNet
+from deeper.models.gmvae.gmvae_pure_sampling.network import GumbleGmvaeNet
+from deeper.models.gmvae.gmvae_pure_sampling.network_loss import (
+    GumbleGmvaeNetLossNet,
+)
 from deeper.models.gan.base_getter import (
     BaseGanFakeOutputGetter,
     BaseGanRealOutputGetter,
@@ -31,15 +34,15 @@ class OutputParser(BaseGanFakeOutputGetter):
 
     def call(
         self,
-        y_pred: VaeNet.Output,
+        y_pred: GumbleGmvaeNet.Output,
         training: bool = False,
     ) -> tf.Tensor:
         return tf.concat(
             [
-                y_pred.px_g_z.regression,
-                y_pred.px_g_z.binary,
-                y_pred.px_g_z.ord_groups_concat,
-                y_pred.px_g_z.categorical_groups_concat,
+                y_pred.marginal.px_g_zy.regression,
+                y_pred.marginal.px_g_zy.binary,
+                y_pred.marginal.px_g_zy.ord_groups_concat,
+                y_pred.marginal.px_g_zy.categorical_groups_concat,
             ],
             axis=-1,
         )
@@ -53,11 +56,10 @@ class LatentPriorParser(BaseGanRealOutputGetter):
         self,
         x: tf.Tensor,
         y: tf.Tensor,
-        y_pred: VaeNet.Output,
+        y_pred: GumbleGmvaeNet.Output,
         training: bool = False,
     ) -> tf.Tensor:
-        # Just generate a new value from scratch?
-        return tf.random.normal(shape=tf.shape(y_pred.qz_g_x.sample))
+        return y_pred.marginal.pz_g_y.sample
 
 
 class LatentPosteriorParser(BaseGanFakeOutputGetter):
@@ -66,16 +68,16 @@ class LatentPosteriorParser(BaseGanFakeOutputGetter):
 
     def call(
         self,
-        y_pred: VaeNet.Output,
+        y_pred: GumbleGmvaeNet.Output,
         training: bool = False,
     ) -> tf.Tensor:
-        return y_pred.qz_g_x.sample
+        return y_pred.marginal.qz_g_xy.sample
 
 
 class ReconstructionOnlyLossOutputParser(AdversarialAutoencoderReconstructionLossGetter):
     def call(
         self,
-        lossnet_out: VaeLossNet.Output,
+        lossnet_out: GumbleGmvaeNetLossNet.Output,
         training=False,
     ) -> tf.Tensor:
-        return -lossnet_out.scaled_l_pxgz
+        return -lossnet_out.scaled_l_pxgzy

@@ -86,12 +86,16 @@ class GanNet(tf.keras.layers.Layer):
         descriminative: GanDescriminativeNet.Output
         generative: GanGenerativeNet.Output
 
-    def __init__(self, config: GanNet.Config, **kwargs):
+    def __init__(self, config: GanNet.Config, fake_getter=None, real_getter=None, **kwargs):
         super().__init__(**kwargs)
         self.descriminator = DescriminatorNet(config.descriminator)
         self.generatornet = config.generator.get_generatornet_type()(config.generator)
-        self.fake_getter = config.generator.get_fake_output_getter()()
-        self.real_getter = config.generator.get_real_output_getter()()
+        self.fake_getter = (
+            fake_getter if fake_getter else config.generator.get_fake_output_getter()()
+        )
+        self.real_getter = (
+            real_getter if real_getter else config.generator.get_real_output_getter()()
+        )
 
         self.gan_generative = GanGenerativeNet(
             self.descriminator, self.generatornet, self.fake_getter

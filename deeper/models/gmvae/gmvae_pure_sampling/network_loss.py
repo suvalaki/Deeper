@@ -28,7 +28,9 @@ class GumbleGmvaeNetLossNet(GmvaeNetLossNetBase):
                 model_output.py,
                 model_output.qy_g_x,
                 MarginalGmVaeLossNet.Input.from_MarginalGmVae_output(
-                    y_true, model_output.marginal, VaeLossNet.InputWeight(*weights[1:])
+                    y_true,
+                    model_output.marginal,
+                    VaeLossNet.InputWeight(*weights[1:]),
                 ),
                 weights[0],
             )
@@ -72,6 +74,7 @@ class GumbleGmvaeNetLossNet(GmvaeNetLossNetBase):
             l_pxgzy_bin=losses_marginal.l_pxgzy_bin,
             l_pxgzy_ord=losses_marginal.l_pxgzy_ord,
             l_pxgzy_cat=losses_marginal.l_pxgzy_cat,
+            scaled_l_pxgzy=losses_marginal.scaled_l_pxgzy,
             scaled_elbo=scaled_elbo,
             recon_loss=losses_marginal.recon_loss,
             loss=loss,

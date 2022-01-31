@@ -92,6 +92,7 @@ class StackedGmvaeLossNet(GmvaeNetLossNetBase):
             l_pxgzy_bin=combined_losses.l_pxgzy_bin,
             l_pxgzy_ord=combined_losses.l_pxgzy_ord,
             l_pxgzy_cat=combined_losses.l_pxgzy_cat,
+            scaled_l_pxgzy=combined_losses.scaled_l_pxgzy,
             scaled_elbo=scaled_elbo,
             recon_loss=combined_losses.recon_loss,
             loss=loss,

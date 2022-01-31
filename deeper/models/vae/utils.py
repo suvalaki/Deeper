@@ -10,6 +10,7 @@ from deeper.models.generalised_autoencoder.base import (
     AutoencoderTypeGetterBase,
 )
 from deeper.models.gan.base_getter import GanTypeGetter
+from deeper.models.adversarial_autoencoder.base_getter import AdversarialAutoencoderTypeGetter
 
 SplitCovariates = namedtuple(
     "SplitInputs",
@@ -24,9 +25,9 @@ SplitCovariates = namedtuple(
 )
 
 
-class VaeTypeGetter(AutoencoderTypeGetterBase, GanTypeGetter):
+class VaeTypeGetter(AutoencoderTypeGetterBase, GanTypeGetter, AdversarialAutoencoderTypeGetter):
 
-    # Autoencoder Getters
+    # Autoencoder Getters Mixin
 
     def get_network_type(self):
         from deeper.models.vae.network import VaeNet
@@ -48,7 +49,7 @@ class VaeTypeGetter(AutoencoderTypeGetterBase, GanTypeGetter):
 
         return VaeLatentParser
 
-    # Gan getters
+    # Gan getters Mixin
 
     def get_generatornet_type(self):
         from deeper.models.vae.network import VaeNet
@@ -64,3 +65,20 @@ class VaeTypeGetter(AutoencoderTypeGetterBase, GanTypeGetter):
         from deeper.models.vae.parser import OutputParser
 
         return OutputParser
+
+    # Adversarial Autoencoder getters Mixin
+
+    def get_adversarialae_real_output_getter(self):
+        from deeper.models.vae.parser import LatentPriorParser
+
+        return LatentPriorParser
+
+    def get_adversarialae_fake_output_getter(self):
+        from deeper.models.vae.parser import LatentPosteriorParser
+
+        return LatentPosteriorParser
+
+    def get_adversarialae_recon_loss_getter(self):
+        from deeper.models.vae.parser import ReconstructionOnlyLossOutputParser
+
+        return ReconstructionOnlyLossOutputParser

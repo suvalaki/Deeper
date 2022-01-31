@@ -86,6 +86,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         l_pxgz_bin: tf.Tensor
         l_pxgz_ord: tf.Tensor
         l_pxgz_cat: tf.Tensor
+        scaled_l_pxgz: tf.Tensor
         scaled_elbo: tf.Tensor
         loss: tf.Tensor
         lambda_z: tf.Tensor
@@ -155,6 +156,7 @@ class VaeLossNet(tf.keras.layers.Layer):
             log_pxgz_bin,
             log_pxgz_ord,
             log_pxgz_cat,
+            scaled_log_pgz,
             scaled_elbo,
             scaled_loss,
             lambda_z,
