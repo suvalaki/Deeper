@@ -47,7 +47,11 @@ from deeper.models.adversarial_autoencoder.model import AdversarialAutoencoder
 from deeper.models.gan.descriminator import DescriminatorNet
 from deeper.models.gmvae.gmvae_pure_sampling import GumbleGmvae
 
-from deeper.analysis.adversarial_autoencoder.callbacks import PlotterCallback
+from deeper.analysis.generalised_autoencoder.callbacks import (
+    ReconstructionImagePlotter,
+    ClusteringCallback,
+    LatentPlotterCallback,
+)
 
 
 print("tensorflow gpu available {}".format(tf.test.is_gpu_available()))
@@ -78,9 +82,9 @@ if False:
 #%% Instantiate the model
 BATCH_SIZE = 12
 desciminatorConfig = DescriminatorNet.Config(
-    embedding_dimensions=[512, 512, 128],
+    embedding_dimensions=[24, 24, 12],
     activation=tf.keras.layers.Activation("relu"),
-    embedding_dropout=0.25,
+    embedding_dropout=0.1,
     # bn_before=True,
 )
 vaeConfig = GumbleGmvae.Config(
@@ -100,7 +104,7 @@ vaeConfig = GumbleGmvae.Config(
     ),
     encoder_embedding_dimensions=[512, 512, 256],
     decoder_embedding_dimensions=[512, 512, 256][::-1],
-    latent_dim=64,
+    latent_dim=2,
     embedding_activation=tf.keras.layers.ELU(),
     gumble_temperature_schedule=tfa.optimizers.CyclicalLearningRate(
         0.5,
@@ -132,17 +136,18 @@ config = AdversarialAutoencoder.Config(
 )
 
 model = AdversarialAutoencoder(config)
-model.compile(optimizer=tf.keras.optimizers.RMSprop(0.000005))
+model.compile(optimizer=tf.keras.optimizers.RMSprop(0.0005))
 
 #%% train
 fp = "./logs/adversarialae/test_mnist_gumblegmvae"
+tbc = tf.keras.callbacks.TensorBoard(fp)
+rc = ReconstructionImagePlotter(model, tbc, X_train, X_test, y_train, y_test)
+cc = ClusteringCallback(model, tbc, X_train, X_test, y_train, y_test)
+lc = LatentPlotterCallback(model, tbc, X_train, X_test, y_train, y_test)
 model.fit(
     X_train,
     X_train,
-    callbacks=[
-        tf.keras.callbacks.TensorBoard(fp),
-        PlotterCallback(fp, X_train, X_test, y_train, y_test, model),
-    ],
+    callbacks=[tbc, rc, cc, lc],
     epochs=10000,
     batch_size=BATCH_SIZE,
     validation_data=(X_test, X_test),

@@ -37,6 +37,12 @@ from sklearn.metrics import (
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.preprocessing import OneHotEncoder
 
+from deeper.analysis.generalised_autoencoder.callbacks import (
+    ReconstructionImagePlotter,
+    ClusteringCallback,
+    LatentPlotterCallback,
+)
+
 
 print("tensorflow gpu available {}".format(tf.test.is_gpu_available()))
 
@@ -107,14 +113,15 @@ model.compile()
 
 
 #%% train
-tbc = tf.keras.callbacks.TensorBoard(
-    "./logs/stacked_trial_3_fix_z_sched_z_schedule_only"
-)
-pc = PurityCallback(tbc, X_train, X_test, y_train, y_test)
+fp = "./logs/gmvae/stackedgmvae/trial0"
+tbc = tf.keras.callbacks.TensorBoard(fp)
+rc = ReconstructionImagePlotter(model, tbc, X_train, X_test, y_train, y_test)
+cc = ClusteringCallback(model, tbc, X_train, X_test, y_train, y_test)
+lc = LatentPlotterCallback(model, tbc, X_train, X_test, y_train, y_test)
 model.fit(
     ds_train,
     epochs=10000,
-    callbacks=[tbc, pc],
+    callbacks=[tbc, rc, cc, lc],
     batch_size=BATCH_SIZE,
     validation_data=(X_test, X_test),
 )

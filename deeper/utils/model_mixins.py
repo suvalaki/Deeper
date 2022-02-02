@@ -67,7 +67,7 @@ class LatentMixin(InputDisentangler):
         return self.__latent_parser(self.__network(ins.inputs, training=training))
 
     @property
-    def implements_clustering(self):
+    def implements_latent(self):
         return self.__latent_parser is not None
 
 
@@ -82,5 +82,5 @@ class ReconstructionMixin(InputDisentangler):
         return self.__reconstruction_parser(self.__network(ins.inputs, training=training))
 
     @property
-    def implements_clustering(self):
+    def implements_reconstruction(self):
         return self.__reconstruction_parser is not None

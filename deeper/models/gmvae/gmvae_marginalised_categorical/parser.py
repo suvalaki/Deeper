@@ -16,12 +16,12 @@ from deeper.models.adversarial_autoencoder.base_getter import (
 )
 
 
-class ClusterPredictionParser:
+class ClusterPredictionParser(tf.keras.layers.Layer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
     def call(self, y_pred: StackedGmvaeNet.Output, training: bool = False) -> tf.Tensor:
-        return y_pred.qy_g_x.onehot
+        return y_pred.qy_g_x.argmax
 
 
 class InputParser(BaseGanRealOutputGetter):

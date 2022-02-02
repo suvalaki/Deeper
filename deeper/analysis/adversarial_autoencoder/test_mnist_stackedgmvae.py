@@ -45,8 +45,11 @@ from deeper.models.adversarial_autoencoder.model import AdversarialAutoencoder
 from deeper.models.gan.descriminator import DescriminatorNet
 from deeper.models.gmvae.model import StackedGmvae
 
-from deeper.analysis.adversarial_autoencoder.callbacks import PlotterCallback
-
+from deeper.analysis.generalised_autoencoder.callbacks import (
+    ReconstructionImagePlotter,
+    ClusteringCallback,
+    LatentPlotterCallback,
+)
 
 print("tensorflow gpu available {}".format(tf.test.is_gpu_available()))
 
@@ -76,14 +79,14 @@ if False:
 #%% Instantiate the model
 BATCH_SIZE = 12
 desciminatorConfig = DescriminatorNet.Config(
-    embedding_dimensions=[512, 512, 128],
+    embedding_dimensions=[24, 16, 12, 8],
     activation=tf.keras.layers.Activation("relu"),
-    embedding_dropout=0.25,
+    # embedding_dropout=0.25,
     # bn_before=True,
 )
 vaeConfig = StackedGmvae.Config(
-    components=10,
-    cat_embedding_dimensions=[512, 512, 256],
+    components=20,
+    cat_embedding_dimensions=[512, 512, 256, 128, 64],
     input_dimensions=MultipleObjectiveDimensions(
         regression=0,
         boolean=X_train.shape[-1],
@@ -96,17 +99,10 @@ vaeConfig = StackedGmvae.Config(
         ordinal=(0,),
         categorical=(0,),
     ),
-    encoder_embedding_dimensions=[512, 512, 256],
-    decoder_embedding_dimensions=[512, 512, 256][::-1],
-    latent_dim=64,
+    encoder_embedding_dimensions=[512, 512, 256, 128, 64, 32],
+    decoder_embedding_dimensions=[512, 512, 256, 128, 64, 32][::-1],
+    latent_dim=2,
     embedding_activation=tf.keras.layers.ELU(),
-    gumble_temperature_schedule=tfa.optimizers.CyclicalLearningRate(
-        0.5,
-        1.0,
-        step_size=10000.0,
-        scale_fn=lambda x: 1 / (1.2 ** (x - 1)),
-        scale_mode="cycle",
-    ),
     kld_y_schedule=tfa.optimizers.CyclicalLearningRate(
         1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
     ),
@@ -122,17 +118,18 @@ config = AdversarialAutoencoder.Config(
 )
 
 model = AdversarialAutoencoder(config)
-model.compile(optimizer=tf.keras.optimizers.RMSprop(0.000005))
+model.compile(optimizer=tf.keras.optimizers.RMSprop(0.00005))
 
 #%% train
-fp = "./logs/adversarialae/test_mnist_stackedgmvae"
+fp = "./logs/adversarialae/test_mnist_stackedgmvae_tr1"
+tbc = tf.keras.callbacks.TensorBoard(fp)
+rc = ReconstructionImagePlotter(model, tbc, X_train, X_test, y_train, y_test)
+cc = ClusteringCallback(model, tbc, X_train, X_test, y_train, y_test)
+lc = LatentPlotterCallback(model, tbc, X_train, X_test, y_train, y_test)
 model.fit(
     X_train,
     X_train,
-    callbacks=[
-        tf.keras.callbacks.TensorBoard(fp),
-        PlotterCallback(fp, X_train, X_test, y_train, y_test, model),
-    ],
+    callbacks=[tbc, rc, cc, lc],
     epochs=10000,
     batch_size=BATCH_SIZE,
     validation_data=(X_test, X_test),

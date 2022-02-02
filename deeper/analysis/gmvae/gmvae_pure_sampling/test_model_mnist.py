@@ -41,6 +41,14 @@ from sklearn.metrics import (
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.preprocessing import OneHotEncoder
 
+from deeper.analysis.adversarial_autoencoder.callbacks import PlotterCallback
+
+from deeper.analysis.generalised_autoencoder.callbacks import (
+    ReconstructionImagePlotter,
+    ClusteringCallback,
+    LatentPlotterCallback,
+)
+
 
 print("tensorflow gpu available {}".format(tf.test.is_gpu_available()))
 
@@ -63,7 +71,7 @@ X_test = (X_test > 0.5).astype(float)
 BATCH_SIZE = 24
 config = GumbleGmvae.Config(
     components=10,
-    cat_embedding_dimensions=[512, 512, 256],
+    cat_embedding_dimensions=[512, 512, 256, 128, 64],
     input_dimensions=MultipleObjectiveDimensions(
         regression=0,
         boolean=X_train.shape[-1],
@@ -76,15 +84,15 @@ config = GumbleGmvae.Config(
         ordinal=(0,),
         categorical=(0,),
     ),
-    encoder_embedding_dimensions=[512, 512, 256],
-    decoder_embedding_dimensions=[512, 512, 256][::-1],
-    latent_dim=64,
-    embedding_activation=tf.keras.layers.ELU(),
+    encoder_embedding_dimensions=[512, 512, 256, 256, 128],
+    decoder_embedding_dimensions=[512, 512, 256, 256, 128][::-1],
+    latent_dim=2,
+    embedding_activation=tf.keras.layers.ReLU(),
     gumble_temperature_schedule=tfa.optimizers.CyclicalLearningRate(
-        0.5,
+        1.0,
         1.0,
         step_size=10000.0,
-        scale_fn=lambda x: 1 / (1.2 ** (x - 1)),
+        scale_fn=lambda x: 1 / (1.05 ** (x - 1)),
         scale_mode="cycle",
     ),
     # gumble_temperature_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
@@ -101,23 +109,25 @@ config = GumbleGmvae.Config(
     kld_z_schedule=tfa.optimizers.CyclicalLearningRate(
         1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
     ),
-    # bn_before=True
+    bn_before=True,
 )
 
 model = GumbleGmvae(config)
-model.compile(optimizer=tf.keras.optimizers.Adam(1e-3))
+model.compile(optimizer=tf.keras.optimizers.Adam(3e-4))
 # model.compile()
 
 #%% train
-tbc = tf.keras.callbacks.TensorBoard(
-    "./logs/trial_4_fix_z_sched_z_schedule_only"
-)
-pc = PurityCallback(tbc, X_train, X_test, y_train, y_test)
+fp = "./logs/gmvae/gumble_0"
+tbc = tf.keras.callbacks.TensorBoard(fp)
+rc = ReconstructionImagePlotter(model, tbc, X_train, X_test, y_train, y_test)
+cc = ClusteringCallback(model, tbc, X_train, X_test, y_train, y_test)
+lc = LatentPlotterCallback(model, tbc, X_train, X_test, y_train, y_test)
+
 model.fit(
     X_train,
     X_train,
     epochs=10000,
-    callbacks=[tbc, pc],
+    callbacks=[tbc, rc, cc, lc],
     batch_size=BATCH_SIZE,
     validation_data=(X_test, X_test),
 )

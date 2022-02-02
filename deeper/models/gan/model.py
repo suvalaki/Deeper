@@ -8,13 +8,13 @@ from deeper.models.gan.network import GanNet
 from deeper.models.gan.network_loss import GanLossNet
 from deeper.models.gan.descriminator import DescriminatorNet
 from deeper.models.generalised_autoencoder.network import ModelConfigType
-from deeper.utils.model_mixins import InputDisentangler, ReconstructionMixin
+from deeper.utils.model_mixins import InputDisentangler, ReconstructionMixin, ClusteringMixin
 
 tfk = tf.keras
 Model = tfk.Model
 
 
-class Gan(Model, ReconstructionMixin, InputDisentangler):
+class Gan(Model, ReconstructionMixin, ClusteringMixin):
     class Config(GanNet.Config):
         generator: ModelConfigType
         training_ratio: int = 3
@@ -39,7 +39,14 @@ class Gan(Model, ReconstructionMixin, InputDisentangler):
             self.network.generatornet,
             self.network.fake_getter,
         )
-        InputDisentangler.__init__(self, self.weight_getter)
+        ClusteringMixin.__init__(
+            self,
+            self.weight_getter,
+            self.network.generatornet,
+            config.generator.get_cluster_output_parser_type()()
+            if hasattr(config.generator, "get_cluster_output_parser_type")
+            else None,
+        )
 
     def call(self, x, temp=None, training=False):
         return self.call_reconstruction(x, temp, training)
