@@ -53,9 +53,7 @@ assert int(c) == 2
 
 class Dense(object):
     def __init__(self):
-        self.W = tf.Variable(
-            tf.compat.v1.glorot_uniform_initializer()((10, 10))
-        )
+        self.W = tf.Variable(tf.compat.v1.glorot_uniform_initializer()((10, 10)))
         self.b = tf.Variable(tf.zeros(10))
 
     @tf.function

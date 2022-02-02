@@ -1,5 +1,5 @@
 import tensorflow as tf
-from  tyiping import List, Union, Optional
+from tyiping import List, Union, Optional
 
 from deeper.utils.function_helpers.decorators import inits_args
 
@@ -8,23 +8,22 @@ Layer = tfk.layers.Layer
 
 
 class Encoder(Layer, Scope):
-
     @inits_args
     def __init__(
         self,
-        latent_dim:int,
-        embedding_dimensions:List[int],
-        activation:Union[str, tfk.layers.Activation],
-        bn_before:bool=False,
-        bn_after:bool=False,
-        embedding_kernel_initializer:Union[str, tfk.initializers.Initializer]="glorot_uniform",
-        embedding_bias_initializer:Union[str, tfk.initializers.Initializer]="zeros",
-        latent_kernel_initialiazer:Union[str, tfk.initializers.Initializer]="glorot_uniform",
-        latent_bias_initializer:Union[str, tfk.initializers.Initializer]="zeros",
-        latent_return_sequences:bool=False,
-        embedding_dropout:Optional[float]=None,
-        opt_embedding_args:dict={},
-        opt_latent_args:dict={},
+        latent_dim: int,
+        embedding_dimensions: List[int],
+        activation: Union[str, tfk.layers.Activation],
+        bn_before: bool = False,
+        bn_after: bool = False,
+        embedding_kernel_initializer: Union[str, tfk.initializers.Initializer] = "glorot_uniform",
+        embedding_bias_initializer: Union[str, tfk.initializers.Initializer] = "zeros",
+        latent_kernel_initialiazer: Union[str, tfk.initializers.Initializer] = "glorot_uniform",
+        latent_bias_initializer: Union[str, tfk.initializers.Initializer] = "zeros",
+        latent_return_sequences: bool = False,
+        embedding_dropout: Optional[float] = None,
+        opt_embedding_args: dict = {},
+        opt_latent_args: dict = {},
         **kwargs
     ):
         Layer.__init__(self, **kwargs)
@@ -76,9 +75,7 @@ class Encoder(Layer, Scope):
             if self.dropout_rate > 0.0 and self.dropout_rate is not None:
                 self.dropout.append(tfk.layers.Dropout(self.dropout_rate))
 
-        self.latent_bn = tfk.layers.BatchNormalization(
-            axis=-1, name=self.v_name("latent_bn")
-        )
+        self.latent_bn = tfk.layers.BatchNormalization(axis=-1, name=self.v_name("latent_bn"))
         self.latent = tfk.layers.lstm(
             units=self.latent_dim,
             activation=None,
@@ -88,7 +85,6 @@ class Encoder(Layer, Scope):
             return_sequences=latent_return_sequences,
             **opt_latent_args
         )
-
 
     @tf.function
     def call(self, inputs, training=False):

@@ -20,9 +20,7 @@ def logvar_computation(logvar: Tensor, epsilon: float = 0.0) -> Tensor:
     return var
 
 
-def lognormal_pdf(
-    x: Tensor, mu: Tensor, logvar: Tensor, epsilon: float = 0.0
-) -> Tensor:
+def lognormal_pdf(x: Tensor, mu: Tensor, logvar: Tensor, epsilon: float = 0.0) -> Tensor:
     """Calculate the lognormal_pdf (along each axis) for the input tensor x
     with mean mu and variance var (exp(logvar)) adjusted by epsilon.
 
@@ -41,9 +39,7 @@ def lognormal_pdf(
     """
     var = logvar_computation(logvar, epsilon)
     logprob = -0.5 * (
-        tf.math.log(2.0 * tf.cast(np.pi, x.dtype))
-        + tf.math.log(var)
-        + tf.math.square(x - mu) / var
+        tf.math.log(2.0 * tf.cast(np.pi, x.dtype)) + tf.math.log(var) + tf.math.square(x - mu) / var
     )
     return logprob
 
@@ -133,9 +129,7 @@ def std_normal_kl_divergence(
         (via logsum of dimensions)
     """
     var = logvar_computation(logvar, epsilon)
-    kl_divergence = 0.5 * tf.reduce_sum(
-        1 + logvar - tf.math.square(mu) - var, axis=axis
-    )
+    kl_divergence = 0.5 * tf.reduce_sum(1 + logvar - tf.math.square(mu) - var, axis=axis)
     if name is not None:
         kl_divergence = tf.identity(kl_divergence, name=name)
 
@@ -176,13 +170,7 @@ def normal_kl(
     if eps_y > 0.0:
         var_y = tf.add(var_y, eps_y)
 
-    w = (
-        logvar_x
-        - logvar_y
-        + var_x / var_y
-        + tf.square(mu_x - mu_y) / var_y
-        - 1
-    )
+    w = logvar_x - logvar_y + var_x / var_y + tf.square(mu_x - mu_y) / var_y - 1
     entropy = 0.5 * tf.reduce_sum(w, axis=-1)
 
     return entropy

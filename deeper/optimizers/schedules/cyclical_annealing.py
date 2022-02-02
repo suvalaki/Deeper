@@ -7,9 +7,7 @@ from typing import Union, Callable
 from tensorflow_addons.utils.types import FloatTensorLike
 
 
-class CyclicalPiecewiseLinearLearningRate(
-    tf.keras.optimizers.schedules.LearningRateSchedule
-):
+class CyclicalPiecewiseLinearLearningRate(tf.keras.optimizers.schedules.LearningRateSchedule):
     @typechecked
     def __init__(
         self,
@@ -45,9 +43,7 @@ class CyclicalPiecewiseLinearLearningRate(
             steps_maximal = tf.cast(self.steps_maximal, dtype)
             iterations = tf.cast(self.iterations, dtype)
 
-            steps_per_iteration = (
-                steps_initial + steps_interpolating + steps_maximal
-            )
+            steps_per_iteration = steps_initial + steps_interpolating + steps_maximal
             ncycle = step / steps_per_iteration
             cycle_step = tf.math.floormod(step, steps_per_iteration)
 
@@ -55,9 +51,7 @@ class CyclicalPiecewiseLinearLearningRate(
                 tf.math.logical_or(ncycle < iterations, iterations == -1)
             )
             in_initial = cycle_step < steps_initial
-            in_interpolation = cycle_step < (
-                steps_initial + steps_interpolating
-            )
+            in_interpolation = cycle_step < (steps_initial + steps_interpolating)
 
             result = maximal_learning_rate * tf.ones_like(step)
             result_w_interpolation = tf.where(

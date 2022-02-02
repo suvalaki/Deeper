@@ -7,9 +7,7 @@ Tensor = tf.Tensor
 
 
 def logprob_divergence(px, qx, axis=-1, name="logprob_divergence"):
-    d = tf.reduce_sum(
-        tf.math.subtract(tf.log(px), tf.log(qx)), axis=axis, name=name
-    )
+    d = tf.reduce_sum(tf.math.subtract(tf.log(px), tf.log(qx)), axis=axis, name=name)
     return d
 
 
@@ -51,9 +49,7 @@ def std_normal_kl_divergence(
     """
 
     var = logvar_computation(logvar, epsilon)
-    kl_divergence = 0.5 * tf.reduce_sum(
-        1 + tf.math.log(var) - tf.math.square(mu) - var, axis=axis
-    )
+    kl_divergence = 0.5 * tf.reduce_sum(1 + tf.math.log(var) - tf.math.square(mu) - var, axis=axis)
     if name is not None:
         kl_divergence = tf.identity(kl_divergence, name=name)
 

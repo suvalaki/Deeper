@@ -40,12 +40,8 @@ grad = graph_gradients(x_train, y_train)
 print(grad[0])
 
 #%% Verify with Multiple input dim
-x_train_batch = tf.constant(
-    np.array([[1.0], [2.0]]), dtype=tf.float64, name="x_train_batch"
-)
-y_train_batch = tf.constant(
-    np.array([[72.0], [42.0]]), dtype=tf.float64, name="x_train_batch"
-)
+x_train_batch = tf.constant(np.array([[1.0], [2.0]]), dtype=tf.float64, name="x_train_batch")
+y_train_batch = tf.constant(np.array([[72.0], [42.0]]), dtype=tf.float64, name="x_train_batch")
 result = graph(x_train_batch)
 grad_batch = graph_gradients(x_train_batch, y_train_batch)
 print(grad_batch[0])
@@ -61,9 +57,7 @@ input_list = ((1.0, 72.0), (2.0, 42.0))
 for in_val, out_val in input_list:
     grad_val += graph_gradients(in_val, out_val)[0]
 
-assert (
-    grad_batch[0].numpy() == grad_val.numpy()
-), "the gradients are NOT being summed together"
+assert grad_batch[0].numpy() == grad_val.numpy(), "the gradients are NOT being summed together"
 
 # Gradients over a batch ARE being summed together
 
@@ -90,8 +84,7 @@ def graph_average_loss_gradients(x, y):
 
 grad_ave_batch = graph_average_loss_gradients(x_train_batch, y_train_batch)
 assert grad_ave_batch[0].numpy() == grad_val.numpy() / len(input_list), (
-    "Placing  reduce Mean operator at the end does NOT result in \n"
-    "averaged gradients"
+    "Placing  reduce Mean operator at the end does NOT result in \n" "averaged gradients"
 )
 
 # Reducing the mean of the last layer DOES in fact average the gradients
