@@ -16,6 +16,14 @@ from deeper.models.adversarial_autoencoder.base_getter import (
 )
 
 
+class ClusterPredictionParser:
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def call(self, y_pred: StackedGmvaeNet.Output, training: bool = False) -> tf.Tensor:
+        return y_pred.qy_g_x.onehot
+
+
 class InputParser(BaseGanRealOutputGetter):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -24,7 +32,7 @@ class InputParser(BaseGanRealOutputGetter):
         self,
         x: tf.Tensor,
         y: tf.Tensor,
-        y_pred: VaeNet.Output,
+        y_pred: StackedGmvaeNet.Output,
         training: bool = False,
     ) -> tf.Tensor:
         return y

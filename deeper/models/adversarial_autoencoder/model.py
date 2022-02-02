@@ -11,16 +11,22 @@ from deeper.models.adversarial_autoencoder.network_loss import (
     AdverasrialAutoencoderLossNet,
 )
 from deeper.models.gan.descriminator import DescriminatorNet
-from deeper.models.generalised_autoencoder.network import ModelConfigType
+from deeper.models.generalised_autoencoder.network import (
+    ModelConfigType,
+)
+from deeper.models.generalised_autoencoder.base import (
+    AutoencoderModelBaseMixin,
+)
+from deeper.utils.model_mixins import ClusteringMixin
 
 tfk = tf.keras
 Model = tfk.Model
 
 
-class AdversarialAutoencoder(Model):
+class AdversarialAutoencoder(Model, AutoencoderModelBaseMixin, ClusteringMixin):
     class Config(AdversarialAuoencoderNet.Config):
         generator: ModelConfigType
-        training_ratio: int = 3
+        training_ratio: int = 1
 
         class Config:
             arbitrary_types_allowed = True
@@ -29,7 +35,7 @@ class AdversarialAutoencoder(Model):
     Config.update_forward_refs()
 
     def __init__(self, config: AdversarialAutoencoder.Config, **kwargs):
-        super().__init__(**kwargs)
+        Model.__init__(self, **kwargs)
         self.config = config
         self.network = AdversarialAuoencoderNet(config, **kwargs)
         self.lossnet = AdverasrialAutoencoderLossNet(config, self.network.generatornet, **kwargs)
@@ -38,47 +44,32 @@ class AdversarialAutoencoder(Model):
         )
         self.output_parser = config.generator.get_fake_output_getter()()
         self.latent_parser = config.generator.get_adversarialae_fake_output_getter()()
+        AutoencoderModelBaseMixin.__init__(
+            self,
+            self.weight_getter,
+            self.network.generatornet,
+            config.generator.get_adversarialae_fake_output_getter()(),
+            config.generator.get_fake_output_getter()(),
+        )
+        ClusteringMixin.__init__(
+            self,
+            self.weight_getter,
+            self.network.generatornet,
+            config.generator.get_cluster_output_parser_type()()
+            if hasattr(config.generator, "get_cluster_output_parser_type")
+            else None,
+        )
 
     def call(self, x, temp=None, training=False):
 
-        if not temp:
-            weights = self.weight_getter(self.optimizer.iterations)
-            if type(weights) == list:
-                temp, weight = weights
-        if temp is not None:
-            inputs = (x, temp)
-        else:
-            inputs = x
-
+        inputs, temp, weights = self.call_inputs(x)
         return self.output_parser(self.network.generatornet(inputs, training=training))
-
-    def call_latent(self, x, temp=None, training=False):
-
-        if not temp:
-            weights = self.weight_getter(self.optimizer.iterations)
-            if type(weights) == list:
-                temp, weight = weights
-        if temp is not None:
-            inputs = (x, temp)
-        else:
-            inputs = x
-
-        return self.latent_parser(self.network.generatornet(inputs, training=training))
-
 
     def train_step(self, data, training: bool = False):
 
         data = data_adapter.expand_1d(data)
         x, y = data
-
-        temp = None
-        weights = self.weight_getter(self.optimizer.iterations)
-        if type(weights) == list:
-            temp, weights = weights
-        if temp is not None:
-            inputs = (x, temp)
-        else:
-            inputs = x
+        inputs, temp, weights = self.call_inputs(x)
 
         # Use a single pass over the network for efficiency.
         # Normaly would sequentially call generative and then descrimnative nets
@@ -101,6 +92,7 @@ class AdversarialAutoencoder(Model):
                 descrim_loss = tf.reduce_mean(descrim_losses)
                 gen_loss = tf.reduce_mean(gen_losses)
                 recon_loss = tf.reduce_mean(recon_losses)
+                loss = tf.reduce_mean(gen_loss) + tf.reduce_mean(recon_loss)
 
             # Train the descriminator to identify real from fake samples
             self.optimizer.minimize(
@@ -110,11 +102,11 @@ class AdversarialAutoencoder(Model):
             )
 
         # Train the generator to fool the descriminator
-        self.optimizer.minimize(
-            gen_loss,
-            self.network.generatornet.trainable_variables,
-            tape=gen_tape,
-        )
+        # self.optimizer.minimize(
+        #    loss,
+        #   self.network.generatornet.trainable_variables,
+        #    tape=gen_tape,
+        # )
 
         # instead of doing this maybe train only encoder on GAN generator and
         # train ae decoder on this step.
@@ -133,10 +125,11 @@ class AdversarialAutoencoder(Model):
             descrim_loss = tf.reduce_mean(descrim_losses)
             gen_loss = tf.reduce_mean(gen_losses)
             recon_loss = tf.reduce_mean(recon_losses)
+            loss = tf.reduce_mean(gen_loss) + tf.reduce_mean(recon_loss)
 
         # Train the reconstruction network
         self.optimizer.minimize(
-            recon_loss,
+            loss,
             self.network.generatornet.trainable_variables,
             tape=recon_tape,
         )
@@ -154,14 +147,9 @@ class AdversarialAutoencoder(Model):
         data = data_adapter.expand_1d(data)
         x, y = data
 
-        temp = None
-        weights = self.weight_getter(0)
-        if type(weights) == list:
-            temp, weights = weights
+        inputs, temp, weights = self.call_inputs(x)
         if temp is not None:
-            inputs = (x, temp)
-        else:
-            inputs = x
+            inpputs = (x, 0.5)
 
         y_pred = self.network(inputs, y, training=False)
         gen_losses, descrim_losses, recon_losses = self.lossnet(

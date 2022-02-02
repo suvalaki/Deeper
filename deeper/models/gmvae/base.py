@@ -5,7 +5,14 @@ from typing import NamedTuple, Sequence
 from pydantic import BaseModel
 from deeper.models.vae import Vae
 from deeper.models.gmvae.marginalvae import MarginalGmVaeNet
-from deeper.models.generalised_autoencoder.base import AutoencoderBase
+from deeper.models.generalised_autoencoder.base import (
+    AutoencoderBase,
+    AutoencoderModelBaseMixin,
+)
+from deeper.utils.model_mixins import InputDisentangler, ClusteringMixin
+
+from tensorflow.python.keras.engine import data_adapter
+from tensorflow.python.eager import backprop
 
 
 class GmvaeNetBase(AutoencoderBase):
@@ -52,7 +59,7 @@ class GmvaeNetLossNetBase(tf.keras.layers.Layer):
         lambda_cat: tf.Tensor
 
 
-class GmvaeModelBase(tf.keras.Model):
+class GmvaeModelBase(tf.keras.Model, AutoencoderModelBaseMixin, ClusteringMixin):
     class CoolingRegime(Vae.CoolingRegime):
         class Config(Vae.CoolingRegime.Config):
             kld_y_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
@@ -105,3 +112,66 @@ class GmvaeModelBase(tf.keras.Model):
         "kld_y_schedule": "weight/lambda_y",
         "kld_z_schedule": "weight/lambda_z",
     }
+
+    def __init__(self, config, **kwargs):
+        tf.keras.Model.__init__(self, **kwargs)
+        self.config = config
+        self.network = config.get_network_type()(config)
+        self.lossnet = config.get_lossnet_type()()
+        self.weight_getter = config.get_cooling_regime()(config, dtype=self.dtype)
+        AutoencoderModelBaseMixin.__init__(
+            self,
+            self.weight_getter,
+            self.network,
+            config.get_adversarialae_fake_output_getter()(),
+            config.get_fake_output_getter()(),
+        )
+        ClusteringMixin.__init__(
+            self,
+            self.weight_getter,
+            self.network,
+            config.get_cluster_output_parser_type()(),
+        )
+
+    def train_step(self, data, training: bool = False):
+
+        data = data_adapter.expand_1d(data)
+        x, y = data
+        inputs, temp, weights = self.call_inputs(x)
+
+        with backprop.GradientTape() as tape:
+            y_pred = self.network(inputs, training=True)
+            losses = self.loss_fn(
+                y,
+                y_pred,
+                weights,
+                training=True,
+            )
+            loss = tf.reduce_mean(losses.loss)
+        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+
+        tempr = {"temp": temp} if "temp" in self._output_keys_renamed else {}
+        return {
+            self._output_keys_renamed[k]: v
+            for k, v in {
+                # **{v.name: v.result() for v in self.metrics}
+                **losses._asdict(),
+                **tempr,
+                "kld_y_schedule": weights.lambda_y,
+                "kld_z_schedule": weights.lambda_z,
+            }.items()
+        }
+
+    def test_step(self, data):
+        data = data_adapter.expand_1d(data)
+        x, y = data
+        inputs, temp, weights = self.call_inputs(x)
+
+        if temp is not None:
+            inpputs = (x, 0.5)
+
+        y_pred = self.network(inputs, training=False)
+        losses = self.loss_fn(y, y_pred, self.lossnet.InputWeight(), training=False)
+        loss = tf.reduce_mean(losses.loss)
+
+        return {self._output_keys_renamed[k]: v for k, v in losses._asdict().items()}

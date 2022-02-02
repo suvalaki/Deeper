@@ -2,12 +2,19 @@ from deeper.models.generalised_autoencoder.base import (
     AutoencoderTypeGetterBase,
 )
 from deeper.models.gan.base_getter import GanTypeGetter
-from deeper.models.adversarial_autoencoder.base_getter import AdversarialAutoencoderTypeGetter
+from deeper.models.adversarial_autoencoder.base_getter import (
+    AdversarialAutoencoderTypeGetter,
+)
 
 
 class GumbleGmvaeTypeGetter(
     AutoencoderTypeGetterBase, GanTypeGetter, AdversarialAutoencoderTypeGetter
 ):
+    def get_cooling_regime(self):
+        from deeper.models.gmvae.gmvae_pure_sampling import GumbleGmvae
+
+        return GumbleGmvae.CoolingRegime
+
     def get_network_type(self):
         from deeper.models.gmvae.gmvae_pure_sampling.network import (
             GumbleGmvaeNet,
@@ -33,6 +40,13 @@ class GumbleGmvaeTypeGetter(
         )
 
         return GumbleGmvaeLatentParser
+
+    def get_cluster_output_parser_type(self):
+        from deeper.models.gmvae.gmvae_pure_sampling.parser import (
+            ClusterPredictionParser,
+        )
+
+        return ClusterPredictionParser
 
     # Gan getters Mixin
 

@@ -65,11 +65,7 @@ class GumbleGmvae(GmvaeModelBase):
     }
 
     def __init__(self, config: GumbleGmvae.Config, **kwargs):
-        super().__init__(**kwargs)
-        self.config = config
-        self.network = GumbleGmvaeNet(config)
-        self.lossnet = GumbleGmvaeNetLossNet()
-        self.weight_getter = GumbleGmvae.CoolingRegime(config, dtype=self.dtype)
+        GmvaeModelBase.__init__(self, config, **kwargs)
 
     @tf.function
     def loss_fn(
@@ -100,40 +96,3 @@ class GumbleGmvae(GmvaeModelBase):
 
     def call(self, data, training: bool = False):
         return self.network((data, 1.0), training=False).qy_g_x.argmax
-
-    def train_step(self, data, training: bool = False):
-
-        data = data_adapter.expand_1d(data)
-        x, y = data
-        temp, weights = self.weight_getter(self.optimizer.iterations)
-
-        with backprop.GradientTape() as tape:
-            y_pred = self.network((x, temp), training=True)
-            losses = self.loss_fn(
-                y,
-                y_pred,
-                weights,
-                training=True,
-            )
-            loss = tf.reduce_mean(losses.loss)
-
-        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
-        return {
-            self._output_keys_renamed[k]: v
-            for k, v in {
-                # **{v.name: v.result() for v in self.metrics}
-                **losses._asdict(),
-                "temp": temp,
-                "kld_y_schedule": weights.lambda_y,
-                "kld_z_schedule": weights.lambda_z,
-            }.items()
-        }
-
-    def test_step(self, data):
-        data = data_adapter.expand_1d(data)
-        x, y = data
-        y_pred = self.network((x, 1.0), training=False)
-        losses = self.loss_fn(y, y_pred, GumbleGmvaeNetLossNet.InputWeight(), training=False)
-        loss = tf.reduce_mean(losses.loss)
-
-        return {self._output_keys_renamed[k]: v for k, v in losses._asdict().items()}

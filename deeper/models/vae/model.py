@@ -39,11 +39,14 @@ Layer = tfk.layers.Layer
 from collections import namedtuple
 from deeper.models.vae.utils import SplitCovariates
 from deeper.models.vae.network import VaeNet
+from deeper.models.generalised_autoencoder.base import (
+    AutoencoderModelBaseMixin,
+)
 
 from pydantic import BaseModel
 
 
-class Vae(tf.keras.Model):
+class Vae(tf.keras.Model, AutoencoderModelBaseMixin):
     class CoolingRegime(tf.keras.layers.Layer):
         class Config(BaseModel):
             kld_z_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
@@ -66,22 +69,38 @@ class Vae(tf.keras.Model):
             )
             recon_reg_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
                 tfa.optimizers.CyclicalLearningRate(
-                    1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+                    1.0,
+                    1.0,
+                    step_size=1,
+                    scale_fn=lambda x: 1.0,
+                    scale_mode="cycle",
                 )
             )
             recon_bin_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
                 tfa.optimizers.CyclicalLearningRate(
-                    1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+                    1.0,
+                    1.0,
+                    step_size=1,
+                    scale_fn=lambda x: 1.0,
+                    scale_mode="cycle",
                 )
             )
             recon_ord_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
                 tfa.optimizers.CyclicalLearningRate(
-                    1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+                    1.0,
+                    1.0,
+                    step_size=1,
+                    scale_fn=lambda x: 1.0,
+                    scale_mode="cycle",
                 )
             )
             recon_cat_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
                 tfa.optimizers.CyclicalLearningRate(
-                    1.0, 1.0, step_size=1, scale_fn=lambda x: 1.0, scale_mode="cycle"
+                    1.0,
+                    1.0,
+                    step_size=1,
+                    scale_fn=lambda x: 1.0,
+                    scale_mode="cycle",
                 )
             )
 
@@ -113,11 +132,18 @@ class Vae(tf.keras.Model):
         pass
 
     def __init__(self, config: VAE.Config, **kwargs):
-        super().__init__(**kwargs)
+        tf.keras.Model.__init__(self, **kwargs)
         self.config = config
         self.network = VaeNet(config, **kwargs)
         self.lossnet = VaeLossNet(latent_eps=1e-6, prefix="loss", **kwargs)
         self.weight_getter = Vae.CoolingRegime(config, dtype=self.dtype)
+        AutoencoderModelBaseMixin.__init__(
+            self,
+            self.weight_getter,
+            self.network,
+            self.config.get_latent_parser_type(),
+            self.config.get_fake_output_getter(),
+        )
 
     @tf.function
     def loss_fn(
