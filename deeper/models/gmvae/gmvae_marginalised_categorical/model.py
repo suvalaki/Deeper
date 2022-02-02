@@ -51,11 +51,7 @@ class StackedGmvae(GmvaeModelBase):
             return StackedGmvae
 
     def __init__(self, config: StackedGmvae.Config, **kwargs):
-        super().__init__(**kwargs)
-        self.config = config
-        self.network = StackedGmvaeNet(config)
-        self.lossnet = StackedGmvaeLossNet()
-        self.weight_getter = StackedGmvae.CoolingRegime(config, dtype=self.dtype)
+        GmvaeModelBase.__init__(self, config, **kwargs)
 
     @tf.function
     def loss_fn(
@@ -86,38 +82,3 @@ class StackedGmvae(GmvaeModelBase):
 
     def call(self, data, training: bool = False):
         return self.network(data, training=False).qy_g_x.argmax
-
-    def train_step(self, data, training: bool = False):
-
-        data = data_adapter.expand_1d(data)
-        x, y = data
-        weights = self.weight_getter(self.optimizer.iterations)
-
-        with backprop.GradientTape() as tape:
-            y_pred = self.network(x, training=True)
-            losses = self.loss_fn(
-                y,
-                y_pred,
-                weights,
-                training=True,
-            )
-            loss = tf.reduce_mean(losses.loss)
-        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
-        return {
-            self._output_keys_renamed[k]: v
-            for k, v in {
-                # **{v.name: v.result() for v in self.metrics}
-                **losses._asdict(),
-                "kld_y_schedule": weights.lambda_y,
-                "kld_z_schedule": weights.lambda_z,
-            }.items()
-        }
-
-    def test_step(self, data):
-        data = data_adapter.expand_1d(data)
-        x, y = data
-        y_pred = self.network(x, training=False)
-        losses = self.loss_fn(y, y_pred, StackedGmvaeLossNet.InputWeight(), training=False)
-        loss = tf.reduce_mean(losses.loss)
-
-        return {self._output_keys_renamed[k]: v for k, v in losses._asdict().items()}

@@ -5,9 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 CONFIG_FILE = "./configs/models/gmvae/gmvae_pure_sampling/defaultconfig.json"
-CONFIG_TRAIN_FILE = (
-    "./configs/models/gmvae/gmvae_pure_sampling/defaulttrainconfig.json"
-)
+CONFIG_TRAIN_FILE = "./configs/models/gmvae/gmvae_pure_sampling/defaulttrainconfig.json"
 
 tf.keras.backend.set_floatx("float64")
 

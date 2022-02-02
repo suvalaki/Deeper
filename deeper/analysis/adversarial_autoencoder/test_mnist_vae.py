@@ -44,7 +44,11 @@ from sklearn.preprocessing import OneHotEncoder
 from deeper.models.adversarial_autoencoder.model import AdversarialAutoencoder
 from deeper.models.gan.descriminator import DescriminatorNet
 
-from deeper.analysis.adversarial_autoencoder.callbacks import PlotterCallback
+from deeper.analysis.generalised_autoencoder.callbacks import (
+    ReconstructionImagePlotter,
+    ClusteringCallback,
+    LatentPlotterCallback,
+)
 
 
 print("tensorflow gpu available {}".format(tf.test.is_gpu_available()))
@@ -110,13 +114,14 @@ model.compile(optimizer=tf.keras.optimizers.RMSprop(0.00005))
 
 #%% train
 fp = "./logs/adversarialae/test_mnist_vae"
+tbc = tf.keras.callbacks.TensorBoard(fp)
+rc = ReconstructionImagePlotter(model, tbc, X_train, X_test, y_train, y_test)
+cc = ClusteringCallback(model, tbc, X_train, X_test, y_train, y_test)
+lc = LatentPlotterCallback(model, tbc, X_train, X_test, y_train, y_test)
 model.fit(
     X_train,
     X_train,
-    callbacks=[
-        tf.keras.callbacks.TensorBoard(fp),
-        PlotterCallback(fp, X_train, X_test, y_train, y_test, model),
-    ],
+    callbacks=[tbc, rc, cc, lc],
     epochs=10000,
     batch_size=BATCH_SIZE,
     validation_data=(X_test, X_test),

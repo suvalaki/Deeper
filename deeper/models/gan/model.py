@@ -8,12 +8,13 @@ from deeper.models.gan.network import GanNet
 from deeper.models.gan.network_loss import GanLossNet
 from deeper.models.gan.descriminator import DescriminatorNet
 from deeper.models.generalised_autoencoder.network import ModelConfigType
+from deeper.utils.model_mixins import InputDisentangler, ReconstructionMixin, ClusteringMixin
 
 tfk = tf.keras
 Model = tfk.Model
 
 
-class Gan(Model):
+class Gan(Model, ReconstructionMixin, ClusteringMixin):
     class Config(GanNet.Config):
         generator: ModelConfigType
         training_ratio: int = 3
@@ -25,40 +26,36 @@ class Gan(Model):
     Config.update_forward_refs()
 
     def __init__(self, config: Gan.Config, **kwargs):
-        super().__init__(**kwargs)
+        Model.__init__(self, **kwargs)
         self.config = config
         self.network = GanNet(config, **kwargs)
         self.lossnet = GanLossNet(**kwargs)
         self.weight_getter = self.config.generator.get_model_type().CoolingRegime(
             self.config.generator, dtype=self.dtype
         )
+        ReconstructionMixin.__init__(
+            self,
+            self.weight_getter,
+            self.network.generatornet,
+            self.network.fake_getter,
+        )
+        ClusteringMixin.__init__(
+            self,
+            self.weight_getter,
+            self.network.generatornet,
+            config.generator.get_cluster_output_parser_type()()
+            if hasattr(config.generator, "get_cluster_output_parser_type")
+            else None,
+        )
 
     def call(self, x, temp=None, training=False):
-
-        if not temp:
-            weights = self.weight_getter(self.optimizer.iterations)
-            if type(weights) == list:
-                temp, weight = weights
-
-        if temp is not None:
-            inputs = (x, temp)
-        else:
-            inputs = x
-        return self.network.fake_getter(self.network.generatornet(inputs, training=training))
+        return self.call_reconstruction(x, temp, training)
 
     def train_step(self, data, training: bool = False):
 
         data = data_adapter.expand_1d(data)
         x, y = data
-
-        temp = None
-        weights = self.weight_getter(self.optimizer.iterations)
-        if type(weights) == list:
-            temp, weight = weights
-        if temp is not None:
-            inputs = (x, temp)
-        else:
-            inputs = x
+        inputs, temp, weights = self.call_inputs(x)
 
         # Use a single pass over the network for efficiency.
         # Normaly would sequentially call generative and then descrimnative nets

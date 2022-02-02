@@ -3,11 +3,11 @@ from itertools import islice
 
 
 class NestedDict(dict):
-    """   
-    https://stackoverflow.com/questions/41472726/multi-nested-dictionary-from-tuples-in-python/41473151                                                                    
-    Nested dictionary of arbitrary depth with autovivification.               
+    """
+    https://stackoverflow.com/questions/41472726/multi-nested-dictionary-from-tuples-in-python/41473151
+    Nested dictionary of arbitrary depth with autovivification.
 
-    Allows data access via extended slice notation.                           
+    Allows data access via extended slice notation.
     """
 
     def __getitem__(self, keys):
@@ -56,7 +56,7 @@ def iter_leafs(d, keys=[], types=[]):
         else:
             yield keys + [key], types + [type(val)], val
     """
-    accumulator = [] 
+    accumulator = []
     for key, val in d.items():
         if isinstance(val, dict):
             for x in iter_leafs(val, keys + [key], types + [type(val)]):

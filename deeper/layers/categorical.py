@@ -13,9 +13,8 @@ Layer = tf.keras.layers.Layer
 
 
 class CategoricalEncoder(Layer):
-
     class Output(NamedTuple):
-        logits: tf.Tensor 
+        logits: tf.Tensor
         probs: tf.Tensor
         argmax: tf.Tensor
         onehot: tf.Tensor
@@ -63,9 +62,7 @@ class CategoricalEncoder(Layer):
         logits = self.logits_encoder(inputs, training)
         if self.epsilon > 0.0:
             maxval = np.log(1.0 - self.epsilon) - np.log(self.epsilon)
-            logits = tf.compat.v2.clip_by_value(
-                logits, -maxval, maxval 
-            )
+            logits = tf.compat.v2.clip_by_value(logits, -maxval, maxval)
         return logits
 
     @tf.function
@@ -73,14 +70,11 @@ class CategoricalEncoder(Layer):
         prob = tf.nn.softmax(logits, axis=-1, name="prob")
         if self.epsilon > 0.0:
             prob = tf.compat.v2.clip_by_value(
-                prob,
-                self.epsilon,
-                1 - self.epsilon,
-                name="prob_clipped"
+                prob, self.epsilon, 1 - self.epsilon, name="prob_clipped"
             )
         return prob
 
-    @tf.function 
+    @tf.function
     def call(self, inputs, y=None, training=False) -> CategoricalEncoder.Output:
         logits = self.logits_encoder(inputs, training)
         probs = self._prob(logits)
@@ -100,4 +94,3 @@ class CategoricalEncoder(Layer):
             labels=y, logits=logits, name="entropy", axis=-1
         )
         return ent
-

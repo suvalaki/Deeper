@@ -18,16 +18,12 @@ from deeper.models.vae.utils import chain_call
 from deeper.utils.metrics import purity_score
 
 #%%
-color_iter = itertools.cycle(
-    ["navy", "c", "cornflowerblue", "gold", "darkorange"]
-)
+color_iter = itertools.cycle(["navy", "c", "cornflowerblue", "gold", "darkorange"])
 
 
 def plot_results(X, Y_, means, covariances, index, title):
     splot = plt.subplot(2, 1, 1 + index)
-    for i, (mean, covar, color) in enumerate(
-        zip(means, covariances, color_iter)
-    ):
+    for i, (mean, covar, color) in enumerate(zip(means, covariances, color_iter)):
         v, w = linalg.eigh(covar)
         v = 2.0 * np.sqrt(2.0) * np.sqrt(v)
         u = w[0] / linalg.norm(w[0])
@@ -72,9 +68,7 @@ y = gmm.predict(X)
 
 # %%
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.25, random_state=42
-)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
 
 ohe = OneHotEncoder()
 y_train_ohe = ohe.fit_transform(y_train.reshape(-1, 1))
@@ -106,9 +100,7 @@ params = {
     #'latent_fixed_var': 10.0,
 }
 
-param_string = "vae" + "__".join(
-    [str(k) + "_" + str(v) for k, v in params.items()]
-)
+param_string = "vae" + "__".join([str(k) + "_" + str(v) for k, v in params.items()])
 
 m1 = model(**params)
 

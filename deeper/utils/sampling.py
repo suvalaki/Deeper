@@ -12,7 +12,7 @@ def all_same(items):
 
 def mc_stack_mean_dict(x: List[Dict[str, Tensor]]):
     """Collect a list of dicts by their appropriate keys
-    
+
     Assume equal keys and shapes
     """
     mcx = NestedDict()

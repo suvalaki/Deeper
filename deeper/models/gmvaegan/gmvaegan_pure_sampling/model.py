@@ -188,18 +188,14 @@ class GmvaeGan(Model, Scope):
             self.gmvae.marginal_autoencoder.graphs_qz_g_xy.trainable_variables
             + list(self.gmvae.graph_qy_g_x.trainable_variables)
         )
-        self.decoder_vars = (
-            self.gmvae.marginal_autoencoder.graphs_px_g_zy.trainable_variables
-        )
+        self.decoder_vars = self.gmvae.marginal_autoencoder.graphs_px_g_zy.trainable_variables
         self.gan_vars = self.descriminator.trainable_variables
 
     def increment_cooling(self):
         self.cooling_distance += 1
 
     @tf.function
-    def sample_one(
-        self, x, training=False, temperature=1.0, beta_z=1.0, beta_y=1.0
-    ):
+    def sample_one(self, x, training=False, temperature=1.0, beta_z=1.0, beta_y=1.0):
 
         # Sample from the generator
         gmvaeres = self.gmvae.sample_one(x, training, temperature)
@@ -216,14 +212,10 @@ class GmvaeGan(Model, Scope):
             descr_gen__sample,
             descr_gen__logprob,
             descr_gen__prob,
-        ) = self.descriminator.call(
-            gmvaeres["autoencoder"]["px_g_zy__sample"], training
-        )
+        ) = self.descriminator.call(gmvaeres["autoencoder"]["px_g_zy__sample"], training)
 
         # desciminator loss
-        descriminator_entropy = descr_true__logprob + tf.math.log(
-            1 - descr_gen__prob
-        )
+        descriminator_entropy = descr_true__logprob + tf.math.log(1 - descr_gen__prob)
 
         output = {
             "gmvae": gmvaeres,
@@ -241,19 +233,12 @@ class GmvaeGan(Model, Scope):
     @tf.function(experimental_relax_shapes=True)
     def sample(self, samples, x, training=False, temperature=1.0):
         with tf.device("/gpu:0"):
-            result = [
-                self.sample_one(x, training, temperature)
-                for j in range(samples)
-            ]
+            result = [self.sample_one(x, training, temperature) for j in range(samples)]
         return result
 
     @tf.function(experimental_relax_shapes=True)
-    def monte_carlo_estimate(
-        self, samples, x, training=False, temperature=1.0
-    ):
-        return mc_stack_mean_dict(
-            self.sample(samples, x, training, temperature)
-        )
+    def monte_carlo_estimate(self, samples, x, training=False, temperature=1.0):
+        return mc_stack_mean_dict(self.sample(samples, x, training, temperature))
 
     @tf.function
     def call(self, x, training=False, samples=1, temperature=1.0):
@@ -267,9 +252,7 @@ class GmvaeGan(Model, Scope):
     @tf.function  # (autograph=False)
     def entropy_fn(self, inputs, training=False, samples=1, temperature=1.0):
         # unclear why tf.function  doesnt work to decorate this
-        output = self.call(
-            inputs, training=training, samples=samples, temperature=temperature
-        )
+        output = self.call(inputs, training=training, samples=samples, temperature=temperature)
         # return output
         return (
             output["gmvae"]["recon"],
@@ -290,9 +273,7 @@ class GmvaeGan(Model, Scope):
         beta_d=1.0,
     ):
 
-        recon, z_ent, y_ent, d_ent = self.entropy_fn(
-            inputs, training, samples, temperature
-        )
+        recon, z_ent, y_ent, d_ent = self.entropy_fn(inputs, training, samples, temperature)
 
         elbo = recon + beta_z * z_ent + beta_y * y_ent
 
@@ -312,9 +293,7 @@ class GmvaeGan(Model, Scope):
             dtype=self.dtype,
         )
 
-        qy_g_x__logit, qy_g_x__prob = self.gmvae.graph_qy_g_x(
-            x, training=training
-        )
+        qy_g_x__logit, qy_g_x__prob = self.gmvae.graph_qy_g_x(x, training=training)
         return qy_g_x__prob
 
     @tf.function  # (autograph=False)

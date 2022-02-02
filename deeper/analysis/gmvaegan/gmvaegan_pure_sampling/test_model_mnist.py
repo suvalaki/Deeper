@@ -99,15 +99,9 @@ params = {
     "z_kl_lambda": 1.0,
     "c_kl_lambda": 1.0,
     "cat_latent_bias_initializer": None,
-    "vae_optimizer": tf.keras.optimizers.Adam(
-        initial_learning_rate, epsilon=1e-16
-    ),
-    "dec_optimizer": tf.keras.optimizers.Adam(
-        initial_learning_rate, epsilon=1e-16
-    ),
-    "gan_optimizer": tf.keras.optimizers.Adam(
-        initial_learning_rate, epsilon=1e-16
-    ),
+    "vae_optimizer": tf.keras.optimizers.Adam(initial_learning_rate, epsilon=1e-16),
+    "dec_optimizer": tf.keras.optimizers.Adam(initial_learning_rate, epsilon=1e-16),
+    "gan_optimizer": tf.keras.optimizers.Adam(initial_learning_rate, epsilon=1e-16),
     "categorical_latent_embedding_dropout": 0.2,
     "mixture_latent_mu_embedding_dropout": 0.2,
     "mixture_latent_var_embedding_dropout": 0.2,
@@ -200,9 +194,7 @@ train(
     num_inference=100,
     save="model_w",
     batch=True,
-    temperature_function=lambda x: exponential_multiplicative_cooling(
-        x, 1.0, 0.5, 0.99
-    ),
+    temperature_function=lambda x: exponential_multiplicative_cooling(x, 1.0, 0.5, 0.99),
     save_results="./gumblevae_results.txt",
     beta_z_method=z_cooling,
     beta_y_method=y_cooling,
@@ -212,9 +204,7 @@ train(
 
 #%%
 qy_g_x__logit, qy_g_x__prob = m1.graph_qy_g_x(X_train[[9]])
-qy_g_x__ohe = np.array(
-    [m1.graph_qy_g_x_ohe(qy_g_x__prob, 0.005).numpy()[0] for i in range(1000)]
-)
+qy_g_x__ohe = np.array([m1.graph_qy_g_x_ohe(qy_g_x__prob, 0.005).numpy()[0] for i in range(1000)])
 
 #%%
 logit_df = pd.DataFrame()

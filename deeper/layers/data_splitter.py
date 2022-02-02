@@ -49,8 +49,7 @@ def unpack_dimensions(
 def split_groups(x, group_dims: Union[Tuple[int], np.array]):
 
     x_grouped = [
-        x[:, sum(group_dims[:i]) : sum(group_dims[: i + 1])]
-        for i in range(len(group_dims))
+        x[:, sum(group_dims[:i]) : sum(group_dims[: i + 1])] for i in range(len(group_dims))
     ]
     return x_grouped
 
@@ -74,16 +73,12 @@ def split_inputs(
     cat_dim = sum(cat_dim_tup)
     ord_dim = sum(ord_dim_tup)
 
-    x_ord = (
-        x[:, -(ord_dim + cat_dim) : -(cat_dim)] if ord_dim > 0 else x[:, 0:0]
-    )
+    x_ord = x[:, -(ord_dim + cat_dim) : -(cat_dim)] if ord_dim > 0 else x[:, 0:0]
     x_cat = x[:, -cat_dim:] if cat_dim > 0 else x[:, 0:0]
     x_ord_grouped = split_groups(x_ord, ord_dim_tup)
     x_cat_grouped = split_groups(x_cat, cat_dim_tup)
 
-    return SplitCovariates(
-        x_reg, x_bin, x_ord, x_ord_grouped, x_cat, x_cat_grouped
-    )
+    return SplitCovariates(x_reg, x_bin, x_ord, x_ord_grouped, x_cat, x_cat_grouped)
 
 
 @dataclass

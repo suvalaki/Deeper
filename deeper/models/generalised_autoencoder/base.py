@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 from typing import Sequence
 from abc import ABC, abstractmethod
 
+from deeper.utils.model_mixins import LatentMixin, ReconstructionMixin
+
 from deeper.utils.type_getter import NetworkTypeGetterBase
 
 
@@ -46,3 +48,9 @@ class AutoencoderBase(ABC, tf.keras.layers.Layer):
     @abstractmethod
     def split_outputs(self, y) -> SplitCovariates:
         ...
+
+
+class AutoencoderModelBaseMixin(LatentMixin, ReconstructionMixin):
+    def __init__(self, weight_getter, network, latent_parser, reconstruction_parser, **kwargs):
+        LatentMixin.__init__(self, weight_getter, network, latent_parser)
+        ReconstructionMixin.__init__(self, weight_getter, network, reconstruction_parser)

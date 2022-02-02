@@ -268,6 +268,13 @@ class RandomNormalEncoder(Layer, Scope):
 
     @staticmethod
     @tf.function
+    def _sample_prior(mu):
+        sample_shape = tf.shape(mu)
+        r_norm = tf.cast(tf.random.normal(sample_shape, mean=0.0, stddev=1.0), mu.dtype)
+        return r_norm
+
+    @staticmethod
+    @tf.function
     def _sample_fn(mu, var):
         """Reparameterisation trick sample from a random normal distribution
         with the given mean (mu) and variance (var)

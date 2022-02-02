@@ -27,11 +27,7 @@ class SigmoidEncoder(Encoder):
     def __init__(self, config: SigmoidEncoder.Config, **kwargs):
         self.epsilon = config.epsilon
         super().__init__(
-            **{
-                k: v
-                for k, v in dict(config).items()
-                if k in Encoder.Config.__fields__.keys()
-            },
+            **{k: v for k, v in dict(config).items() if k in Encoder.Config.__fields__.keys()},
             **kwargs
         )
 
@@ -41,9 +37,7 @@ class SigmoidEncoder(Encoder):
         logits = super().call(inputs, training)
         if self.epsilon > 0.0:
             maxval = np.log(1.0 - self.epsilon) - np.log(self.epsilon)
-            logits = tf.compat.v2.clip_by_value(
-                logits, -maxval, maxval, "clipped"
-            )
+            logits = tf.compat.v2.clip_by_value(logits, -maxval, maxval, "clipped")
         return logits
 
     @tf.function
@@ -63,9 +57,7 @@ class SigmoidEncoder(Encoder):
         if y is not None:
             y = tf.cast(y, self.dtype)
         logits = self.call_logits(x, training)
-        ent = tf.nn.sigmoid_cross_entropy_with_logits(
-            labels=y, logits=logits, name="entropy"
-        )
+        ent = tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=logits, name="entropy")
         return ent
 
     @tf.function
@@ -76,9 +68,7 @@ class SigmoidEncoder(Encoder):
         logits = self.call_logits(inputs, training)
         probs = self._prob(logits)
         if y is not None:
-            ent = tf.nn.sigmoid_cross_entropy_with_logits(
-                labels=y, logits=logits, name="entropy"
-            )
+            ent = tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=logits, name="entropy")
         else:
             ent = tf.nn.sigmoid_cross_entropy_with_logits(
                 labels=probs, logits=logits, name="entropy"
@@ -86,6 +76,4 @@ class SigmoidEncoder(Encoder):
         logprob = -ent
         prob = probs
 
-        return SigmoidEncoder.Output(
-            logits=logits, logprob=logprob, prob=prob, entropy=ent
-        )
+        return SigmoidEncoder.Output(logits=logits, logprob=logprob, prob=prob, entropy=ent)

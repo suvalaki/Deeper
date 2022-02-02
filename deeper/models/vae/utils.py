@@ -26,6 +26,10 @@ SplitCovariates = namedtuple(
 
 
 class VaeTypeGetter(AutoencoderTypeGetterBase, GanTypeGetter, AdversarialAutoencoderTypeGetter):
+    def get_cooling_regime(self):
+        from deeper.models.vae.model import Vae
+
+        return Vae.CoolingRegime
 
     # Autoencoder Getters Mixin
 
