@@ -56,7 +56,7 @@ class GumbleGmvae(GmvaeModelBase):
                 ),
             ]
 
-    class Config(CoolingRegime.Config, GumbleGmvaeNet.Config):
+    class Config(CoolingRegime.Config, GumbleGmvaeNet.Config, GmvaeModelBase.Config):
         ...
 
     _output_keys_renamed = {

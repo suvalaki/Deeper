@@ -104,9 +104,7 @@ class MarginalGmVaeLossNet(VaeLossNet):
             axis=-1,
         )
 
-        logprob_recon = (
-            outs.l_pxgz_reg +  outs.l_pxgz_bin + outs.l_pxgz_ord + outs.l_pxgz_cat
-        )
+        logprob_recon = outs.l_pxgz_reg + outs.l_pxgz_bin + outs.l_pxgz_ord + outs.l_pxgz_cat
         scaled_elbo = logprob_recon + kl_zgy * inputs.weight.lambda_z
         recon_loss = -logprob_recon
         loss = -scaled_elbo

@@ -26,6 +26,9 @@ Model = tfk.Model
 
 class StackedGmvae(GmvaeModelBase):
     class CoolingRegime(GmvaeModelBase.CoolingRegime):
+        class Config(GmvaeModelBase.CoolingRegime.Config):
+            ...
+
         def call(self, step):
             cstep = tf.cast(step, self.dtype)
             kld_y_schedule = self.config.kld_y_schedule(cstep)
@@ -44,11 +47,8 @@ class StackedGmvae(GmvaeModelBase):
                 recon_cat_schedule,
             )
 
-    class Config(CoolingRegime.Config, StackedGmvaeNet.Config):
+    class Config(CoolingRegime.Config, StackedGmvaeNet.Config, GmvaeModelBase.Config):
         ...
-
-        def get_model_type(self):
-            return StackedGmvae
 
     def __init__(self, config: StackedGmvae.Config, **kwargs):
         GmvaeModelBase.__init__(self, config, **kwargs)

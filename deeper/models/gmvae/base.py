@@ -91,7 +91,7 @@ class GmvaeModelBase(tf.keras.Model, AutoencoderModelBaseMixin, ClusteringMixin)
             )
 
     class Config(GmvaeNetBase.Config, CoolingRegime.Config):
-        pass
+        monte_carlo_training_samples: int = 1
 
     _output_keys_renamed = {
         "kl_y": "losses/kl_y",
@@ -139,15 +139,18 @@ class GmvaeModelBase(tf.keras.Model, AutoencoderModelBaseMixin, ClusteringMixin)
         x, y = data
         inputs, temp, weights = self.call_inputs(x)
 
+        loss = 0.0
         with backprop.GradientTape() as tape:
-            y_pred = self.network(inputs, training=True)
-            losses = self.loss_fn(
-                y,
-                y_pred,
-                weights,
-                training=True,
-            )
-            loss = tf.reduce_mean(losses.loss)
+            for i in range(self.config.monte_carlo_training_samples):
+                y_pred = self.network(inputs, training=True)
+                losses = self.loss_fn(
+                    y,
+                    y_pred,
+                    weights,
+                    training=True,
+                )
+                loss += tf.reduce_mean(losses.loss)
+            loss /= self.config.monte_carlo_training_samples
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
 
         tempr = {"temp": temp} if "temp" in self._output_keys_renamed else {}
