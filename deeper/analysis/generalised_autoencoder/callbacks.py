@@ -6,7 +6,11 @@ import io
 
 from sklearn.decomposition import PCA
 import seaborn as sns
-from deeper.utils.model_mixins import ReconstructionMixin, ClusteringMixin, LatentMixin
+from deeper.utils.model_mixins import (
+    ReconstructionMixin,
+    ClusteringMixin,
+    LatentMixin,
+)
 from deeper.utils.metrics import purity_score
 from sklearn.metrics import (
     confusion_matrix,
@@ -14,6 +18,7 @@ from sklearn.metrics import (
     accuracy_score,
     adjusted_mutual_info_score,
 )
+from sklearn.manifold import TSNE
 from sklearn import metrics
 
 
@@ -222,6 +227,18 @@ class LatentPlotterCallback(tf.keras.callbacks.Callback):
             tf.summary.image(
                 f"generated_data/latent_kde",
                 plot_to_image(plot1),
+                step=epoch,
+            )
+        plt.close()
+
+        tsne_features = TSNE(n_components=2).fit_transform(X_test_pca[:1000])
+        plot2 = sns.scatterplot(
+            x=tsne_features[:, 0], y=tsne_features[:, 1], hue=y[:1000]
+        ).get_figure()
+        with writer.as_default():
+            tf.summary.image(
+                f"generated_data/latent_sample_tsne",
+                plot_to_image(plot2),
                 step=epoch,
             )
         plt.close()
