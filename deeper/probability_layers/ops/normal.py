@@ -170,7 +170,7 @@ def normal_kl(
     if eps_y > 0.0:
         var_y = tf.add(var_y, eps_y)
 
-    w = logvar_x - logvar_y + var_x / var_y + tf.square(mu_x - mu_y) / var_y - 1
-    entropy = 0.5 * tf.reduce_sum(w, axis=-1)
+    w = logvar_x - logvar_y + tf.square(x - mu_x) / var_x - tf.square(x - mu_y) / var_y
+    entropy = -0.5 * tf.reduce_sum(w, axis=-1)
 
     return entropy

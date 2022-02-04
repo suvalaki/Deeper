@@ -10,7 +10,7 @@ from deeper.models.vae import VaeLossNet
 from deeper.models.vae.encoder_loss import VaeLossNetLatent
 from deeper.models.vae.decoder_loss import VaeReconLossNet
 from deeper.models.vae.utils import SplitCovariates
-from deeper.probability_layers.ops.normal import normal_kl, lognormal_pdf
+from deeper.probability_layers.ops.normal import normal_kl, lognormal_pdf, normal_kl
 
 
 class MarginalGmVaeLossNet(VaeLossNet):
@@ -92,16 +92,24 @@ class MarginalGmVaeLossNet(VaeLossNet):
         self, inputs: MarginalGmVaeLossNet.Input, training=False
     ) -> MarginalGmVaeLossNet.Output:
         outs = super().call(VaeLossNet.Input(*inputs[2:]), training)
-        kl_zgy = tf.reduce_sum(
-            (
-                lognormal_pdf(
-                    inputs.latent_sample, inputs.prior_latent.mu, inputs.prior_latent.logvar
-                )
-                - lognormal_pdf(
-                    inputs.latent_sample, inputs.posterior_latent.mu, inputs.posterior_latent.logvar
-                )
-            ),
-            axis=-1,
+        # kl_zgy = tf.reduce_sum(
+        #     (
+        #         lognormal_pdf(
+        #             inputs.latent_sample, inputs.prior_latent.mu, inputs.prior_latent.logvar
+        #         )
+        #         - lognormal_pdf(
+        #             inputs.latent_sample, inputs.posterior_latent.mu, inputs.posterior_latent.logvar
+        #         )
+        #     ),
+        #     axis=-1,
+        # )
+
+        kl_zgy = -normal_kl(
+            inputs.latent_sample,
+            inputs.posterior_latent.mu,
+            inputs.prior_latent.mu,
+            inputs.posterior_latent.logvar,
+            inputs.prior_latent.logvar,
         )
 
         logprob_recon = outs.l_pxgz_reg + outs.l_pxgz_bin + outs.l_pxgz_ord + outs.l_pxgz_cat
