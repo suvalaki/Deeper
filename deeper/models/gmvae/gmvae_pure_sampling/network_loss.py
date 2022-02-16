@@ -62,6 +62,8 @@ class GumbleGmvaeNetLossNet(GmvaeNetLossNetBase):
             logits=inputs.qy_g_x.logits, labels=inputs.qy_g_x.probs
         )
 
+        self.add_metric(tf.reduce_sum(y_entropy), name="y_entropy")
+
         # loss = recon + z_ent + y_ent
         # loss = E[px_g_zy__logprob] + E[pz_g_y__logprob - qz_g_xy__logprob] + E_q [log(p/q)]
         scaled_elbo = losses_marginal.scaled_elbo + inputs.weight_component * y_entropy
