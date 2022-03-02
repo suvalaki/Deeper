@@ -7,7 +7,7 @@ tfk = tf.keras
 Layer = tfk.layers.Layer
 
 
-class Encoder(Layer, Scope):
+class LstmEncoder(Layer, Scope):
     @inits_args
     def __init__(
         self,
