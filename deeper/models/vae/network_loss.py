@@ -208,11 +208,37 @@ class VaeLossNet(tf.keras.layers.Layer):
                 weights,
             )
 
+    def _summary_std(self, x, name):
+        x_mean = tf.math.reduce_mean(tf.math.reduce_mean(x, axis=0))
+        std_min = tf.math.reduce_min(tf.math.reduce_std(x, axis=0))
+        std_mean = tf.math.reduce_mean(tf.math.reduce_std(x, axis=0))
+        std_max = tf.math.reduce_max(tf.math.reduce_std(x, axis=0))
+
+        self.add_metric(
+            x_mean,
+            name=f"{self.prefix}/scaled/stat_{self.decoder_name}_{name}_mean",
+        )
+        self.add_metric(
+            std_min,
+            name=f"{self.prefix}/scaled/stat_{self.decoder_name}_{name}_stdMin",
+        )
+        self.add_metric(
+            std_mean,
+            name=f"{self.prefix}/scaled/stat_{self.decoder_name}_{name}_stdMean",
+        )
+        self.add_metric(
+            std_max,
+            name=f"{self.prefix}/scaled/stat_{self.decoder_name}_{name}_stdMax",
+        )
+
     @tf.function
     def call(self, inputs: Input, training=False) -> Output:
 
         if not isinstance(inputs, VaeLossNet.Input):
             inputs = VaeLossNet.Input.from_nested_sequence(inputs)
+
+        self._summary_std(inputs.latent.mu, "latent_mu")
+        self._summary_std(tf.math.sqrt(tf.math.exp(inputs.latent.logvar)), "latent_sd")
 
         kl_z = self.latent_lossnet(inputs.latent, training)
         (l_pxgz_reg, l_pxgz_bin, l_pxgz_ord, l_pxgz_cat) = self.recon_lossnet(

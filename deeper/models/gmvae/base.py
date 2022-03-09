@@ -155,14 +155,14 @@ class GmvaeModelBase(tf.keras.Model, AutoencoderModelBaseMixin, ClusteringMixin)
 
         tempr = {"temp": temp} if "temp" in self._output_keys_renamed else {}
         return {
-            self._output_keys_renamed[k]: v
+            **{self._output_keys_renamed[k]: v
             for k, v in {
-                # **{v.name: v.result() for v in self.metrics}
                 **losses._asdict(),
                 **tempr,
                 "kld_y_schedule": weights.lambda_y,
                 "kld_z_schedule": weights.lambda_z,
-            }.items()
+            }.items()},
+            **{"metrics/" + v.name: v.result() for v in self.metrics}
         }
 
     def test_step(self, data):
@@ -177,4 +177,7 @@ class GmvaeModelBase(tf.keras.Model, AutoencoderModelBaseMixin, ClusteringMixin)
         losses = self.loss_fn(y, y_pred, self.lossnet.InputWeight(), training=False)
         loss = tf.reduce_mean(losses.loss)
 
-        return {self._output_keys_renamed[k]: v for k, v in losses._asdict().items()}
+        return {
+            **{self._output_keys_renamed[k]: v for k, v in losses._asdict().items()},
+            **{"metrics/" + v.name: v.result() for v in self.metrics}
+        }
