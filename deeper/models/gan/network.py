@@ -79,6 +79,10 @@ class GanNet(tf.keras.layers.Layer):
         descriminator: DescriminatorNet.Config
         generator: ConfigType
 
+        class Config:
+            allow_arbitrary_types = True
+            smart_union = True
+
     Config.update_forward_refs()
 
     # Goal will be to max logprob while fooling the descimintaor
@@ -86,10 +90,16 @@ class GanNet(tf.keras.layers.Layer):
         descriminative: GanDescriminativeNet.Output
         generative: GanGenerativeNet.Output
 
-    def __init__(self, config: GanNet.Config, fake_getter=None, real_getter=None, **kwargs):
+    def __init__(
+        self, config: GanNet.Config, fake_getter=None, real_getter=None, generatornet=None, **kwargs
+    ):
         super().__init__(**kwargs)
         self.descriminator = DescriminatorNet(config.descriminator)
-        self.generatornet = config.generator.get_generatornet_type()(config.generator)
+        self.generatornet = (
+            generatornet
+            if generatornet
+            else config.generator.get_generatornet_type()(config.generator)
+        )
         self.fake_getter = (
             fake_getter if fake_getter else config.generator.get_fake_output_getter()()
         )
