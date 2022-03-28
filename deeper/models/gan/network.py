@@ -94,7 +94,7 @@ class GanNet(tf.keras.layers.Layer):
         self, config: GanNet.Config, fake_getter=None, real_getter=None, generatornet=None, **kwargs
     ):
         super().__init__(**kwargs)
-        self.descriminator = DescriminatorNet(config.descriminator)
+        self.descriminator = DescriminatorNet(config.descriminator, **kwargs)
         self.generatornet = (
             generatornet
             if generatornet

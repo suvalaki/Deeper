@@ -133,6 +133,6 @@ class GanLossNet(tf.keras.layers.Layer):
     ):
 
         return (
-            self.gen_lossnet(y_true, y_pred.generative, training),
-            self.descrim_lossnet(y_true, y_pred.descriminative, training),
+            self.call_fool_descriminator(y_true, y_pred.generative, training),
+            self.call_tune_descriminator(y_true, y_pred.descriminative, training),
         )
