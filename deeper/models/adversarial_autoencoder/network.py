@@ -35,8 +35,6 @@ class AdversarialAuoencoderNet(GanNet, AutoencoderBase):
 
     def call(self, x, y, training=False):
         y_pred = self.call_ae_generator(x, training=False)
-        generative = self.gan_generative.call_post_generation(x, y_pred, training=training)
-        descriminative = self.gan_descriminative.call_post_generation(
-            x, y, y_pred, training=training
-        )
+        generative = self.call_generative_post_generation(x, y_pred, training=training)
+        descriminative = self.call_descriminative_post_generation(x, y, y_pred, training=training)
         return AdversarialAuoencoderNet.Output(descriminative, generative, y_pred)

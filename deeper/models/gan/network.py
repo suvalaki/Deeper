@@ -120,8 +120,14 @@ class GanNet(tf.keras.layers.Layer):
     def call_generative(self, x, training=False):
         return self.gan_generative(x, training=training)
 
+    def call_generative_post_generation(self, x, y_pred, training=False):
+        return self.gan_generative.call_post_generation(x, y_pred, training)
+
     def call_descriminative(self, x, y, training=False):
         return self.gan_descriminative(x, y, training=training)
+
+    def call_descriminative_post_generation(self, x, y, y_pred, training=False):
+        return self.gan_descriminative.call_post_generation(x, y, y_pred, training)
 
     def call(self, x, y, training=False):
         y_pred = self.generatornet(x, training=training)
