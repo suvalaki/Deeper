@@ -73,7 +73,13 @@ def split_inputs(
     cat_dim = sum(cat_dim_tup)
     ord_dim = sum(ord_dim_tup)
 
-    x_ord = x[:, -(ord_dim + cat_dim) : -(cat_dim)] if ord_dim > 0 else x[:, 0:0]
+    x_ord = (
+        x[:, -(ord_dim + cat_dim) : -(cat_dim)]
+        if ord_dim > 0 and cat_dim > 0
+        else x[:, -(ord_dim):]
+        if ord_dim > 0 and cat_dim == 0
+        else x[:, 0:0]
+    )
     x_cat = x[:, -cat_dim:] if cat_dim > 0 else x[:, 0:0]
     x_ord_grouped = split_groups(x_ord, ord_dim_tup)
     x_cat_grouped = split_groups(x_cat, cat_dim_tup)
