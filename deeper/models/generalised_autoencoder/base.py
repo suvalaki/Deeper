@@ -34,7 +34,9 @@ class AutoencoderBase(ABC, tf.keras.layers.Layer):
         decoder_embedding_dimensions: Sequence[int] = Field()
         latent_dim: int = Field()
 
-        embedding_activations: tf.keras.layers.Layer = tf.keras.layers.ReLU()
+        embedding_activations: tf.keras.layers.Activation = (
+            tf.keras.layers.Activation("relu")
+        )
         bn_before: bool = False
         bn_after: bool = False
 
@@ -51,6 +53,15 @@ class AutoencoderBase(ABC, tf.keras.layers.Layer):
 
 
 class AutoencoderModelBaseMixin(LatentMixin, ReconstructionMixin):
-    def __init__(self, weight_getter, network, latent_parser, reconstruction_parser, **kwargs):
+    def __init__(
+        self,
+        weight_getter,
+        network,
+        latent_parser,
+        reconstruction_parser,
+        **kwargs
+    ):
         LatentMixin.__init__(self, weight_getter, network, latent_parser)
-        ReconstructionMixin.__init__(self, weight_getter, network, reconstruction_parser)
+        ReconstructionMixin.__init__(
+            self, weight_getter, network, reconstruction_parser
+        )

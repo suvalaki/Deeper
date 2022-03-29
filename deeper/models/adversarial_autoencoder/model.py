@@ -5,7 +5,7 @@ from tensorflow.python.keras.engine import data_adapter
 from tensorflow.python.eager import backprop
 
 from deeper.models.adversarial_autoencoder.network import (
-    AdversarialAuoencoderNet,
+    AdversarialAutoencoderNet,
 )
 from deeper.models.adversarial_autoencoder.network_loss import (
     AdverasrialAutoencoderLossNet,
@@ -24,7 +24,7 @@ Model = tfk.Model
 
 
 class AdversarialAutoencoder(Model, AutoencoderModelBaseMixin, ClusteringMixin):
-    class Config(AdversarialAuoencoderNet.Config):
+    class Config(AdversarialAutoencoderNet.Config):
         generator: ModelConfigType
         training_ratio: int = 1
 
@@ -37,7 +37,7 @@ class AdversarialAutoencoder(Model, AutoencoderModelBaseMixin, ClusteringMixin):
     def __init__(self, config: AdversarialAutoencoder.Config, **kwargs):
         Model.__init__(self, **kwargs)
         self.config = config
-        self.network = AdversarialAuoencoderNet(config, **kwargs)
+        self.network = AdversarialAutoencoderNet(config, **kwargs)
         self.lossnet = AdverasrialAutoencoderLossNet(config, self.network.generatornet, **kwargs)
         self.weight_getter = self.config.generator.get_model_type().CoolingRegime(
             self.config.generator, dtype=self.dtype

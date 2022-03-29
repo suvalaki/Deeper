@@ -9,14 +9,14 @@ from deeper.models.gan.network import (
     GanDescriminativeNet,
 )
 
-from deeper.models.adversarial_autoencoder.network import AdversarialAuoencoderNet
+from deeper.models.adversarial_autoencoder.network import AdversarialAutoencoderNet
 
 from deeper.models.gan.network_loss import GanLossNet
 
 
 class AdverasrialAutoencoderLossNet(GanLossNet):
     class Input(NamedTuple):
-        adversarial: AdversarialAuoencoderNet.Output
+        adversarial: AdversarialAutoencoderNet.Output
         autoencoder: NamedTuple
 
         @classmethod
@@ -25,7 +25,7 @@ class AdverasrialAutoencoderLossNet(GanLossNet):
             network,
             autoencoder_lossnet,
             y_true,
-            y_pred: AdversarialAuoencoderNet.Output,
+            y_pred: AdversarialAutoencoderNet.Output,
             weight,
         ):
             y_true = tf.cast(y_true, dtype=network.dtype)

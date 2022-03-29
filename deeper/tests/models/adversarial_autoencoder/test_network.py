@@ -31,7 +31,7 @@ from deeper.models.gan.network import GanNet
 from deeper.models.gan.descriminator import DescriminatorNet
 
 from deeper.models.adversarial_autoencoder.network import (
-    AdversarialAuoencoderNet,
+    AdversarialAutoencoderNet,
 )
 
 
@@ -124,9 +124,9 @@ config2 = GumbleGmvaeNet.Config(
 )
 
 CONFIGS = [
-    AdversarialAuoencoderNet.Config(descriminator=desciminatorConfig, generator=config0),
-    AdversarialAuoencoderNet.Config(descriminator=desciminatorConfig, generator=config1),
-    AdversarialAuoencoderNet.Config(descriminator=desciminatorConfig, generator=config2),
+    AdversarialAutoencoderNet.Config(descriminator=desciminatorConfig, generator=config0),
+    AdversarialAutoencoderNet.Config(descriminator=desciminatorConfig, generator=config1),
+    AdversarialAutoencoderNet.Config(descriminator=desciminatorConfig, generator=config2),
 ]
 EXPECTED_TYPES = [
     (VaeNet, VaeLossNet, VaeLatentParser),
@@ -142,7 +142,7 @@ class TestAdversarialAutoencoderNet(unittest.TestCase):
         temps = state.random((N_ROWS, 1))
 
         self.data = ((X, X), (X, X), ([X, temps], X))
-        self.networks = [AdversarialAuoencoderNet(c) for c in CONFIGS]
+        self.networks = [AdversarialAutoencoderNet(c) for c in CONFIGS]
 
     def test_outputShapes(self):
 

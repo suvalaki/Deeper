@@ -34,7 +34,7 @@ from deeper.models.gan.network import GanNet
 from deeper.models.gan.descriminator import DescriminatorNet
 
 from deeper.models.adversarial_autoencoder.network import (
-    AdversarialAuoencoderNet,
+    AdversarialAutoencoderNet,
 )
 from deeper.models.adversarial_autoencoder.network_loss import (
     AdverasrialAutoencoderLossNet,

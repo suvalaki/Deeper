@@ -80,7 +80,7 @@ if False:
 
 
 #%% Instantiate the model
-BATCH_SIZE = 12
+BATCH_SIZE = 124
 desciminatorConfig = DescriminatorNet.Config(
     embedding_dimensions=[24, 24, 12],
     activation=tf.keras.layers.Activation("relu"),
@@ -106,40 +106,40 @@ vaeConfig = GumbleGmvae.Config(
     decoder_embedding_dimensions=[512, 512, 256][::-1],
     latent_dim=2,
     embedding_activation=tf.keras.layers.ELU(),
-    gumble_temperature_schedule=tfa.optimizers.CyclicalLearningRate(
-        0.5,
-        1.0,
-        step_size=10000.0,
-        scale_fn=lambda x: 1 / (1.2 ** (x - 1)),
-        scale_mode="cycle",
-    ),
-    # gumble_temperature_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
-    #     boundaries=[
-    #         X_train.shape[0] * 5 // BATCH_SIZE ,
-    #         X_train.shape[0] * 10 // BATCH_SIZE,
-    #         X_train.shape[0] * 20 // BATCH_SIZE
-    #     ],
-    #     values=[5.0, 1.0, 0.75, 0.5],
+    # gumble_temperature_schedule=tfa.optimizers.CyclicalLearningRate(
+    #     0.5,
+    #     1.0,
+    #     step_size=10000.0,
+    #     scale_fn=lambda x: 1 / (1.2 ** (x - 1)),
+    #     scale_mode="cycle",
     # ),
-    kld_y_schedule=tfa.optimizers.CyclicalLearningRate(
-        1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
+    gumble_temperature_schedule=tf.keras.optimizers.schedules.PolynomialDecay(
+        1.0,
+        X_train.shape[0] * 100 // BATCH_SIZE,
+        end_learning_rate=0.5,
+        power=1.0,
+        cycle=False,
+        name=None,
     ),
-    kld_z_schedule=tfa.optimizers.CyclicalLearningRate(
-        1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
-    ),
+    # kld_y_schedule=tfa.optimizers.CyclicalLearningRate(
+    #     1.0, 0.01, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
+    # ),
+    # kld_z_schedule=tfa.optimizers.CyclicalLearningRate(
+    #     1.0, 0.01, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
+    # ),
     # bn_before=True
 )
 
 
 config = AdversarialAutoencoder.Config(
-    descriminator=desciminatorConfig, generator=vaeConfig, training_ratio=1
+    descriminator=desciminatorConfig, generator=vaeConfig, training_ratio=5
 )
 
-model = AdversarialAutoencoder(config)
+model = AdversarialAutoencoder(config, dtype=tf.float64)
 model.compile(optimizer=tf.keras.optimizers.RMSprop(0.0005))
 
 #%% train
-fp = "./logs/adversarialae/test_mnist_gumblegmvae"
+fp = "./logs/adversarialae/test_mnist_gumblegmvae_4"
 tbc = tf.keras.callbacks.TensorBoard(fp)
 rc = ReconstructionImagePlotter(model, tbc, X_train, X_test, y_train, y_test)
 cc = ClusteringCallback(model, tbc, X_train, X_test, y_train, y_test)

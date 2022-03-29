@@ -99,7 +99,11 @@ vaeConfig = StackedGmvae.Config(
         ordinal=(0,),
         categorical=(0,),
     ),
-    encoder_embedding_dimensions=[512, 512, 256, 128, 64, 32],
+    encoder_embedding_dimensions=[
+        512,
+        512,
+        256,
+    ],
     decoder_embedding_dimensions=[512, 512, 256, 128, 64, 32][::-1],
     latent_dim=2,
     embedding_activation=tf.keras.layers.ELU(),

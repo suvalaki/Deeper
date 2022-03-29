@@ -8,7 +8,7 @@ from deeper.models.generalised_autoencoder.base import AutoencoderBase
 from deeper.models.gan.network import GanNet
 
 
-class AdversarialAuoencoderNet(GanNet, AutoencoderBase):
+class AdversarialAutoencoderNet(GanNet, AutoencoderBase):
     class Config(GanNet.Config):
         ...
 
@@ -19,7 +19,7 @@ class AdversarialAuoencoderNet(GanNet, AutoencoderBase):
         generative: GanGenerativeNet.Output
         reconstruction: NamedTuple
 
-    def __init__(self, config: AdversarialAuoencoderNet.Config, **kwargs):
+    def __init__(self, config: AdversarialAutoencoderNet.Config, **kwargs):
         super().__init__(
             config,
             config.generator.get_adversarialae_fake_output_getter()(),
@@ -37,4 +37,4 @@ class AdversarialAuoencoderNet(GanNet, AutoencoderBase):
         y_pred = self.call_ae_generator(x, training=False)
         generative = self.call_generative_post_generation(x, y_pred, training=training)
         descriminative = self.call_descriminative_post_generation(x, y, y_pred, training=training)
-        return AdversarialAuoencoderNet.Output(descriminative, generative, y_pred)
+        return AdversarialAutoencoderNet.Output(descriminative, generative, y_pred)
