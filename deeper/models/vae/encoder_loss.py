@@ -12,10 +12,11 @@ from deeper.layers.encoder import Encoder
 from deeper.probability_layers.normal import RandomNormalEncoder
 from deeper.utils.function_helpers.decorators import inits_args
 from deeper.probability_layers.ops.normal import std_normal_kl_divergence
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
 class VaeLossNetLatent(tf.keras.layers.Layer):
-    class Input(NamedTuple):
+    class Input(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         mu: tf.Tensor
         logvar: tf.Tensor
 

@@ -15,6 +15,7 @@ from deeper.utils.function_helpers.decorators import inits_args
 from deeper.models.vae.encoder import VaeEncoderNet
 from deeper.models.vae.decoder import VaeReconstructionNet
 from deeper.models.vae.utils import VaeTypeGetter
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 from deeper.models.vae.base import (
     MultipleObjectiveDimensions,
@@ -31,7 +32,7 @@ from deeper.models.generalised_autoencoder.base import AutoencoderBase
 from pydantic import BaseModel, Field
 
 
-def reduce_groups(fn, x_grouped: Sequence[tf.Tensor]):
+def reduce_groups(fn, x_grouped: Tuple[tf.Tensor, ...]):
     if len(x_grouped) <= 1:
         return fn(x_grouped[0])
     return tf.concat([fn(z) for z in x_grouped], -1)
@@ -40,7 +41,7 @@ def reduce_groups(fn, x_grouped: Sequence[tf.Tensor]):
 class VaeNet(AutoencoderBase):
     class Config(VaeTypeGetter, AutoencoderBase.Config):
 
-        latent_epsilon: float = 0.0
+        latent_epsilon: float = 1e-6
 
         enc_mu_embedding_kernel_initializer: Union[
             str, tf.keras.initializers.Initializer
@@ -78,7 +79,7 @@ class VaeNet(AutoencoderBase):
         class Config:
             arbitrary_types_allowed = True
 
-    class Output(NamedTuple):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         # Encoder/Latent variables
         qz_g_x: VaeEncoderNet.Output
         # DecoderVariables

@@ -1,14 +1,15 @@
 from __future__ import annotations
 import tensorflow as tf
 
-from typing import NamedTuple
+from typing import NamedTuple, Union, Optional
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
 class InputDisentangler:
     class DisentangledInputs(NamedTuple):
-        inputs: NamedTuple
-        temperature: NamedTuple
-        weights: NamedTuple
+        inputs: Union[tf.Tensor, tf.experimental.ExtensionType]
+        temperature: Optional[Union[tf.Tensor, tf.experimental.ExtensionType]]
+        weights: Optional[tf.experimental.ExtensionType]
 
     def __init__(self, weight_getter, **kwargs):
         self.__weight_getter = weight_getter

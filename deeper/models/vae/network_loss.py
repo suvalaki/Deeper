@@ -26,6 +26,7 @@ from tensorflow.python.keras.engine import data_adapter
 
 from types import SimpleNamespace
 from deeper.utils.tf.keras.models import GenerativeModel
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
 from tensorflow.python.keras.metrics import (
@@ -80,7 +81,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.add_metric(result, name=f"{self.prefix}/elbo")
         return result
 
-    class Output(NamedTuple):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         kl_z: tf.Tensor
         l_pxgz_reg: tf.Tensor
         l_pxgz_bin: tf.Tensor
@@ -166,14 +167,14 @@ class VaeLossNet(tf.keras.layers.Layer):
             lambda_cat,
         )
 
-    class InputWeight(NamedTuple):
-        lambda_z: float = 1.0
-        lambda_reg: float = 1.0
-        lambda_bin: float = 1.0
-        lambda_ord: float = 1.0
-        lambda_cat: float = 1.0
+    class InputWeight(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+        lambda_z: tf.Tensor = 1.0
+        lambda_reg: tf.Tensor = 1.0
+        lambda_bin: tf.Tensor = 1.0
+        lambda_ord: tf.Tensor = 1.0
+        lambda_cat: tf.Tensor = 1.0
 
-    class Input(NamedTuple):
+    class Input(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         latent: VaeLossNetLatent.Input
         y_true: VaeReconLossNet.InputYTrue
         y_pred: VaeReconLossNet.InputYPred

@@ -10,6 +10,9 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 from pathlib import Path
 import tensorflow as tf
+
+# USE CPU ONLY
+tf.config.set_visible_devices([], "GPU")
 import numpy as np
 from tqdm import tqdm
 import json
@@ -23,7 +26,6 @@ import numpy as np
 
 from deeper.models.gmvae import MultipleObjectiveDimensions
 from deeper.models.gmvae.gmvae_marginalised_categorical import StackedGmvae
-from deeper.models.gmvae.metrics import PurityCallback
 
 from deeper.utils.cooling import exponential_multiplicative_cooling
 import deeper.utils.cooling as cooling
@@ -87,7 +89,7 @@ config = StackedGmvae.Config(
     ),
     encoder_embedding_dimensions=[512, 512, 256],
     decoder_embedding_dimensions=[512, 512, 256][::-1],
-    latent_dim=64,
+    latent_dim=2,
     embedding_activation=tf.keras.layers.ELU(),
     kld_y_schedule=tf.keras.optimizers.schedules.PiecewiseConstantDecay(
         boundaries=[
@@ -113,7 +115,7 @@ model.compile()
 
 
 #%% train
-fp = "./logs/gmvae/stackedgmvae/trial0"
+fp = "./logs/gmvae/stackedgmvae/trial1"
 tbc = tf.keras.callbacks.TensorBoard(fp)
 rc = ReconstructionImagePlotter(model, tbc, X_train, X_test, y_train, y_test)
 cc = ClusteringCallback(model, tbc, X_train, X_test, y_train, y_test)

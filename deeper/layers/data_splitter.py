@@ -2,25 +2,26 @@ from __future__ import annotations
 import tensorflow as tf
 import numpy as np
 from deeper.utils.scope import Scope
-from typing import Optional, Sequence, NamedTuple
+from typing import Optional, Sequence, NamedTuple, Tuple
 
 tfk = tf.keras
 Layer = tfk.layers.Layer
 Model = tfk.Model
 
 from dataclasses import dataclass, asdict
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
-class SplitCovariates(NamedTuple):
+class SplitCovariates(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
     regression: tf.Tensor
     binary: tf.Tensor
     ordinal_groups_concat: tf.Tensor
-    ordinal_groups: Sequence[tf.Tensor]
+    ordinal_groups: Tuple[tf.Tensor, ...]
     categorical_groups_concat: tf.Tensor
-    categorical_groups: Sequence[tf.Tensor]
+    categorical_groups: Tuple[tf.Tensor, ...]
 
 
-def reduce_groups(fn, x_grouped: Sequence[tf.Tensor]):
+def reduce_groups(fn, x_grouped: Tuple[tf.Tensor, ...]):
     if len(x_grouped) <= 1:
         return fn(x_grouped[0])
     return tf.concat([fn(z) for z in x_grouped], -1)

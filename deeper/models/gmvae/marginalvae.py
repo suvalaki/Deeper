@@ -28,6 +28,7 @@ from typing import NamedTuple
 from pydantic.dataclasses import dataclass
 from pydantic import Field
 from pydantic import BaseModel
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
 class MarginalGmVaeNet(VaeNet):
@@ -52,7 +53,7 @@ class MarginalGmVaeNet(VaeNet):
         posterior_mu_dropout: Optional[float] = 0.0
         posterior_var_dropout: Optional[float] = 0.0
 
-    class Output(NamedTuple):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         # Encoder/Latent variables
         qz_g_xy: VaeEncoderNet.Output
         # DecoderVariables

@@ -26,7 +26,6 @@ import numpy as np
 
 from deeper.models.gmvae import MultipleObjectiveDimensions
 from deeper.models.gmvae.gmvae_pure_sampling import GumbleGmvae
-from deeper.models.gmvae.metrics import PurityCallback
 
 from deeper.utils.cooling import exponential_multiplicative_cooling
 import deeper.utils.cooling as cooling
@@ -40,8 +39,6 @@ from sklearn.metrics import (
 )
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.preprocessing import OneHotEncoder
-
-from deeper.analysis.adversarial_autoencoder.callbacks import PlotterCallback
 
 from deeper.analysis.generalised_autoencoder.callbacks import (
     ReconstructionImagePlotter,
@@ -68,10 +65,16 @@ X_test = (X_test > 0.5).astype(float)
 
 
 #%% Instantiate the model
-BATCH_SIZE = 24
+BATCH_SIZE = 64
+ds_train = (
+    tf.data.Dataset.from_tensor_slices((X_train, X_train))
+    .shuffle(X_train.shape[0], reshuffle_each_iteration=True)
+    .batch(BATCH_SIZE)
+)
 config = GumbleGmvae.Config(
+    monte_carlo_training_samples=5,
     components=10,
-    cat_embedding_dimensions=[512, 512, 256, 128, 64],
+    cat_embedding_dimensions=[512, 512],
     input_dimensions=MultipleObjectiveDimensions(
         regression=0,
         boolean=X_train.shape[-1],
@@ -84,51 +87,54 @@ config = GumbleGmvae.Config(
         ordinal=(0,),
         categorical=(0,),
     ),
-    encoder_embedding_dimensions=[512, 512, 256, 256, 128],
-    decoder_embedding_dimensions=[512, 512, 256, 256, 128][::-1],
-    latent_dim=2,
+    encoder_embedding_dimensions=[512, 512, 128],
+    decoder_embedding_dimensions=[512, 512, 128][::-1],
+    latent_dim=64,
     embedding_activation=tf.keras.layers.ReLU(),
-    gumble_temperature_schedule=tfa.optimizers.CyclicalLearningRate(
+    gumble_temperature_schedule=tf.keras.optimizers.schedules.PolynomialDecay(
         1.0,
-        1.0,
-        step_size=10000.0,
-        scale_fn=lambda x: 1 / (1.05 ** (x - 1)),
-        scale_mode="cycle",
+        X_train.shape[0] * 50 // BATCH_SIZE,
+        end_learning_rate=0.5,
+        power=1.0,
+        cycle=False,
+        name=None,
     ),
-    # gumble_temperature_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
-    #     boundaries=[
-    #         X_train.shape[0] * 5 // BATCH_SIZE ,
-    #         X_train.shape[0] * 10 // BATCH_SIZE,
-    #         X_train.shape[0] * 20 // BATCH_SIZE
-    #     ],
-    #     values=[5.0, 1.0, 0.75, 0.5],
-    # ),
     kld_y_schedule=tfa.optimizers.CyclicalLearningRate(
         1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
     ),
     kld_z_schedule=tfa.optimizers.CyclicalLearningRate(
-        1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        2.0, 2.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
     ),
     bn_before=True,
 )
 
-model = GumbleGmvae(config)
-model.compile(optimizer=tf.keras.optimizers.Adam(3e-4))
-# model.compile()
+model = GumbleGmvae(config, dtype=tf.float64)
+# model.compile(
+#     optimizer=tf.keras.optimizers.Adam(
+#         tf.keras.optimizers.schedules.ExponentialDecay(
+#             1e-3,
+#             X_train.shape[0] * 1 // BATCH_SIZE,
+#             0.5,
+#             staircase=False,
+#             name=None,
+#         )
+#     )
+# )
+model.compile(optimizer=tf.keras.optimizers.Adam(1e-3))
 
 #%% train
-fp = "./logs/gmvae/gumble_0"
+#!rm ./logs/gmvae/gumble_22 -rf
+fp = "./logs/gmvae/gumble_27_sgd_replication0"
 tbc = tf.keras.callbacks.TensorBoard(fp)
 rc = ReconstructionImagePlotter(model, tbc, X_train, X_test, y_train, y_test)
 cc = ClusteringCallback(model, tbc, X_train, X_test, y_train, y_test)
 lc = LatentPlotterCallback(model, tbc, X_train, X_test, y_train, y_test)
 
 model.fit(
-    X_train,
-    X_train,
-    epochs=10000,
+    ds_train,
+    epochs=2000,
     callbacks=[tbc, rc, cc, lc],
-    batch_size=BATCH_SIZE,
+    # batch_size=BATCH_SIZE,
     validation_data=(X_test, X_test),
 )
 

@@ -8,12 +8,13 @@ from deeper.layers.encoder import Encoder
 # from deeper.layers.conv2d_encoder import Conv2dEncoder, Conv2dDecoder
 from deeper.utils.scope import Scope
 from deeper.utils.function_helpers.decorators import inits_args
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 Layer = tf.keras.layers.Layer
 
 
 class CategoricalEncoder(Layer):
-    class Output(NamedTuple):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         logits: tf.Tensor
         probs: tf.Tensor
         argmax: tf.Tensor

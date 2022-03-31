@@ -9,6 +9,7 @@ from deeper.probability_layers.gumble_softmax import GumbleSoftmaxLayer
 from deeper.models.gmvae.marginalvae import MarginalGmVaeNet
 from deeper.models.gmvae.base import GmvaeNetBase
 from deeper.models.gmvae.gmvae_pure_sampling.utils import GumbleGmvaeTypeGetter
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 from pydantic import BaseModel
 
@@ -17,7 +18,7 @@ class GumbleGmvaeNet(GmvaeNetBase):
     class Config(GumbleGmvaeTypeGetter, GmvaeNetBase.Config):
         ...
 
-    class Output(NamedTuple):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         py: tf.Tensor
         qy_g_x: CategoricalEncoder.Output
         qy_gumble_one_hot_sample: tf.Tensor

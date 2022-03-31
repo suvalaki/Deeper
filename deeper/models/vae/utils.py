@@ -11,18 +11,17 @@ from deeper.models.generalised_autoencoder.base import (
 )
 from deeper.models.gan.base_getter import GanTypeGetter
 from deeper.models.adversarial_autoencoder.base_getter import AdversarialAutoencoderTypeGetter
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
-SplitCovariates = namedtuple(
-    "SplitInputs",
-    [
-        "regression",
-        "binary",
-        "ordinal_groups_concat",
-        "ordinal_groups",
-        "categorical_groups_concat",
-        "categorical_groups",
-    ],
-)
+
+class SplitCovariates(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+    regression: tf.Tensor
+    binary: tf.Tensor
+    ordinal_groups_concat: tf.Tensor
+    ordinal_groups: Tuple[tf.Tensor, ...]
+    categorical_groups_concat: tf.Tensor
+    categorical_groups: Tuple[tf.Tensor, ...]
 
 
 class VaeTypeGetter(AutoencoderTypeGetterBase, GanTypeGetter, AdversarialAutoencoderTypeGetter):

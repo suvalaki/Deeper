@@ -15,6 +15,7 @@ from deeper.layers.data_splitter import DataSplitter, reduce_groups
 
 from deeper.models.vae.base import MultipleObjectiveDimensions
 from deeper.models.vae.encoder import VaeEncoderNet
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
 class VaeReconstructionNet(Layer):
@@ -38,19 +39,19 @@ class VaeReconstructionNet(Layer):
             arbitrary_types_allowed = True
             smart_union = True
 
-    class Output(NamedTuple):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         hidden_logits: tf.Tensor
         regression: tf.Tensor
         logits_binary: tf.Tensor
         binary: tf.Tensor
         logits_ordinal_groups_concat: tf.Tensor
-        logits_ordinal_groups: tf.Tensor
+        logits_ordinal_groups: Tuple[tf.Tensor,...]
         ord_groups_concat: tf.Tensor
-        ord_groups: tf.Tensor
+        ord_groups: Tuple[tf.Tensor, ...]
         logits_categorical_groups_concat: tf.Tensor
-        logits_categorical_groups: tf.Tensor
+        logits_categorical_groups: Tuple[tf.Tensor, ...]
         categorical_groups_concat: tf.Tensor
-        categorical_groups: tf.Tensor
+        categorical_groups: Tuple[tf.Tensor, ...]
 
     def __init__(
         self,

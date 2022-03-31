@@ -203,7 +203,7 @@ class Vae(tf.keras.Model, AutoencoderModelBaseMixin):
                     "kld_z_schedule": weights.lambda_z,
                 }.items()
             },
-            **{"metrics/" + v.name: v.result() for v in self.metrics}
+            **{"metrics/" + v.name: v.result() for v in self.metrics},
         }
 
     def test_step(self, data):
@@ -215,7 +215,7 @@ class Vae(tf.keras.Model, AutoencoderModelBaseMixin):
 
         return {
             **{self._output_keys_renamed[k]: v for k, v in losses._asdict().items()},
-            **{"metrics/" + v.name: v.result() for v in self.metrics}
+            **{"metrics/" + v.name: v.result() for v in self.metrics},
         }
 
     _output_keys_renamed = {

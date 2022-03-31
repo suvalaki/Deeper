@@ -14,16 +14,17 @@ from deeper.models.gmvae.gmvae_marginalised_categorical.utils import (
 )
 
 from pydantic import BaseModel
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
 class StackedGmvaeNet(GmvaeNetBase):
     class Config(StackedGmvaeTypeGetter, GmvaeNetBase.Config):
         ...
 
-    class Output(NamedTuple):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         py: tf.Tensor
         qy_g_x: CategoricalEncoder.Output
-        marginals: Sequence[MarginalGmVaeNet.Output]
+        marginals: Tuple[MarginalGmVaeNet.Output, ...]
 
     def __init__(self, config: GmvaeNet.Config, **kwargs):
         super(StackedGmvaeNet, self).__init__(**kwargs)

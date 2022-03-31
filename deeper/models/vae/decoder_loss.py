@@ -18,16 +18,17 @@ from deeper.probability_layers.normal import (
     lognormal_pdf,
 )
 from tensorflow.python.keras.metrics import categorical_accuracy, accuracy
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
 class VaeReconLossNet(tf.keras.layers.Layer):
-    class InputYTrue(tf.experimental.ExtensionType):
+    class InputYTrue(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         regression_value: tf.Tensor
         binary_prob: tf.Tensor
         ordinal_prob: Tuple[tf.Tensor, ...]
         categorical_prob: Tuple[tf.Tensor, ...]
 
-    class InputYPred(tf.experimental.ExtensionType):
+    class InputYPred(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         regression_value: tf.Tensor
         binary_logit: tf.Tensor
         ordinal_logit: Tuple[tf.Tensor, ...]
@@ -42,7 +43,7 @@ class VaeReconLossNet(tf.keras.layers.Layer):
                 x.categorical_groups,
             )
 
-    class Input(NamedTuple):
+    class Input(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         y_true: VaeReconLossNet.InputYTrue
         y_pred: VaeReconLossNet.InputYPred
 
@@ -60,12 +61,10 @@ class VaeReconLossNet(tf.keras.layers.Layer):
                     y_true.ordinal_groups,
                     y_true.categorical_groups,
                 ),
-                VaeReconLossNet.InputYPred.from_VaeReconstructionNet(
-                    model_output
-                ),
+                VaeReconLossNet.InputYPred.from_VaeReconstructionNet(model_output),
             )
 
-    class Output(NamedTuple):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         l_pxgz_reg: tf.Tensor
         l_pxgz_bin: tf.Tensor
         l_pxgz_ord: tf.Tensor
@@ -84,38 +83,33 @@ class VaeReconLossNet(tf.keras.layers.Layer):
     @tf.function
     def categorical_accuracy_grouped(
         self,
-        y_cat_true: Sequence[tf.Tensor],
-        y_cat_pred: Sequence[tf.Tensor],
+        y_cat_true: Tuple[tf.Tensor, ...],
+        y_cat_pred: Tuple[tf.Tensor, ...],
         training: bool = False,
     ):
 
-        cat_accs = [
-            categorical_accuracy(yct, ypc)
-            for (yct, ypc) in zip(y_cat_true, y_cat_pred)
-        ]
+        cat_accs = [categorical_accuracy(yct, ypc) for (yct, ypc) in zip(y_cat_true, y_cat_pred)]
         for i, acc in enumerate(cat_accs):
             self.add_metric(
                 acc,
                 name=f"{self.prefix}/{self.decoder_name}_cat_accuracy_group_{i}",
             )
         cat_acc = tf.reduce_mean(tf.stack(cat_accs))
-        self.add_metric(
-            cat_acc, name=f"{self.prefix}/{self.decoder_name}_cat_accuracy"
-        )
+        self.add_metric(cat_acc, name=f"{self.prefix}/{self.decoder_name}_cat_accuracy")
         return cat_acc
 
     @tf.function
     def xent_binary(
         self,
-        y_bin_logits_true: Sequence[tf.Tensor],
-        y_bin_logits_pred: Sequence[tf.Tensor],
+        y_bin_logits_true: Tuple[tf.Tensor, ...],
+        y_bin_logits_pred: Tuple[tf.Tensor, ...],
         training: bool = False,
         weights: Optional[Sequence[float]] = None,
     ):
         if y_bin_logits_true.shape[-1] > 0:
             xent = tf.reduce_sum(
                 tf.nn.sigmoid_cross_entropy_with_logits(
-                    labels=tf.cast(y_bin_logits_true, dtype=self.dtype),
+                    labels=tf.clip_by_value(tf.cast(y_bin_logits_true, dtype=self.dtype), 0.1, 0.9),
                     logits=tf.cast(y_bin_logits_pred, dtype=self.dtype),
                     name=f"{self.prefix}/xent/{self.decoder_name}_binary_xent",
                 ),
@@ -132,8 +126,8 @@ class VaeReconLossNet(tf.keras.layers.Layer):
     @tf.function
     def xent_ordinal(
         self,
-        y_ord_logits_true: Sequence[tf.Tensor],
-        y_ord_logits_pred: Sequence[tf.Tensor],
+        y_ord_logits_true: Tuple[tf.Tensor, ...],
+        y_ord_logits_pred: Tuple[tf.Tensor, ...],
         training: bool = False,
         class_weights: Optional[Sequence[float]] = None,
     ):
@@ -148,9 +142,7 @@ class VaeReconLossNet(tf.keras.layers.Layer):
 
         elif len(y_ord_logits_true) == 1:
             if y_ord_logits_pred[0].get_shape()[-1] == 1:
-                xent = tf.zeros(
-                    (tf.shape(y_ord_logits_pred)[0],), dtype=self.dtype
-                )
+                xent = tf.zeros((tf.shape(y_ord_logits_pred)[0],), dtype=self.dtype)
             else:
                 xent = tf.reduce_sum(
                     tf.nn.sigmoid_cross_entropy_with_logits(
@@ -173,15 +165,11 @@ class VaeReconLossNet(tf.keras.layers.Layer):
                         -1,
                     )
                     for i, (wt, yolt, yolp) in enumerate(
-                        zip(
-                            class_weights, y_ord_logits_true, y_ord_logits_pred
-                        )
+                        zip(class_weights, y_ord_logits_true, y_ord_logits_pred)
                     )
                 ]
             )
-        self.add_metric(
-            xent, name=f"{self.prefix}/xent/{self.decoder_name}_ord_xent"
-        )
+        self.add_metric(xent, name=f"{self.prefix}/xent/{self.decoder_name}_ord_xent")
         return xent
 
     @tf.function
@@ -233,9 +221,7 @@ class VaeReconLossNet(tf.keras.layers.Layer):
                 )
                 xent += class_xent
 
-        self.add_metric(
-            xent, name=f"{self.prefix}/xent/{self.decoder_name}_cat_xent"
-        )
+        self.add_metric(xent, name=f"{self.prefix}/xent/{self.decoder_name}_cat_xent")
         return xent
 
     @tf.function
@@ -253,34 +239,24 @@ class VaeReconLossNet(tf.keras.layers.Layer):
             log_p = lognormal_pdf(y_reg_true, y_reg_pred, 1.0)
         else:
             log_p = y_reg_true[:, 0:0]
-        self.add_metric(
-            log_p, name=f"{self.prefix}/log_p{self.decoder_name}_regression"
-        )
+        self.add_metric(log_p, name=f"{self.prefix}/log_p{self.decoder_name}_regression")
         return log_p
 
     @tf.function
     def log_pxgz_binary(
         self,
-        y_bin_logits_true: Sequence[tf.Tensor],
-        y_bin_logits_pred: Sequence[tf.Tensor],
+        y_bin_logits_true: Tuple[tf.Tensor, ...],
+        y_bin_logits_pred: Tuple[tf.Tensor, ...],
         training: bool = False,
         weights: Optional[Sequence[float]] = None,
     ):
         if y_bin_logits_true.shape[1] > 0:
-            log_p = -self.xent_binary(
-                y_bin_logits_true, y_bin_logits_pred, training, weights
-            )
-            self.add_metric(
-                log_p, name=f"{self.prefix}/log_p/{self.decoder_name}_binary"
-            )
+            log_p = -self.xent_binary(y_bin_logits_true, y_bin_logits_pred, training, weights)
+            self.add_metric(log_p, name=f"{self.prefix}/log_p/{self.decoder_name}_binary")
             # accuracy
-            y_bin_pred = tf.cast(
-                tf.nn.sigmoid(y_bin_logits_pred) > 0.5, dtype=tf.float32
-            )
+            y_bin_pred = tf.cast(tf.nn.sigmoid(y_bin_logits_pred) > 0.5, dtype=tf.float32)
             y_bin_true = tf.cast(y_bin_logits_true > 0.5, dtype=tf.float32)
-            acc = tf.reduce_mean(
-                tf.cast(y_bin_true == y_bin_pred, dtype=tf.float32)
-            )
+            acc = tf.reduce_mean(tf.cast(y_bin_true == y_bin_pred, dtype=tf.float32))
             self.add_metric(
                 acc,
                 name=f"{self.prefix}/log_p/{self.decoder_name}_binary_accuracy",
@@ -292,33 +268,27 @@ class VaeReconLossNet(tf.keras.layers.Layer):
     @tf.function
     def log_pxgz_ordinal(
         self,
-        y_ord_logits_true: Sequence[tf.Tensor],
-        y_ord_logits_pred: Sequence[tf.Tensor],
+        y_ord_logits_true: Tuple[tf.Tensor, ...],
+        y_ord_logits_pred: Tuple[tf.Tensor, ...],
         training: bool = False,
         class_weights: Optional[Sequence[float]] = None,
     ):
-        log_p = -self.xent_ordinal(
-            y_ord_logits_true, y_ord_logits_pred, training, class_weights
-        )
-        self.add_metric(
-            log_p, name=f"{self.prefix}/log_p/{self.decoder_name}_ordinal"
-        )
+        log_p = -self.xent_ordinal(y_ord_logits_true, y_ord_logits_pred, training, class_weights)
+        self.add_metric(log_p, name=f"{self.prefix}/log_p/{self.decoder_name}_ordinal")
         return log_p
 
     @tf.function
     def log_pxgz_categorical(
         self,
-        y_cat_logits_true: Sequence[tf.Tensor],
-        y_cat_logits_pred: Sequence[tf.Tensor],
+        y_cat_logits_true: Tuple[tf.Tensor, ...],
+        y_cat_logits_pred: Tuple[tf.Tensor, ...],
         training: bool = False,
         class_weights: Optional[Sequence[float]] = None,
     ):
         log_p = -self.xent_categorical(
             y_cat_logits_true, y_cat_logits_pred, training, class_weights
         )
-        self.add_metric(
-            log_p, name=f"{self.prefix}/log_p/{self.decoder_name}_categorical"
-        )
+        self.add_metric(log_p, name=f"{self.prefix}/log_p/{self.decoder_name}_categorical")
         return log_p
 
     @staticmethod
@@ -333,20 +303,14 @@ class VaeReconLossNet(tf.keras.layers.Layer):
             return x
 
     @tf.function
-    def call(
-        self, x: VaeReconLossNet.Input, training=False
-    ) -> VaeReconLossNet.Output:
+    def call(self, x: VaeReconLossNet.Input, training=False) -> VaeReconLossNet.Output:
         l_pxgz_reg = self.log_pxgz_regression(
             x.y_true.regression_value,
             x.y_pred.regression_value,
             training,
         )
-        l_pxgz_bin = self.log_pxgz_binary(
-            x.y_true.binary_prob, x.y_pred.binary_logit, training
-        )
-        l_pxgz_ord = self.log_pxgz_ordinal(
-            x.y_true.ordinal_prob, x.y_pred.ordinal_logit, training
-        )
+        l_pxgz_bin = self.log_pxgz_binary(x.y_true.binary_prob, x.y_pred.binary_logit, training)
+        l_pxgz_ord = self.log_pxgz_ordinal(x.y_true.ordinal_prob, x.y_pred.ordinal_logit, training)
         l_pxgz_cat = self.log_pxgz_categorical(
             x.y_true.categorical_prob,
             x.y_pred.categorical_logit,

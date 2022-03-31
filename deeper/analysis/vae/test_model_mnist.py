@@ -75,7 +75,7 @@ config = Vae.Config(
     encoder_embedding_dimensions=[512, 512, 256],
     decoder_embedding_dimensions=[512, 512, 256][::-1],
     latent_dim=64,
-    embedding_activation=tf.keras.layers.ELU(),
+    embedding_activation=tf.keras.layers.Activation("elu"),
     kld_z_schedule=tfa.optimizers.CyclicalLearningRate(
         1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
     ),

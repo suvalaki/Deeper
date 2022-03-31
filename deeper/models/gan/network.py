@@ -11,12 +11,13 @@ from deeper.models.gan.base_getter import (
 )
 from deeper.models.generalised_autoencoder.network import ConfigType
 from deeper.models.gan.base_getter import GanTypeGetter
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
 class GanGenerativeNet(tf.keras.layers.Layer):
-    class Output(NamedTuple):
-        generated: NamedTuple
-        fake_descriminant: tf.Tensor
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+        generated: tf.experimental.ExtensionType
+        fake_descriminant: DescriminatorNet.Output
 
     def __init__(
         self,
@@ -41,10 +42,10 @@ class GanGenerativeNet(tf.keras.layers.Layer):
 
 
 class GanDescriminativeNet(tf.keras.layers.Layer):
-    class Output(NamedTuple):
-        generated: NamedTuple
-        fake_descriminant: tf.Tensor
-        real_descriminant: tf.Tensor
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+        generated: tf.experimental.ExtensionType
+        fake_descriminant: DescriminatorNet.Output
+        real_descriminant: DescriminatorNet.Output
 
     def __init__(
         self,
@@ -86,7 +87,7 @@ class GanNet(tf.keras.layers.Layer):
     Config.update_forward_refs()
 
     # Goal will be to max logprob while fooling the descimintaor
-    class Output(NamedTuple):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         descriminative: GanDescriminativeNet.Output
         generative: GanGenerativeNet.Output
 

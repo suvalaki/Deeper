@@ -12,12 +12,13 @@ from deeper.models.gan.network import (
 from deeper.models.adversarial_autoencoder.network import AdversarialAutoencoderNet
 
 from deeper.models.gan.network_loss import GanLossNet
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
 class AdverasrialAutoencoderLossNet(GanLossNet):
-    class Input(NamedTuple):
+    class Input(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         adversarial: AdversarialAutoencoderNet.Output
-        autoencoder: NamedTuple
+        autoencoder: tf.experimental.ExtensionType
 
         @classmethod
         def from_output(
@@ -35,8 +36,8 @@ class AdverasrialAutoencoderLossNet(GanLossNet):
                 autoencoder_lossnet.Input.from_output(y_split, y_pred.reconstruction, weight),
             )
 
-    class Output(NamedTuple):
-        generative: tf.Tesnor
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+        generative: tf.Tensor
         descriminative: tf.Tensor
         reconstruciton: tf.Tensor
 

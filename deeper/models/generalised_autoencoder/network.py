@@ -3,6 +3,7 @@ import tensorflow as tf
 
 from typing import Union, NamedTuple
 
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 from deeper.models.vae import Vae, VaeNet, VaeLossNet, VaeLatentParser
 from deeper.models.gmvae.gmvae_marginalised_categorical import (
     StackedGmvae,
@@ -22,9 +23,9 @@ ModelConfigType = Union[Vae.Config, StackedGmvae.Config, GumbleGmvae.Config]
 
 
 class GeneralisedAutoencoderNet(tf.keras.layers.Layer):
-    class Output(NamedTuple):
-        network: NamedTuple
-        losses: NamedTuple
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+        network: tf.experimental.ExtensionType
+        losses: tf.experimental.ExtensionType
         latent: tf.Tensor
 
     @staticmethod

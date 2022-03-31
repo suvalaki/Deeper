@@ -13,6 +13,7 @@ from deeper.utils.model_mixins import InputDisentangler, ClusteringMixin
 
 from tensorflow.python.keras.engine import data_adapter
 from tensorflow.python.eager import backprop
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
 class GmvaeNetBase(AutoencoderBase):
@@ -30,15 +31,15 @@ class GmvaeNetBase(AutoencoderBase):
 
 
 class GmvaeNetLossNetBase(tf.keras.layers.Layer):
-    class InputWeight(NamedTuple):
-        lambda_y: float = 1.0
-        lambda_z: float = 1.0
-        lambda_reg: float = 1.0
-        lambda_bin: float = 1.0
-        lambda_ord: float = 1.0
-        lambda_cat: float = 1.0
+    class InputWeight(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+        lambda_y: tf.Tensor = 1.0
+        lambda_z: tf.Tensor = 1.0
+        lambda_reg: tf.Tensor = 1.0
+        lambda_bin: tf.Tensor = 1.0
+        lambda_ord: tf.Tensor = 1.0
+        lambda_cat: tf.Tensor = 1.0
 
-    class Output(NamedTuple):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         # y losses
         kl_y: tf.Tensor
         # marginal losses
@@ -155,14 +156,16 @@ class GmvaeModelBase(tf.keras.Model, AutoencoderModelBaseMixin, ClusteringMixin)
 
         tempr = {"temp": temp} if "temp" in self._output_keys_renamed else {}
         return {
-            **{self._output_keys_renamed[k]: v
-            for k, v in {
-                **losses._asdict(),
-                **tempr,
-                "kld_y_schedule": weights.lambda_y,
-                "kld_z_schedule": weights.lambda_z,
-            }.items()},
-            **{"metrics/" + v.name: v.result() for v in self.metrics}
+            **{
+                self._output_keys_renamed[k]: v
+                for k, v in {
+                    **losses._asdict(),
+                    **tempr,
+                    "kld_y_schedule": weights.lambda_y,
+                    "kld_z_schedule": weights.lambda_z,
+                }.items()
+            },
+            **{"metrics/" + v.name: v.result() for v in self.metrics},
         }
 
     def test_step(self, data):
@@ -179,5 +182,5 @@ class GmvaeModelBase(tf.keras.Model, AutoencoderModelBaseMixin, ClusteringMixin)
 
         return {
             **{self._output_keys_renamed[k]: v for k, v in losses._asdict().items()},
-            **{"metrics/" + v.name: v.result() for v in self.metrics}
+            **{"metrics/" + v.name: v.result() for v in self.metrics},
         }

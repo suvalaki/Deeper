@@ -11,6 +11,7 @@ from deeper.models.vae.encoder_loss import VaeLossNetLatent
 from deeper.models.vae.decoder_loss import VaeReconLossNet
 from deeper.models.vae.utils import SplitCovariates
 from deeper.probability_layers.ops.normal import normal_kl, lognormal_pdf, normal_kl
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
 class MarginalGmVaeLossNet(VaeLossNet):
@@ -28,7 +29,7 @@ class MarginalGmVaeLossNet(VaeLossNet):
         )
         self.posterior_eps = posterior_eps
 
-    class Input(NamedTuple):
+    class Input(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         latent_sample: tf.Tensor
         prior_latent: VaeLossNetLatent.Input
         posterior_latent: VaeLossNetLatent.Input
@@ -56,7 +57,7 @@ class MarginalGmVaeLossNet(VaeLossNet):
                 weights,
             )
 
-    class Output(NamedTuple):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         # renamed outputs
         kl_zgy: tf.Tensor
         l_pxgzy_reg: tf.Tensor

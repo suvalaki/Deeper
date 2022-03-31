@@ -7,6 +7,7 @@ from typing import Optional
 from deeper.layers.encoder import Encoder
 from deeper.utils.scope import Scope
 from pydantic import Field
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 tfk = tf.keras
 
@@ -18,7 +19,7 @@ class SigmoidEncoder(Encoder):
         latent_dim: int = Field(1, const=True)
         epsilon: float = 0.0
 
-    class Output(tf.experimental.ExtensionType):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
         logits: tf.Tensor
         logprob: tf.Tensor
         prob: tf.Tensor

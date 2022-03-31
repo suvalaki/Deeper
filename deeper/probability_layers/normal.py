@@ -7,6 +7,7 @@ from typing import Optional
 
 from deeper.utils.scope import Scope
 from deeper.layers.encoder import Encoder, BaseEncoderConfig
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 tfk = tf.keras
 Layer = tfk.layers.Layer
@@ -49,10 +50,13 @@ class RandomNormalEncoder(Layer, Scope):
         embedding_mu_dropout: float = 0.0
         embedding_var_dropout: float = 0.0
 
-    Output = namedtuple(
-        "RandomNormalEncoderOutput",
-        ["sample", "logprob", "prob", "mu", "logvar", "var"],
-    )
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+        sample: tf.Tensor
+        logprob: tf.Tensor
+        prob: tf.Tensor
+        mu: tf.Tensor
+        logvar: tf.Tensor
+        var: tf.Tensor
 
     def __init__(
         self,

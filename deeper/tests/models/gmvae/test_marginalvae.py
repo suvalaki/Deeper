@@ -13,6 +13,7 @@ from deeper.utils.data.dummy import generate_dummy_dataset_alltypes
 from deeper.models.gmvae.marginalvae_loss import MarginalGmVaeLossNet
 from deeper.models.vae.decoder_loss import VaeReconLossNet
 from deeper.models.vae.utils import SplitCovariates
+from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
 N_ROWS = 25
@@ -44,7 +45,7 @@ config = MarginalGmVaeNet.Config(
 )
 
 
-class Inputs(NamedTuple):
+class Inputs(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
     X: tf.Tensor
     y: tf.Tensor
 
