@@ -31,7 +31,7 @@ class FilterProgbarLoggerBase(ABC, tf.keras.callbacks.ProgbarLogger):
 
 
 class FilterOutProgbarLogger(FilterProgbarLoggerBase):
-    def __init__(self, count_mode="samples", stateful_metrics=None, opt_out=[]):
+    def __init__(self, count_mode="steps", stateful_metrics=None, opt_out=[]):
         super().__init__(count_mode=count_mode, stateful_metrics=stateful_metrics)
         self.opt_out = opt_out
 
@@ -40,7 +40,7 @@ class FilterOutProgbarLogger(FilterProgbarLoggerBase):
 
 
 class FilterInProgbarLogger(FilterProgbarLoggerBase):
-    def __init__(self, count_mode="samples", stateful_metrics=None, opt_in=[]):
+    def __init__(self, count_mode="steps", stateful_metrics=None, opt_in=[]):
         super().__init__(count_mode=count_mode, stateful_metrics=stateful_metrics)
         self.opt_in = opt_in
 
