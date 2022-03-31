@@ -42,7 +42,7 @@ class RandomNormalEncoder(Layer, Scope):
         ] = tf.initializers.glorot_normal()
         latent_var_bias_initializer: Union[
             str, tf.keras.initializers.Initializer
-        ] = tf.initializers.ones()
+        ] = tf.initializers.zeros()
         fixed_mu: Optional[float] = None
         fixed_var: Optional[float] = None
         connected_weights: bool = True
