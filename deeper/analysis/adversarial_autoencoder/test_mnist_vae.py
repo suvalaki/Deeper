@@ -100,7 +100,7 @@ vaeConfig = Vae.Config(
     encoder_embedding_dimensions=[512, 512, 256],
     decoder_embedding_dimensions=[512, 512, 256][::-1],
     latent_dim=64,
-    embedding_activations=tf.keras.layers.ELU(),
+    embedding_activations=tf.keras.layers.Activation("relu"),
     # bn_before=True,
 )
 
