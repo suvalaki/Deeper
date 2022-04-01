@@ -22,6 +22,7 @@ from deeper.layers.data_splitter import split_inputs, unpack_dimensions
 from deeper.models.vae.network import VaeNet
 from deeper.models.vae.encoder_loss import VaeLossNetLatent
 from deeper.models.vae.decoder_loss import VaeReconLossNet
+from deeper.models.vae.utils import VaeTypeGetter
 from tensorflow.python.keras.engine import data_adapter
 
 from types import SimpleNamespace
@@ -81,7 +82,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.add_metric(result, name=f"{self.prefix}/elbo")
         return result
 
-    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, VaeTypeGetter):
         kl_z: tf.Tensor
         l_pxgz_reg: tf.Tensor
         l_pxgz_bin: tf.Tensor
@@ -167,14 +168,14 @@ class VaeLossNet(tf.keras.layers.Layer):
             lambda_cat,
         )
 
-    class InputWeight(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+    class InputWeight(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, VaeTypeGetter):
         lambda_z: tf.Tensor = 1.0
         lambda_reg: tf.Tensor = 1.0
         lambda_bin: tf.Tensor = 1.0
         lambda_ord: tf.Tensor = 1.0
         lambda_cat: tf.Tensor = 1.0
 
-    class Input(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+    class Input(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, VaeTypeGetter):
         latent: VaeLossNetLatent.Input
         y_true: VaeReconLossNet.InputYTrue
         y_pred: VaeReconLossNet.InputYPred

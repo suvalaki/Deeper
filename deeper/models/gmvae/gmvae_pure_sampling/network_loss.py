@@ -10,10 +10,11 @@ from deeper.models.gmvae.marginalvae_loss import MarginalGmVaeLossNet
 from deeper.layers.categorical import CategoricalEncoder
 from deeper.models.vae.network_loss import VaeLossNet
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
+from deeper.models.gmvae.gmvae_pure_sampling.utils import GumbleGmvaeTypeGetter
 
 
 class GumbleGmvaeNetLossNet(GmvaeNetLossNetBase):
-    class Input(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+    class Input(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, GumbleGmvaeTypeGetter):
         py: tf.Tensor
         qy_g_x: CategoricalEncoder.Output
         marginal: MarginalGmVaeLossNet.Input
@@ -35,6 +36,9 @@ class GumbleGmvaeNetLossNet(GmvaeNetLossNetBase):
                 ),
                 weights[0],
             )
+
+    class Output(GmvaeNetLossNetBase.Output, GumbleGmvaeTypeGetter):
+        ...
 
     def __init__(
         self,

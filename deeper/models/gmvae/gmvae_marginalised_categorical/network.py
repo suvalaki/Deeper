@@ -21,7 +21,7 @@ class StackedGmvaeNet(GmvaeNetBase):
     class Config(StackedGmvaeTypeGetter, GmvaeNetBase.Config):
         ...
 
-    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, StackedGmvaeTypeGetter):
         py: tf.Tensor
         qy_g_x: CategoricalEncoder.Output
         marginals: Tuple[MarginalGmVaeNet.Output, ...]

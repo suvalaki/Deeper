@@ -18,7 +18,7 @@ class GumbleGmvaeNet(GmvaeNetBase):
     class Config(GumbleGmvaeTypeGetter, GmvaeNetBase.Config):
         ...
 
-    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, GumbleGmvaeTypeGetter):
         py: tf.Tensor
         qy_g_x: CategoricalEncoder.Output
         qy_gumble_one_hot_sample: tf.Tensor

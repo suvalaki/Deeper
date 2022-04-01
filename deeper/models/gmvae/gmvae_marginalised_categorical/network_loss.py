@@ -12,10 +12,13 @@ from deeper.models.gmvae.marginalvae_loss import MarginalGmVaeLossNet
 from deeper.layers.categorical import CategoricalEncoder
 from deeper.models.vae.network_loss import VaeLossNet
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
+from deeper.models.gmvae.gmvae_marginalised_categorical.utils import (
+    StackedGmvaeTypeGetter,
+)
 
 
 class StackedGmvaeLossNet(GmvaeNetLossNetBase):
-    class Input(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+    class Input(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, StackedGmvaeTypeGetter):
         py: tf.Tensor
         qy_g_x: CategoricalEncoder.Output
         marginals: Tuple[MarginalGmVaeLossNet.Input, ...]
@@ -38,6 +41,9 @@ class StackedGmvaeLossNet(GmvaeNetLossNetBase):
                 ],
                 weights.lambda_y,
             )
+
+    class Output(GmvaeNetLossNetBase.Output, StackedGmvaeTypeGetter):
+        ...
 
     def __init__(
         self,

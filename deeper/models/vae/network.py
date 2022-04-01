@@ -79,7 +79,7 @@ class VaeNet(AutoencoderBase):
         class Config:
             arbitrary_types_allowed = True
 
-    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
+    class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, VaeTypeGetter):
         # Encoder/Latent variables
         qz_g_x: VaeEncoderNet.Output
         # DecoderVariables
