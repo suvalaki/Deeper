@@ -20,6 +20,8 @@ A view of the deep learning landscape; implementations of old and new deep learn
 ## Extra Notes
 
 ### Optimization
+TODO: learnable dropout http://proceedings.mlr.press/v108/boluki20a/boluki20a.pdf
+
 
 ### Variational Inference / latent spaces
 - Beta VAE. Penalising the KL divergence (Beta > 1) term within the loss can force the latent space representation to be encoded in a more efficient manner; forcing the model to encode the most efficient representation of the data (https://openreview.net/references/pdf?id=Sy2fzU9gl). Further extended by (https://arxiv.org/pdf/1802.04942.pdf) and explained by (https://arxiv.org/abs/1711.00464).
