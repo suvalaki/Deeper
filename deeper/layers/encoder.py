@@ -39,6 +39,7 @@ class Encoder(Layer):
         latent_bias_initializer: Union[
             str, tf.keras.initializers.Initializer
         ] = tf.initializers.zeros()
+        input_dropout: Optional[float] = None
         embedding_dropout: Optional[float] = None
         embedding_kernel_regularizer: tf.keras.regularizers.Regularizer = None
         embedding_bias_regularizer: tf.keras.regularizers.Regularizer = None
@@ -61,6 +62,7 @@ class Encoder(Layer):
         embedding_bias_initializer=tf.initializers.zeros(),
         latent_kernel_initialiazer=tf.initializers.glorot_uniform(),
         latent_bias_initializer=tf.initializers.zeros(),
+        input_dropout: Optional[float] = None,
         embedding_dropout: Optional[float] = None,
         embedding_kernel_regularizer=tf.keras.regularizers.l2(),
         embedding_bias_regularizer=tf.keras.regularizers.l2(),
@@ -85,8 +87,12 @@ class Encoder(Layer):
         self.activation = activation
         self.bn_before = bn_before
         self.bn_after = bn_after
+        self.input_dropout_rate = input_dropout
         self.dropout_rate = embedding_dropout if embedding_dropout is not None else 0.0
         self.dropout = [None] * self.n_em
+
+        if self.input_dropout_rate is not None:
+            self.input_dropout = tf.keras.layers.Dropout(self.input_dropout_rate)
 
         for i, em in enumerate(self.em_dim):
             with tf.name_scope("embedding_{}".format(i)):
@@ -159,6 +165,10 @@ class Encoder(Layer):
 
         """
         x = inputs
+
+
+        if self.input_dropout_rate is not None:
+            x = self.input_dropout(x, training=training)
 
         for i, (embedding, bn_before, bn_after, dropout) in enumerate(
             zip(
