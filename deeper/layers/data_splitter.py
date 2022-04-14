@@ -13,12 +13,12 @@ from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMix
 
 
 class SplitCovariates(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
-    regression: tf.Tensor
-    binary: tf.Tensor
-    ordinal_groups_concat: tf.Tensor
-    ordinal_groups: Tuple[tf.Tensor, ...]
-    categorical_groups_concat: tf.Tensor
-    categorical_groups: Tuple[tf.Tensor, ...]
+    regression: Optional[tf.Tensor] = None
+    binary: Optional[tf.Tensor] = None
+    ordinal_groups_concat: Optional[tf.Tensor] = None
+    ordinal_groups: Optional[Tuple[tf.Tensor, ...]] = None
+    categorical_groups_concat: Optional[tf.Tensor] = None
+    categorical_groups: Optional[Tuple[tf.Tensor, ...]] = None
 
 
 def reduce_groups(fn, x_grouped: Tuple[tf.Tensor, ...]):
