@@ -34,7 +34,7 @@ class VaeReconstructionNet(Layer):
         ] = "glorot_uniform"
         recon_latent_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
         recon_input_dropout: Optional[float] = None
-        recon_dropouut: Optional[float] = None
+        recon_dropout: Optional[float] = None
 
         class Config:
             arbitrary_types_allowed = True
@@ -83,7 +83,7 @@ class VaeReconstructionNet(Layer):
             latent_kernel_initialiazer=config.recon_latent_kernel_initialiazer,
             latent_bias_initializer=config.recon_latent_bias_initializer,
             input_dropout=config.recon_input_dropout,
-            embedding_dropout=config.recon_dropouut,
+            embedding_dropout=config.recon_dropout,
         )
 
     @tf.function
