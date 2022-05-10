@@ -35,6 +35,8 @@ class VaeReconstructionNet(Layer):
         recon_latent_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
         recon_input_dropout: Optional[float] = None
         recon_dropout: Optional[float] = None
+        recon_kernel_regularizer: tf.keras.regularizers.Regularizer = tf.keras.regularizers.l1_l2()
+        recon_bias_regularizer: tf.keras.regularizers.Regularizer = tf.keras.regularizers.l1_l2()
 
         class Config:
             arbitrary_types_allowed = True
@@ -84,6 +86,8 @@ class VaeReconstructionNet(Layer):
             latent_bias_initializer=config.recon_latent_bias_initializer,
             input_dropout=config.recon_input_dropout,
             embedding_dropout=config.recon_dropout,
+            latent_kernel_regularizer=config.recon_kernel_regularizer,
+            latent_bias_regularizer=config.recon_bias_regularizer,
         )
 
     @tf.function

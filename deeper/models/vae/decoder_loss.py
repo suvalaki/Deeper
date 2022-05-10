@@ -74,11 +74,13 @@ class VaeReconLossNet(tf.keras.layers.Layer):
         self,
         decoder_name="xgz",
         prefix="",  # Must be non null for freestanding scope. Cannot start with "/"
+        binary_label_smoothing=0.0,
         **kwargs,
     ):
         super().__init__()
         self.decoder_name = decoder_name
         self.prefix = prefix
+        self.binary_label_smoothing = binary_label_smoothing
 
     @tf.function
     def categorical_accuracy_grouped(
@@ -109,7 +111,11 @@ class VaeReconLossNet(tf.keras.layers.Layer):
         if y_bin_logits_true.shape[-1] > 0:
             xent = tf.reduce_sum(
                 tf.nn.sigmoid_cross_entropy_with_logits(
-                    labels=tf.clip_by_value(tf.cast(y_bin_logits_true, dtype=self.dtype), 0.1, 0.9),
+                    labels=tf.clip_by_value(
+                        tf.cast(y_bin_logits_true, dtype=self.dtype),
+                        self.binary_label_smoothing,
+                        1 - self.binary_label_smoothing,
+                    ),
                     logits=tf.cast(y_bin_logits_pred, dtype=self.dtype),
                     name=f"{self.prefix}/xent/{self.decoder_name}_binary_xent",
                 ),
@@ -252,6 +258,17 @@ class VaeReconLossNet(tf.keras.layers.Layer):
     ):
         if y_bin_logits_true.shape[1] > 0:
             log_p = -self.xent_binary(y_bin_logits_true, y_bin_logits_pred, training, weights)
+
+            # Confidence penalty
+            penalty_factor = 100
+            threshold = 0.0  # 0.7 / 2
+            y_bin_pred_abs = tf.math.abs(tf.nn.sigmoid(y_bin_logits_pred) - 0.5)
+            hinge = tf.math.square(
+                tf.math.maximum(penalty_factor * (y_bin_pred_abs - threshold), 0.0) + 1
+            )
+
+            # log_p = tf.stop_gradient(hinge) * log_p
+
             self.add_metric(log_p, name=f"{self.prefix}/log_p/{self.decoder_name}_binary")
             # accuracy
             y_bin_pred = tf.cast(tf.nn.sigmoid(y_bin_logits_pred) > 0.5, dtype=tf.float32)

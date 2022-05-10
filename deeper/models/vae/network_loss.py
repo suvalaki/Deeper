@@ -169,11 +169,11 @@ class VaeLossNet(tf.keras.layers.Layer):
         )
 
     class InputWeight(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, VaeTypeGetter):
-        lambda_z: tf.Tensor = 1.0
-        lambda_reg: tf.Tensor = 1.0
-        lambda_bin: tf.Tensor = 1.0
-        lambda_ord: tf.Tensor = 1.0
-        lambda_cat: tf.Tensor = 1.0
+        lambda_z: tf.Tensor = tf.constant(1.0)
+        lambda_reg: tf.Tensor = tf.constant(1.0)
+        lambda_bin: tf.Tensor = tf.constant(1.0)
+        lambda_ord: tf.Tensor = tf.constant(1.0)
+        lambda_cat: tf.Tensor = tf.constant(1.0)
 
     class Input(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, VaeTypeGetter):
         latent: VaeLossNetLatent.Input
