@@ -111,11 +111,12 @@ class VaeReconLossNet(tf.keras.layers.Layer):
         if y_bin_logits_true.shape[-1] > 0:
             xent = tf.reduce_sum(
                 tf.nn.sigmoid_cross_entropy_with_logits(
-                    labels=tf.clip_by_value(
-                        tf.cast(y_bin_logits_true, dtype=self.dtype),
-                        self.binary_label_smoothing,
-                        1 - self.binary_label_smoothing,
-                    ),
+                    # labels=tf.clip_by_value(
+                    #     tf.cast(y_bin_logits_true, dtype=self.dtype),
+                    #     self.binary_label_smoothing,
+                    #     1 - self.binary_label_smoothing,
+                    # ),
+                    labels=tf.cast(y_bin_logits_true, dtype=self.dtype),
                     logits=tf.cast(y_bin_logits_pred, dtype=self.dtype),
                     name=f"{self.prefix}/xent/{self.decoder_name}_binary_xent",
                 ),
@@ -138,7 +139,7 @@ class VaeReconLossNet(tf.keras.layers.Layer):
         class_weights: Optional[Sequence[float]] = None,
     ):
 
-        xent = tf.zeros((tf.shape(y_ord_logits_pred)[0],), dtype=self.dtype)
+        xent = tf.zeros(tf.shape(y_ord_logits_pred[0])[0], dtype=self.dtype)
 
         if class_weights is None and len(y_ord_logits_true) > 0:
             class_weights = [1 for i in range(len(y_ord_logits_true))]
@@ -148,7 +149,7 @@ class VaeReconLossNet(tf.keras.layers.Layer):
 
         elif len(y_ord_logits_true) == 1:
             if y_ord_logits_pred[0].get_shape()[-1] == 1:
-                xent = tf.zeros((tf.shape(y_ord_logits_pred)[0],), dtype=self.dtype)
+                xent = tf.zeros(tf.shape(y_ord_logits_pred[0])[0], dtype=self.dtype)
             else:
                 xent = tf.reduce_sum(
                     tf.nn.sigmoid_cross_entropy_with_logits(
