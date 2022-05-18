@@ -44,6 +44,7 @@ from deeper.models.generalised_autoencoder.base import (
 )
 
 from pydantic import BaseModel
+from functools import singledispatchmethod as overload
 
 
 class Vae(tf.keras.Model, AutoencoderModelBaseMixin):
@@ -131,19 +132,25 @@ class Vae(tf.keras.Model, AutoencoderModelBaseMixin):
     class Config(VaeNet.Config, CoolingRegime.Config):
         pass
 
-    def __init__(self, config: VAE.Config, **kwargs):
+    @overload
+    def __init__(self, network: VaeNet, config, **kwargs):
         tf.keras.Model.__init__(self, **kwargs)
         self.config = config
-        self.network = VaeNet(config, **kwargs)
+        self.network = network
         self.lossnet = VaeLossNet(latent_eps=1e-6, prefix="loss", **kwargs)
         self.weight_getter = Vae.CoolingRegime(config, dtype=self.dtype)
         AutoencoderModelBaseMixin.__init__(
             self,
             self.weight_getter,
             self.network,
-            self.config.get_latent_parser_type(),
-            self.config.get_fake_output_getter(),
+            self.config.get_latent_parser_type()(),
+            self.config.get_fake_output_getter()(),
         )
+
+    @__init__.register
+    def from_config(self, config: BaseModel, **kwargs):
+        network = VaeNet(config, **kwargs)
+        self.__init__(network, config, **kwargs)
 
     @tf.function
     def loss_fn(
@@ -191,7 +198,7 @@ class Vae(tf.keras.Model, AutoencoderModelBaseMixin):
                 weights,
                 training=True,
             )
-            loss = tf.reduce_mean(losses.loss)
+            loss = losses.loss
 
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
         return {

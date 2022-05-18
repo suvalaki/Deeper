@@ -6,6 +6,7 @@ import numpy as np
 from typing import Union, Tuple, Sequence, Optional, NamedTuple
 from pydantic.dataclasses import dataclass
 from pydantic import BaseModel
+from functools import singledispatchmethod as overload
 
 from deeper.models.gmvae.base import GmvaeModelBase
 from deeper.models.gmvae.gmvae_pure_sampling.network import GumbleGmvaeNet
@@ -16,6 +17,7 @@ from deeper.models.vae.network_loss import VaeLossNet
 
 from tensorflow.python.keras.engine import data_adapter
 from tensorflow.python.eager import backprop
+
 
 tfk = tf.keras
 
@@ -64,8 +66,13 @@ class GumbleGmvae(GmvaeModelBase):
         **GmvaeModelBase._output_keys_renamed,
     }
 
-    def __init__(self, config: GumbleGmvae.Config, **kwargs):
-        GmvaeModelBase.__init__(self, config, **kwargs)
+    @overload
+    def __init__(self, network: GumbleGmvaeNet, config: GumbleGmvae.Config, **kwargs):
+        GmvaeModelBase.__init__(self, network, config, **kwargs)
+
+    @__init__.register
+    def from_config(self, config: BaseModel, **kwargs):
+        GmvaeModelBase.from_config(self, config, **kwargs)
 
     @tf.function
     def loss_fn(

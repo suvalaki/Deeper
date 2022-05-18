@@ -3,6 +3,7 @@ import tensorflow as tf
 
 from tensorflow.python.keras.engine import data_adapter
 from tensorflow.python.eager import backprop
+from functools import singledispatchmethod as overload
 
 from deeper.models.gan.network import GanNet
 from deeper.models.gan.network_loss import GanLossNet
@@ -25,10 +26,11 @@ class Gan(Model, ReconstructionMixin, ClusteringMixin):
 
     Config.update_forward_refs()
 
-    def __init__(self, config: Gan.Config, **kwargs):
+    @overload
+    def __init__(self, network: GanNet, config: Gan.Config, **kwargs):
         Model.__init__(self, **kwargs)
+        self.network = network
         self.config = config
-        self.network = GanNet(config, **kwargs)
         self.lossnet = GanLossNet(**kwargs)
         self.weight_getter = self.config.generator.get_model_type().CoolingRegime(
             self.config.generator, dtype=self.dtype
@@ -47,6 +49,11 @@ class Gan(Model, ReconstructionMixin, ClusteringMixin):
             if hasattr(config.generator, "get_cluster_output_parser_type")
             else None,
         )
+
+    @__init__.register
+    def from_config(self, config: BaseModel, **kwargs):
+        network = GanNet(config, **kwargs)
+        self.__init__(network, config, **kwargs)
 
     def call(self, x, temp=None, training=False):
         return self.call_reconstruction(x, temp, training)

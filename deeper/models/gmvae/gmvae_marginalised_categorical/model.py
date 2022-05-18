@@ -6,6 +6,7 @@ import numpy as np
 from typing import Union, Tuple, Sequence, Optional, NamedTuple
 from pydantic.dataclasses import dataclass
 from pydantic import BaseModel
+from functools import singledispatchmethod as overload
 
 from deeper.models.gmvae.base import GmvaeModelBase
 from deeper.models.gmvae.gmvae_marginalised_categorical.network import (
@@ -50,8 +51,13 @@ class StackedGmvae(GmvaeModelBase):
     class Config(CoolingRegime.Config, StackedGmvaeNet.Config, GmvaeModelBase.Config):
         ...
 
-    def __init__(self, config: StackedGmvae.Config, **kwargs):
-        GmvaeModelBase.__init__(self, config, **kwargs)
+    @overload
+    def __init__(self, network: StackedGmvaeNet, config: StackedGmvaeNet.Config, **kwargs):
+        GmvaeModelBase.__init__(self, network, config, **kwargs)
+
+    @__init__.register
+    def from_config(self, config: BaseModel, **kwargs):
+        GmvaeModelBase.from_config(self, config, **kwargs)
 
     @tf.function
     def loss_fn(

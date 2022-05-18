@@ -15,6 +15,8 @@ from tensorflow.python.keras.engine import data_adapter
 from tensorflow.python.eager import backprop
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
+from functools import singledispatchmethod as overload
+
 
 class GmvaeNetBase(AutoencoderBase):
     class Config(MarginalGmVaeNet.Config):
@@ -114,10 +116,11 @@ class GmvaeModelBase(tf.keras.Model, AutoencoderModelBaseMixin, ClusteringMixin)
         "kld_z_schedule": "weight/lambda_z",
     }
 
-    def __init__(self, config, **kwargs):
+    @overload
+    def __init__(self, network: GmvaeNetBase, config: BaseModel, **kwargs):
         tf.keras.Model.__init__(self, **kwargs)
         self.config = config
-        self.network = config.get_network_type()(config)
+        self.network = network
         self.lossnet = config.get_lossnet_type()()
         self.weight_getter = config.get_cooling_regime()(config, dtype=self.dtype)
         AutoencoderModelBaseMixin.__init__(
@@ -133,6 +136,11 @@ class GmvaeModelBase(tf.keras.Model, AutoencoderModelBaseMixin, ClusteringMixin)
             self.network,
             config.get_cluster_output_parser_type()(),
         )
+
+    @__init__.register
+    def from_config(self, config: BaseModel, **kwargs):
+        network = config.get_network_type()(config)
+        self.__init__(network, config, **kwargs)
 
     def train_step(self, data, training: bool = False):
 
