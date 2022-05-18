@@ -7,10 +7,11 @@ from pydantic import BaseModel, Field
 from deeper.models.generalised_autoencoder.base import AutoencoderBase
 from deeper.models.gan.network import GanNet, GanDescriminativeNet, GanGenerativeNet
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
+from deeper.models.adversarial_autoencoder.utils import AdversarialAutoencoderTypeGetterMixin
 
 
 class AdversarialAutoencoderNet(GanNet, AutoencoderBase):
-    class Config(GanNet.Config):
+    class Config(AdversarialAutoencoderTypeGetterMixin, GanNet.Config):
         ...
 
     Config.update_forward_refs()

@@ -4,6 +4,7 @@ import tensorflow as tf
 from tensorflow.python.keras.engine import data_adapter
 from tensorflow.python.eager import backprop
 from functools import singledispatchmethod as overload
+from pydantic import BaseModel
 
 from deeper.models.adversarial_autoencoder.network import (
     AdversarialAutoencoderNet,

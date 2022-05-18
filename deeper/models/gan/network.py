@@ -12,6 +12,7 @@ from deeper.models.gan.base_getter import (
 from deeper.models.generalised_autoencoder.network import ConfigType
 from deeper.models.gan.base_getter import GanTypeGetter
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
+from deeper.models.gan.utils import GanTypeGetterMixin
 
 
 class GanGenerativeNet(tf.keras.layers.Layer):
@@ -76,7 +77,7 @@ class GanDescriminativeNet(tf.keras.layers.Layer):
 
 
 class GanNet(tf.keras.layers.Layer):
-    class Config(BaseModel):
+    class Config(BaseModel, GanTypeGetterMixin):
         descriminator: DescriminatorNet.Config
         generator: ConfigType
 
