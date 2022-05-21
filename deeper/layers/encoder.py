@@ -41,10 +41,10 @@ class Encoder(Layer):
         ] = tf.initializers.zeros()
         input_dropout: Optional[float] = None
         embedding_dropout: Optional[float] = None
-        embedding_kernel_regularizer: tf.keras.regularizers.Regularizer = None
-        embedding_bias_regularizer: tf.keras.regularizers.Regularizer = None
-        latent_kernel_regularizer: tf.keras.regularizers.Regularizer = None
-        latent_bias_regularizer: tf.keras.regularizers.Regularizer = None
+        embedding_kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
+        embedding_bias_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
+        latent_kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
+        latent_bias_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
 
     @classmethod
     def from_config(cls, config: Encoder.Config, **kwargs):
@@ -64,8 +64,8 @@ class Encoder(Layer):
         latent_bias_initializer=tf.initializers.zeros(),
         input_dropout: Optional[float] = None,
         embedding_dropout: Optional[float] = None,
-        embedding_kernel_regularizer=tf.keras.regularizers.l2(),
-        embedding_bias_regularizer=tf.keras.regularizers.l2(),
+        embedding_kernel_regularizer=None,  # tf.keras.regularizers.l2(),
+        embedding_bias_regularizer=None,  # tf.keras.regularizers.l2(),
         latent_kernel_regularizer=None,
         latent_bias_regularizer=None,
         **kwargs
@@ -105,6 +105,7 @@ class Encoder(Layer):
                     bias_initializer=embedding_bias_initializer,
                     kernel_regularizer=embedding_kernel_regularizer,
                     bias_regularizer=embedding_bias_regularizer,
+                    # activity_regularizer=embedding_kernel_regularizer,
                     name="dense",
                     **V1_PARMS,
                 )
@@ -144,6 +145,7 @@ class Encoder(Layer):
             bias_initializer=latent_bias_initializer,
             kernel_regularizer=latent_kernel_regularizer,
             bias_regularizer=latent_bias_regularizer,
+            # activity_regularizer=latent_kernel_regularizer,
             name="latent_dense",
             **V1_PARMS,
         )
@@ -165,7 +167,6 @@ class Encoder(Layer):
 
         """
         x = inputs
-
 
         if self.input_dropout_rate is not None:
             x = self.input_dropout(x, training=training)

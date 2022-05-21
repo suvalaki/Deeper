@@ -25,6 +25,18 @@ class VaeReconstructionNet(Layer):
         embedding_activations: tf.keras.layers.Layer = tf.keras.layers.ReLU()
         bn_before: bool = False
         bn_after: bool = False
+        embedding_kernel_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.glorot_uniform()
+        embedding_bias_initializer: Union[
+            str, tf.keras.initializers.Initializer
+        ] = tf.initializers.zeros()
+        embedding_kernel_regularizer: tf.keras.regularizers.Regularizer = (
+            tf.keras.regularizers.l1_l2()
+        )
+        embedding_bias_regularizer: tf.keras.regularizers.Regularizer = (
+            tf.keras.regularizers.l1_l2()
+        )
         recon_embedding_kernel_initializer: Union[
             str, tf.keras.initializers.Initializer
         ] = "glorot_uniform"
@@ -37,6 +49,7 @@ class VaeReconstructionNet(Layer):
         recon_dropout: Optional[float] = None
         recon_kernel_regularizer: tf.keras.regularizers.Regularizer = tf.keras.regularizers.l1_l2()
         recon_bias_regularizer: tf.keras.regularizers.Regularizer = tf.keras.regularizers.l1_l2()
+        binary_label_smoothing: float = 0.0
 
         class Config:
             arbitrary_types_allowed = True
@@ -86,6 +99,8 @@ class VaeReconstructionNet(Layer):
             latent_bias_initializer=config.recon_latent_bias_initializer,
             input_dropout=config.recon_input_dropout,
             embedding_dropout=config.recon_dropout,
+            embedding_kernel_regularizer=config.embedding_kernel_regularizer,
+            embedding_bias_regularizer=config.embedding_bias_regularizer,
             latent_kernel_regularizer=config.recon_kernel_regularizer,
             latent_bias_regularizer=config.recon_bias_regularizer,
         )
