@@ -9,7 +9,7 @@ license = "MIT"
 python = "^3.8"
 tqdm = "^4.49.0"
 scikit-learn = "^0.23.2"
-tensorflow = "^2.3.1"
+tensorflow = "^2.6.4"
 pydantic = "^1.9.0"
 tensorflow-addons = "^0.15.0"
 
