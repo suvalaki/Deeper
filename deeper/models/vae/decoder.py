@@ -31,12 +31,9 @@ class VaeReconstructionNet(Layer):
         embedding_bias_initializer: Union[
             str, tf.keras.initializers.Initializer
         ] = tf.initializers.zeros()
-        embedding_kernel_regularizer: tf.keras.regularizers.Regularizer = (
-            tf.keras.regularizers.l1_l2()
-        )
-        embedding_bias_regularizer: tf.keras.regularizers.Regularizer = (
-            tf.keras.regularizers.l1_l2()
-        )
+        embedding_kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
+        embedding_bias_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
+        embedding_activity_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
         recon_embedding_kernel_initializer: Union[
             str, tf.keras.initializers.Initializer
         ] = "glorot_uniform"
@@ -47,8 +44,9 @@ class VaeReconstructionNet(Layer):
         recon_latent_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
         recon_input_dropout: Optional[float] = None
         recon_dropout: Optional[float] = None
-        recon_kernel_regularizer: tf.keras.regularizers.Regularizer = tf.keras.regularizers.l1_l2()
-        recon_bias_regularizer: tf.keras.regularizers.Regularizer = tf.keras.regularizers.l1_l2()
+        recon_kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
+        recon_bias_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
+        recon_activity_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
         binary_label_smoothing: float = 0.0
 
         class Config:
@@ -101,8 +99,10 @@ class VaeReconstructionNet(Layer):
             embedding_dropout=config.recon_dropout,
             embedding_kernel_regularizer=config.embedding_kernel_regularizer,
             embedding_bias_regularizer=config.embedding_bias_regularizer,
+            embedding_activity_regularizer=config.embedding_activity_regularizer,
             latent_kernel_regularizer=config.recon_kernel_regularizer,
             latent_bias_regularizer=config.recon_bias_regularizer,
+            latent_activity_regularizer=config.recon_activity_regularizer,
         )
 
     @tf.function
