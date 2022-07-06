@@ -153,19 +153,19 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.add_metric(lambda_cat, name=f"{self.prefix}/weight/lambda_cat")
 
         return VaeLossNet.Output(
-            kl_z,
-            log_pxgz_reg,
-            log_pxgz_bin,
-            log_pxgz_ord,
-            log_pxgz_cat,
-            scaled_log_pgz,
-            scaled_elbo,
-            scaled_loss,
-            lambda_z,
-            lambda_reg,
-            lambda_bin,
-            lambda_ord,
-            lambda_cat,
+            kl_z=kl_z,
+            l_pxgz_reg=log_pxgz_reg,
+            l_pxgz_bin=log_pxgz_bin,
+            l_pxgz_ord=log_pxgz_ord,
+            l_pxgz_cat=log_pxgz_cat,
+            scaled_l_pxgz=scaled_log_pgz,
+            scaled_elbo=scaled_elbo,
+            loss=scaled_loss,
+            lambda_z=lambda_z,
+            lambda_reg=lambda_reg,
+            lambda_bin=lambda_bin,
+            lambda_ord=lambda_ord,
+            lambda_cat=lambda_cat,
         )
 
     class InputWeight(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, VaeTypeGetter):

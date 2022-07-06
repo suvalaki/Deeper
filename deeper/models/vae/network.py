@@ -17,9 +17,7 @@ from deeper.models.vae.decoder import VaeReconstructionNet
 from deeper.models.vae.utils import VaeTypeGetter
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
-from deeper.models.vae.base import (
-    MultipleObjectiveDimensions,
-)
+from deeper.models.vae.base import MultipleObjectiveDimensions
 
 from deeper.probability_layers.normal import (
     lognormal_kl,
@@ -143,6 +141,10 @@ class VaeNet(AutoencoderBase):
             ),
             **kwargs,
         )
+
+    @property
+    def decoder(self):
+        return self.graph_px_g_z
 
     @property
     def output_ordinal_dimension(self):

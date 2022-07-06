@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 class BaseEncoderConfig(BaseModel):
     latent_dim: int = None
-    embedding_dimensions: Sequence[int] = None
+    embedding_dimensions: Sequence[int] = []
     var_scope: str = "encoder"
     bn_before: bool = False
     bn_after: bool = False
@@ -50,7 +50,7 @@ class Encoder(Layer):
 
     @classmethod
     def from_config(cls, config: Encoder.Config, **kwargs):
-        return cls(**config, **kwargs)
+        return cls(**dict(config), **kwargs)
 
     def __init__(
         self,

@@ -25,6 +25,7 @@ class IdentityNet(tf.keras.layers.Layer, IdentityTypeGetter):
         return SplitCovariates()
 
     def call(self, x, training=False):
+        x = tf.cast(x, dtype=self.dtype)
         return self.Output(identity=x)
 
 
