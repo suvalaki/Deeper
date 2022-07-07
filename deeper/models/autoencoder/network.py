@@ -24,6 +24,10 @@ class AutoencoderNet(AutoencoderBase):
         latent: tf.Tensor
         reconstruction: VaeReconstructionNet.Output
 
+        @property
+        def px_g_z(self):
+            return self.reconstruction
+
     def __init__(
         self,
         config: AutoencoderNet.Config,
