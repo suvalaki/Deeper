@@ -38,42 +38,6 @@ def reduce_groups(fn, x_grouped: Tuple[tf.Tensor, ...]):
 
 class VaeNet(AutoencoderBase):
     class Config(VaeTypeGetter, AutoencoderBase.Config):
-
-        latent_epsilon: float = 1e-6
-
-        enc_mu_embedding_kernel_initializer: Union[
-            str, tf.keras.initializers.Initializer
-        ] = "he_uniform"
-        enc_mu_embedding_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
-        enc_mu_latent_kernel_initialiazer: Union[
-            str, tf.keras.initializers.Initializer
-        ] = "random_normal"
-        enc_mu_latent_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
-
-        enc_var_embedding_kernel_initializer: Union[
-            str, tf.keras.initializers.Initializer
-        ] = "he_uniform"
-        enc_var_embedding_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
-        enc_var_latent_kernel_initialiazer: Union[
-            str, tf.keras.initializers.Initializer
-        ] = "random_normal"
-        enc_var_latent_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
-
-        recon_embedding_kernel_initializer: Union[
-            str, tf.keras.initializers.Initializer
-        ] = "he_uniform"
-        recon_embedding_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
-        recon_latent_kernel_initialiazer: Union[
-            str, tf.keras.initializers.Initializer
-        ] = "random_normal"
-        recon_latent_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
-
-        connected_weights: bool = True
-        latent_mu_embedding_dropout: Optional[float] = 0.0
-        latent_var_embedding_dropout: Optional[float] = 0.0
-        recon_dropout: Optional[float] = 0.0
-        latent_fixed_var: Optional[float] = None
-
         class Config:
             arbitrary_types_allowed = True
 
@@ -104,23 +68,10 @@ class VaeNet(AutoencoderBase):
         self.graph_qz_g_x = VaeEncoderNet(
             VaeEncoderNet.Config(
                 latent_dim=config.latent_dim,
-                embedding_dimensions=config.encoder_embedding_dimensions,
+                activation=config.embedding_activations,
                 embedding_activations=config.embedding_activations,
-                bn_before=config.bn_before,
-                bn_after=config.bn_after,
-                epsilon=config.latent_epsilon,
-                embedding_mu_kernel_initializer=config.enc_mu_embedding_kernel_initializer,
-                embedding_mu_bias_initializer=config.enc_mu_embedding_bias_initializer,
-                latent_mu_kernel_initialiazer=config.enc_mu_latent_kernel_initialiazer,
-                latent_mu_bias_initializer=config.enc_mu_latent_bias_initializer,
-                embedding_var_kernel_initializer=config.enc_var_embedding_kernel_initializer,
-                embedding_var_bias_initializer=config.enc_var_embedding_bias_initializer,
-                latent_var_kernel_initialiazer=config.enc_var_latent_kernel_initialiazer,
-                latent_var_bias_initializer=config.enc_var_latent_bias_initializer,
-                connected_weights=config.connected_weights,
-                embedding_mu_dropout=config.latent_mu_embedding_dropout,
-                embedding_var_dropout=config.latent_var_embedding_dropout,
-                fixed_var=config.latent_fixed_var,
+                embedding_dimensions=config.encoder_embedding_dimensions,
+                **config.encoder_kwargs,
             ),
             **kwargs,
         )
@@ -131,13 +82,8 @@ class VaeNet(AutoencoderBase):
                 output_dimensions=config.output_dimensions,
                 decoder_embedding_dimensions=config.decoder_embedding_dimensions,
                 embedding_activations=config.embedding_activations,
-                bn_before=config.bn_before,
-                bn_after=config.bn_after,
-                recon_embedding_kernel_initializer=config.recon_embedding_kernel_initializer,
-                recon_embedding_bias_initializer=config.recon_embedding_bias_initializer,
-                recon_latent_kernel_initialiazer=config.recon_latent_kernel_initialiazer,
-                recon_latent_bias_initializer=config.recon_latent_bias_initializer,
-                recon_dropouut=config.recon_dropout,
+                embedding_dimensions=config.decoder_embedding_dimensions,
+                **config.decoder_kwargs,
             ),
             **kwargs,
         )

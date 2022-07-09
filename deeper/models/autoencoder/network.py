@@ -49,6 +49,7 @@ class AutoencoderNet(AutoencoderBase):
             Encoder.Config(
                 latent_dim=config.latent_dim,
                 activation=config.embedding_activations,
+                embedding_activations=config.embedding_activations,
                 embedding_dimensions=config.encoder_embedding_dimensions,
                 **config.encoder_kwargs,
             )

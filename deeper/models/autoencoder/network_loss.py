@@ -76,4 +76,4 @@ class AutoencoderLossNet(VaeReconLossNet, AutoencoderTypeGetter):
             l_pxgz_cat=inputs.weight.lambda_cat * losses.l_pxgz_cat,
         )
 
-        return AutoencoderLossNet.Output(losses, scaled, -sum(s))
+        return AutoencoderLossNet.Output(losses, scaled, -sum(scaled))
