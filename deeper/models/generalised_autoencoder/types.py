@@ -77,3 +77,21 @@ TupAutoencoderLossOutputType = Union[
 ]
 
 TempAndWeightTypes = Tuple[tf.Tensor, InputWeightTypes]
+
+ModelConfigType = Union[
+    Null.Config,
+    Identity.Config,
+    Autoencoder.Config,
+    Vae.Config,
+    GumbleGmvae.Config,
+    StackedGmvae.Config,
+]
+
+CoolingRegimeType = Union[
+    Null.CoolingRegime,
+    Identity.CoolingRegime,
+    Autoencoder.CoolingRegime,
+    Vae.CoolingRegime,
+    GumbleGmvae.CoolingRegime,
+    StackedGmvae.CoolingRegime,
+]
