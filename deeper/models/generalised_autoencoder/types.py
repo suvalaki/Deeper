@@ -1,3 +1,5 @@
+import tensorflow as tf
+
 from typing import Tuple, Union
 
 from deeper.layers.data_splitter import SplitCovariates, split_inputs, unpack_dimensions
@@ -9,18 +11,20 @@ from deeper.models.generalised_autoencoder.network import (
     VaeNet,
 )
 from deeper.models.gmvae.gmvae_marginalised_categorical import (
+    StackedGmvae,
     StackedGmvaeLatentParser,
     StackedGmvaeLossNet,
     StackedGmvaeNet,
 )
 from deeper.models.gmvae.gmvae_pure_sampling import (
+    GumbleGmvae,
     GumbleGmvaeLatentParser,
     GumbleGmvaeNet,
     GumbleGmvaeNetLossNet,
 )
-from deeper.models.identity import IdentityLossNet, IdentityNet
+from deeper.models.identity import Identity, IdentityLossNet, IdentityNet
 from deeper.models.null import Null, NullLossNet, NullNet
-from deeper.models.vae import VaeLatentParser, VaeLossNet, VaeNet
+from deeper.models.vae import Vae, VaeLatentParser, VaeLossNet, VaeNet
 
 InputWeightTypes = Union[
     NullLossNet.InputWeight,
