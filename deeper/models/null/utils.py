@@ -17,9 +17,9 @@ from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMix
 class NullTypeGetter(AutoencoderTypeGetterBase):
     @classmethod
     def get_cooling_regime(self):
-        from deeper.models.null import Identity
+        from deeper.models.null import Null
 
-        return Identity.CoolingRegime
+        return Null.CoolingRegime
 
     # Autoencoder Getters Mixin
 
@@ -27,22 +27,22 @@ class NullTypeGetter(AutoencoderTypeGetterBase):
     def get_network_type(self):
         from deeper.models.null.network import NullNet
 
-        return IdentityNet
+        return NullNet
 
     @classmethod
     def get_lossnet_type(self):
         from deeper.models.null.network import NullLossNet
 
-        return IdentityLossNet
+        return NullLossNet
 
     @classmethod
     def get_model_type(self):
         from deeper.models.null.model import Null
 
-        return Identity
+        return Null
 
     @classmethod
     def get_latent_parser_type(self):
         from deeper.models.null.network import NullLatentParser
 
-        return IdentityLatentParser
+        return NullLatentParser
