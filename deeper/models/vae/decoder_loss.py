@@ -127,7 +127,8 @@ class VaeReconLossNet(tf.keras.layers.Layer):
                 name=f"{self.prefix}/xent/{self.decoder_name}_binary_xent",
             )
         else:
-            xent = tf.cast(y_bin_logits_true[:, 0:0], dtype=self.dtype)
+            xent = tf.zeros(shape=tf.shape(y_bin_logits_true)[:-1], dtype=self.dtype)
+
         return xent
 
     @tf.function
@@ -145,7 +146,7 @@ class VaeReconLossNet(tf.keras.layers.Layer):
             class_weights = [1 for i in range(len(y_ord_logits_true))]
 
         if len(y_ord_logits_true) == 0:
-            return 0.0
+            return xent
 
         elif len(y_ord_logits_true) == 1:
             if y_ord_logits_pred[0].get_shape()[-1] == 1:
@@ -187,14 +188,14 @@ class VaeReconLossNet(tf.keras.layers.Layer):
         training: bool = False,
         class_weights: Optional[Sequence[float]] = None,
     ):
-        xent = 0.0
+        xent = tf.zeros(tf.shape(y_ord_logits_pred[0])[0], dtype=self.dtype)
         # logit = np.log(1e-4 / (1 - 1e-4))
 
         if class_weights is None:
             class_weights = [1 for i in range(len(y_ord_logits_true))]
 
         if len(y_ord_logits_pred) == 0:
-            return 0.0
+            return xent
 
         elif len(y_ord_logits_true) == 1:
             xent = tf.cond(
@@ -245,7 +246,7 @@ class VaeReconLossNet(tf.keras.layers.Layer):
         if y_reg_true.shape[-1] > 0:
             log_p = lognormal_pdf(y_reg_true, y_reg_pred, 1.0)
         else:
-            log_p = y_reg_true[:, 0:0]
+            log_p = tf.zeros(shape=tf.shape(y_reg_true)[:-1], dtype=self.dtype)
         self.add_metric(log_p, name=f"{self.prefix}/log_p{self.decoder_name}_regression")
         return log_p
 
@@ -281,7 +282,7 @@ class VaeReconLossNet(tf.keras.layers.Layer):
             )
             return log_p
         else:
-            return tf.reduce_sum(y_bin_logits_true[:, 0:0], -1)
+            return tf.zeros(shape=tf.shape(y_bin_logits_true)[:-1], dtype=self.dtype)
 
     @tf.function
     def log_pxgz_ordinal(
