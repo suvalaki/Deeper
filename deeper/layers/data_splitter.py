@@ -22,6 +22,7 @@ class SplitCovariates(tf.experimental.ExtensionType, ExtensionTypeIterableMixin)
 
 
 def reduce_groups(fn, x_grouped: Tuple[tf.Tensor, ...]):
+
     if len(x_grouped) <= 1:
         return fn(x_grouped[0])
     return tf.concat([fn(z) for z in x_grouped], -1)
@@ -49,12 +50,20 @@ def unpack_dimensions(
 
 def split_groups(x, group_dims: Union[Tuple[int], np.array]):
 
+    # x_grouped = [
+    #     x[:, sum(group_dims[:i]) : sum(group_dims[: i + 1])] for i in range(len(group_dims))
+    # ]
+
     x_grouped = [
-        x[:, sum(group_dims[:i]) : sum(group_dims[: i + 1])] for i in range(len(group_dims))
+        tf.gather(x, indices=tuple(range(sum(group_dims[:i]), sum(group_dims[: i + 1]))), axis=-1)
+        if group_dims[i] > 0
+        else tf.zeros(shape=tf.concat([tf.shape(x)[:-1], [0]], axis=-1))
+        for i in range(len(group_dims))
     ]
     return x_grouped
 
 
+@tf.function
 def split_inputs(
     x,
     reg_dim: int,
@@ -66,8 +75,26 @@ def split_inputs(
     ord_dim = sum(ord_dim_tup)
     cat_dim = sum(cat_dim_tup)
 
-    x_reg = x[:, :reg_dim] if reg_dim > 0 else x[:, 0:0]
-    x_bin = x[:, reg_dim : (reg_dim + bool_dim)] if bool_dim > 0 else x[:, 0:0]
+    x_reg = (
+        tf.gather(
+            x,
+            indices=tuple(range(0, reg_dim)),
+            batch_dims=0,
+            axis=-1,
+        )
+        if reg_dim > 0
+        else tf.zeros(shape=tf.concat([tf.shape(x)[:-1], [0]], axis=-1))
+    )
+    x_bin = (
+        tf.gather(
+            x,
+            indices=tuple(range(reg_dim, reg_dim + bool_dim)),
+            batch_dims=0,
+            axis=-1,
+        )
+        if bool_dim > 0
+        else tf.zeros(shape=tf.concat([tf.shape(x)[:-1], [0]], axis=-1))
+    )
 
     # categorical dimensions need to be further broken up according to the size
     # of the input groups
@@ -75,13 +102,28 @@ def split_inputs(
     ord_dim = sum(ord_dim_tup)
 
     x_ord = (
-        x[:, -(ord_dim + cat_dim) : -(cat_dim)]
-        if ord_dim > 0 and cat_dim > 0
-        else x[:, -(ord_dim):]
-        if ord_dim > 0 and cat_dim == 0
-        else x[:, 0:0]
+        tf.gather(
+            x,
+            indices=tuple(range(reg_dim + bool_dim, reg_dim + bool_dim + ord_dim)),
+            batch_dims=0,
+            axis=-1,
+        )
+        if ord_dim > 0 and (cat_dim > 0 or cat_dim == 0)
+        else tf.zeros(shape=tf.concat([tf.shape(x)[:-1], [0]], axis=-1))
     )
-    x_cat = x[:, -cat_dim:] if cat_dim > 0 else x[:, 0:0]
+
+    x_cat = (
+        tf.gather(
+            x,
+            indices=tuple(
+                range(reg_dim + bool_dim + ord_dim, reg_dim + bool_dim + ord_dim + cat_dim)
+            ),
+            batch_dims=0,
+            axis=-1,
+        )
+        if cat_dim > 0
+        else tf.zeros(shape=tf.concat([tf.shape(x)[:-1], [0]], axis=-1))
+    )
     x_ord_grouped = split_groups(x_ord, ord_dim_tup)
     x_cat_grouped = split_groups(x_cat, cat_dim_tup)
 
