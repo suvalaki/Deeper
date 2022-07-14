@@ -20,6 +20,32 @@ class SplitCovariates(tf.experimental.ExtensionType, ExtensionTypeIterableMixin)
     categorical_groups_concat: Optional[tf.Tensor] = None
     categorical_groups: Optional[Tuple[tf.Tensor, ...]] = None
 
+    @classmethod
+    @tf.function
+    def collect_stack(cls, x: Tuple[SplitCovariates()], axis=1):
+        return SplitCovariates(
+            **{
+                k.name: None
+                if getattr(x[0], k.name) == None
+                else tf.stack([getattr(v, k.name) for v in x], axis=axis)
+                if type(getattr(x[0], k.name)) != tuple
+                else tuple(
+                    tf.stack([getattr(v, k.name)[i] for v in x], axis=axis)
+                    for i in range(len(getattr(x[0], k.name)))
+                    for v in x
+                )
+                for k in x[0]._tf_extension_type_fields()
+            }
+        )
+
+    def isnull(self):
+        return (
+            self.regression == None
+            and self.binary == None
+            and self.ordinal_groups_concat == None
+            and self.categorical_groups_concat == None
+        )
+
 
 def reduce_groups(fn, x_grouped: Tuple[tf.Tensor, ...]):
 
