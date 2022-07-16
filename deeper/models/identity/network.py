@@ -45,11 +45,11 @@ class IdentityLossNet(tf.keras.layers.Layer, IdentityTypeGetter):
         ...
 
     class Input(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, IdentityTypeGetter):
-        ...
+        identity: tf.Tensor
 
         @classmethod
-        def from_output(cls, *args, **kwargs):
-            return cls()
+        def from_output(cls, y_true, model_output, weights, *args, **kwargs):
+            return cls(model_output.identity)
 
     class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, IdentityTypeGetter):
         loss: tf.Tensor = 0.0
@@ -61,7 +61,7 @@ class IdentityLossNet(tf.keras.layers.Layer, IdentityTypeGetter):
         return SplitCovariates()
 
     def call(self, x, training=False):
-        return self.Output()
+        return self.Output(tf.reduce_mean(tf.zeros_like(x.identity), axis=-1))
 
 
 class Identity(tf.keras.models.Model, IdentityTypeGetter):
