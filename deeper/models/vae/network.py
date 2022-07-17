@@ -17,7 +17,7 @@ from deeper.models.vae.decoder import VaeReconstructionNet
 from deeper.models.vae.utils import VaeTypeGetter
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
-from deeper.models.vae.base import MultipleObjectiveDimensions
+from deeper.models.generalised_autoencoder.base import MultipleObjectiveDimensions
 
 from deeper.probability_layers.normal import (
     lognormal_kl,
@@ -40,6 +40,41 @@ class VaeNet(AutoencoderBase):
     class Config(VaeTypeGetter, AutoencoderBase.Config):
         class Config:
             arbitrary_types_allowed = True
+
+        @property
+        def _ignored_encoder_fields(self):
+            return ["latent_dim", "activation", "embedding_activations", "embedding_dimensions"]
+
+        @property
+        def _ignored_decoder_fields(self):
+            return [
+                "output_dimensions",
+                "decoder_embedding_dimensions",
+                "embedding_activations",
+                "embedding_dimensions",
+            ]
+
+        def parse_tunable(self, hp, prefix=""):
+
+            # Add the encoder/decoder fields to the model
+            base_encoder_fields = VaeEncoderNet.Config().parse_tunable(
+                hp, prefix + "encoder_kwargs_"
+            )
+            base_decoder_fields = VaeReconstructionNet.Config(
+                output_dimensions=MultipleObjectiveDimensions.as_null(),
+                decoder_embedding_dimensions=[],
+            ).parse_tunable(hp, prefix + "decoder_kwargs_")
+            self.encoder_kwargs = {
+                k: v
+                for k, v in dict(base_encoder_fields).items()
+                if k not in self._ignored_encoder_fields and k not in self.encoder_kwargs.keys()
+            }
+            self.decoder_kwargs = {
+                k: v
+                for k, v in dict(base_decoder_fields).items()
+                if k not in self._ignored_decoder_fields and k not in self.decoder_kwargs.keys()
+            }
+            return super().parse_tunable(hp, prefix)
 
     class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin, VaeTypeGetter):
         # Encoder/Latent variables

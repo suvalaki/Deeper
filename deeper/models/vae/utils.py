@@ -12,7 +12,6 @@ from deeper.models.generalised_autoencoder.base import (
 from deeper.models.gan.base_getter import GanTypeGetter
 from deeper.models.adversarial_autoencoder.base_getter import AdversarialAutoencoderTypeGetter
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
-from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
 class SplitCovariates(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):

@@ -13,17 +13,26 @@ from deeper.layers.encoder import Encoder
 from deeper.layers.data_splitter import split_inputs, unpack_dimensions
 from deeper.layers.data_splitter import DataSplitter, reduce_groups
 
-from deeper.models.vae.base import MultipleObjectiveDimensions
+from deeper.models.generalised_autoencoder.base import MultipleObjectiveDimensions
 from deeper.models.vae.encoder import VaeEncoderNet
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 
+from deeper.optimizers.automl.tunable_types import (
+    TunableModelMixin,
+    TunableBoolean,
+    TunableActivation,
+    OptionalTunableL1L2Regulariser,
+    OptionalTunableDropout,
+)
+
+
 class VaeReconstructionNet(Layer):
-    class Config(BaseModel):
+    class Config(TunableModelMixin):
         output_dimensions: MultipleObjectiveDimensions
         decoder_embedding_dimensions: Sequence[int]
-        embedding_activations: tf.keras.layers.Layer = tf.keras.layers.ReLU()
-        bn_before: bool = False
+        embedding_activations: tf.keras.layers.Layer = TunableActivation("relu")
+        bn_before: bool = TunableBoolean(False)
         bn_after: bool = False
         embedding_kernel_initializer: Union[
             str, tf.keras.initializers.Initializer
@@ -31,8 +40,12 @@ class VaeReconstructionNet(Layer):
         embedding_bias_initializer: Union[
             str, tf.keras.initializers.Initializer
         ] = tf.initializers.zeros()
-        embedding_kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
-        embedding_bias_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
+        embedding_kernel_regularizer: Optional[
+            tf.keras.regularizers.Regularizer
+        ] = OptionalTunableL1L2Regulariser(0.0, 0.0)
+        embedding_bias_regularizer: Optional[
+            tf.keras.regularizers.Regularizer
+        ] = OptionalTunableL1L2Regulariser(0.0, 0.0)
         embedding_activity_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
         recon_embedding_kernel_initializer: Union[
             str, tf.keras.initializers.Initializer
@@ -44,8 +57,12 @@ class VaeReconstructionNet(Layer):
         recon_latent_bias_initializer: Union[str, tf.keras.initializers.Initializer] = "zeros"
         recon_input_dropout: Optional[float] = None
         recon_dropout: Optional[float] = None
-        recon_kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
-        recon_bias_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
+        recon_kernel_regularizer: Optional[
+            tf.keras.regularizers.Regularizer
+        ] = OptionalTunableL1L2Regulariser(0.0, 0.0)
+        recon_bias_regularizer: Optional[
+            tf.keras.regularizers.Regularizer
+        ] = OptionalTunableL1L2Regulariser(0.0, 0.0)
         recon_activity_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
         binary_label_smoothing: float = 0.0
 

@@ -3,12 +3,30 @@ from __future__ import annotations
 import tensorflow as tf
 
 from pydantic import BaseModel, Field
-from typing import Sequence
+from typing import Sequence, Union
 from abc import ABC, abstractmethod
 
 from deeper.utils.model_mixins import LatentMixin, ReconstructionMixin
-
 from deeper.utils.type_getter import NetworkTypeGetterBase
+from deeper.optimizers.automl.tunable_types import (
+    TunableModelMixin,
+    TunableActivation,
+    TunableBoolean,
+)
+
+
+class MultipleObjectiveDimensions(BaseModel):
+    regression: int = Field()
+    boolean: int = Field()
+    ordinal: Sequence[int] = Field()
+    categorical: Sequence[int] = Field()
+
+    def as_list(self):
+        return [self.regression, self.boolean, self.ordinal, self.categorical]
+
+    @classmethod
+    def as_null(cls):
+        return cls(regression=0, boolean=0, ordinal=(0,), categorical=(0,))
 
 
 class AutoencoderTypeGetterBase(NetworkTypeGetterBase):
@@ -26,7 +44,7 @@ class LatentParser(tf.keras.layers.Layer):
 
 
 class AutoencoderBase(ABC, tf.keras.layers.Layer):
-    class Config(BaseModel):
+    class Config(TunableModelMixin):
 
         input_dimensions: MultipleObjectiveDimensions = Field()
         output_dimensions: MultipleObjectiveDimensions = Field()
@@ -34,7 +52,7 @@ class AutoencoderBase(ABC, tf.keras.layers.Layer):
         decoder_embedding_dimensions: Sequence[int] = Field()
         latent_dim: int = Field()
 
-        embedding_activations: tf.keras.layers.Activation = tf.keras.layers.Activation("relu")
+        embedding_activations: Union[tf.keras.layers.Activation] = TunableActivation("relu")
         bn_before: bool = False
         bn_after: bool = False
 
@@ -44,6 +62,8 @@ class AutoencoderBase(ABC, tf.keras.layers.Layer):
         class Config:
             arbitrary_types_allowed = True
             smart_union = True
+
+    Config.update_forward_refs()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
