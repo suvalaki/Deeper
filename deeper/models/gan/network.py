@@ -14,6 +14,12 @@ from deeper.models.gan.base_getter import GanTypeGetter
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 from deeper.models.gan.utils import GanTypeGetterMixin
 
+from deeper.optimizers.automl.tunable_types import (
+    TunableModelMixin,
+    TunableActivation,
+    TunableBoolean,
+)
+
 
 class GanGenerativeNet(tf.keras.layers.Layer):
     class Output(tf.experimental.ExtensionType, ExtensionTypeIterableMixin):
@@ -77,7 +83,7 @@ class GanDescriminativeNet(tf.keras.layers.Layer):
 
 
 class GanNet(tf.keras.layers.Layer):
-    class Config(BaseModel, GanTypeGetterMixin):
+    class Config(TunableModelMixin, GanTypeGetterMixin):
         descriminator: DescriminatorNet.Config
         generator: ConfigType
 

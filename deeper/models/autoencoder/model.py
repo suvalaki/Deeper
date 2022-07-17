@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 class Autoencoder(tf.keras.Model, AutoencoderModelBaseMixin, AutoencoderTypeGetter):
     class CoolingRegime(tf.keras.layers.Layer, AutoencoderTypeGetter):
-        class Config(BaseModel):
+        class Config(TunableModelMixin):
             recon_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
                 tfa.optimizers.CyclicalLearningRate(
                     1.0,
@@ -76,7 +76,8 @@ class Autoencoder(tf.keras.Model, AutoencoderModelBaseMixin, AutoencoderTypeGett
             super().__init__(**kwargs)
             self.config = config
 
-        def call(self, step):
+        @tf.function
+        def call(self, step: tf.Tensor):
             cstep = tf.cast(step, self.dtype)
             recon_schedule = self.config.recon_schedule(cstep)
             recon_reg_schedule = self.config.recon_reg_schedule(cstep)

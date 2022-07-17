@@ -2,7 +2,7 @@ from __future__ import annotations
 import tensorflow as tf
 import numpy as np
 from deeper.utils.scope import Scope
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 tfk = tf.keras
 Layer = tfk.layers.Layer
@@ -11,12 +11,20 @@ Model = tfk.Model
 from dataclasses import dataclass
 from pydantic import BaseModel
 
+from deeper.optimizers.automl.tunable_types import (
+    TunableModelMixin,
+    TunableBoolean,
+    TunableActivation,
+    OptionalTunableL1L2Regulariser,
+    OptionalTunableDropout,
+)
 
-class BaseEncoderConfig(BaseModel):
+
+class BaseEncoderConfig(TunableModelMixin):
     latent_dim: int = None
     embedding_dimensions: Sequence[int] = []
     var_scope: str = "encoder"
-    bn_before: bool = False
+    bn_before: TunableBoolean = TunableBoolean(False)
     bn_after: bool = False
 
     class Config:
@@ -24,9 +32,12 @@ class BaseEncoderConfig(BaseModel):
         smart_union = True
 
 
+BaseEncoderConfig.update_forward_refs()
+
+
 class Encoder(Layer):
     class Config(BaseEncoderConfig):
-        activation: tf.keras.layers.Activation = tf.keras.layers.ReLU()
+        activation: tf.keras.layers.Activation = TunableActivation("relu")
         embedding_kernel_initializer: Union[
             str, tf.keras.initializers.Initializer
         ] = tf.initializers.glorot_uniform()
@@ -39,14 +50,24 @@ class Encoder(Layer):
         latent_bias_initializer: Union[
             str, tf.keras.initializers.Initializer
         ] = tf.initializers.zeros()
-        input_dropout: Optional[float] = None
-        embedding_dropout: Optional[float] = None
-        embedding_kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
-        embedding_bias_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
+        input_dropout: Optional[float] = OptionalTunableDropout()
+        embedding_dropout: Optional[float] = OptionalTunableDropout()
+        embedding_kernel_regularizer: Optional[
+            tf.keras.regularizers.Regularizer
+        ] = OptionalTunableL1L2Regulariser(0.0, 0.0)
+        embedding_bias_regularizer: Optional[
+            tf.keras.regularizers.Regularizer
+        ] = OptionalTunableL1L2Regulariser(0.0, 0.0)
         embedding_activity_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
-        latent_kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
-        latent_bias_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
+        latent_kernel_regularizer: Optional[
+            tf.keras.regularizers.Regularizer
+        ] = OptionalTunableL1L2Regulariser(0.0, 0.0)
+        latent_bias_regularizer: Optional[
+            tf.keras.regularizers.Regularizer
+        ] = OptionalTunableL1L2Regulariser(0.0, 0.0)
         latent_activity_regularizer: Optional[tf.keras.regularizers.Regularizer] = None
+
+    Config.update_forward_refs()
 
     @classmethod
     def from_config(cls, config: Encoder.Config, **kwargs):

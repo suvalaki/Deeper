@@ -9,12 +9,14 @@ from deeper.models.null.utils import NullTypeGetter
 from deeper.models.generalised_autoencoder.base import LatentParser
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
+from deeper.optimizers.automl.tunable_types import TunableModelMixin
+
 # Nullnet takes an input and replaces it with a null tensor - Can be used to skip
 # Computation of an network.
 
 
 class NullNet(tf.keras.layers.Layer, NullTypeGetter):
-    class Config(BaseModel, NullTypeGetter):
+    class Config(NullTypeGetter, TunableModelMixin):
         class Config:
             arbitrary_types_allowed = True
 

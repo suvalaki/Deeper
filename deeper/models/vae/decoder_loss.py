@@ -336,4 +336,4 @@ class VaeReconLossNet(tf.keras.layers.Layer):
             training,
         )
         out = VaeReconLossNet.Output(l_pxgz_reg, l_pxgz_bin, l_pxgz_ord, l_pxgz_cat)
-        return VaeReconLossNet.Output(*[self.reduce_ranked_dimsum(z) for z in out])
+        return out
