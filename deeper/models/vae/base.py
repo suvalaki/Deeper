@@ -13,3 +13,7 @@ class MultipleObjectiveDimensions(BaseModel):
 
     def as_list(self):
         return [self.regression, self.boolean, self.ordinal, self.categorical]
+
+    @classmethod
+    def as_null(cls):
+        return cls(regression=0, boolean=0, ordinal=(0,), categorical=(0,))

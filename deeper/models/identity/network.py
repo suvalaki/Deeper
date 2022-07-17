@@ -11,7 +11,7 @@ from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMix
 
 
 class IdentityNet(tf.keras.layers.Layer, IdentityTypeGetter):
-    class Config(BaseModel, IdentityTypeGetter):
+    class Config(IdentityTypeGetter, TunableModelMixin):
         class Config:
             arbitrary_types_allowed = True
 
