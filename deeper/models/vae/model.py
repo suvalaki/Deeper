@@ -42,6 +42,7 @@ from deeper.models.vae.network import VaeNet
 from deeper.models.generalised_autoencoder.base import (
     AutoencoderModelBaseMixin,
 )
+from deeper.optimizers.automl.tunable_types import TunableModelMixin
 
 from pydantic import BaseModel
 from functools import singledispatchmethod as overload
@@ -49,7 +50,7 @@ from functools import singledispatchmethod as overload
 
 class Vae(tf.keras.Model, AutoencoderModelBaseMixin):
     class CoolingRegime(tf.keras.layers.Layer):
-        class Config(BaseModel):
+        class Config(TunableModelMixin):
             kld_z_schedule: tf.keras.optimizers.schedules.LearningRateSchedule = (
                 tfa.optimizers.CyclicalLearningRate(
                     1.0,
