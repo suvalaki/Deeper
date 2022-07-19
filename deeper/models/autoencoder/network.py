@@ -39,6 +39,14 @@ class AutoencoderNet(AutoencoderBase):
             }
             return super().parse_tunable(hp, prefix)
 
+        @property
+        def _ignored_encoder_fields(self):
+            return []
+
+        @property
+        def _ignored_decoder_fields(self):
+            return []
+
     class EncoderOutputWrapper(tf.experimental.ExtensionType):
         sample: tf.Tensor
 
