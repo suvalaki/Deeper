@@ -42,10 +42,10 @@ class AdverasrialAutoencoderLossNet(GanLossNet):
         reconstruciton: tf.Tensor
 
     # Reconstruction + get gan to fool descrim
-    def __init__(self, config, ae_net, **kwargs):
+    def __init__(self, config, ae_net, prefix="AAE", **kwargs):
         super().__init__(**kwargs)
         self.network = ae_net
-        self.generator_lossnet = config.generator.get_lossnet_type()()
+        self.generator_lossnet = config.generator.get_lossnet_type()(prefix=prefix)
         self.reconstruction_parser = config.generator.get_adversarialae_recon_loss_getter()()
 
     def call(

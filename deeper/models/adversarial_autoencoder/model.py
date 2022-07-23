@@ -81,45 +81,21 @@ class AdversarialAutoencoder(Model, AutoencoderModelBaseMixin, ClusteringMixin):
         x, y = data
         inputs, temp, weights = self.call_inputs(x)
 
-        # Use a single pass over the network for efficiency.
-        # Normaly would sequentially call generative and then descrimnative nets
-        # Take multiple passes of the descriminator player according to 4.4 of
-        # https://arxiv.org/pdf/1701.00160.pdf to ballance G and D.
-        for i in range(self.config.training_ratio):
-            with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
+        # From https://arxiv.org/pdf/1511.05644.pdf
+        # Both, the adversarial network and the autoencoder are trained jointly with SGD in two phases – the
+        # reconstruction phase and the regularization phase – executed on each mini-batch.
+        #
+        # 1. In the reconstruction phase, the autoencoder updates the encoder and the decoder to minimize the
+        # reconstruction error of the inputs.
+        #
+        # 2. In the regularization phase,
+        #   (2a) the adversarial network first updates its discriminative network
+        #   to tell apart the true samples (generated using the prior) from the generated samples (the hidden codes
+        #    computed by the autoencoder).
+        #   (2b) The adversarial network then updates its generator (which is also the
+        #    encoder of the autoencoder) to confuse the discriminative network.
 
-                y_pred = self.network(inputs, y, training=True)
-                gen_losses, descrim_losses, recon_losses = self.lossnet(
-                    self.lossnet.Input.from_output(
-                        self.network,
-                        self.lossnet.generator_lossnet,
-                        y,
-                        y_pred,
-                        weights,
-                    ),
-                    training=True,
-                )
-                descrim_loss = tf.reduce_mean(descrim_losses)
-                gen_loss = tf.reduce_mean(gen_losses)
-                recon_loss = tf.reduce_mean(recon_losses)
-                loss = tf.reduce_mean(gen_loss) + tf.reduce_mean(recon_loss)
-
-            # Train the descriminator to identify real from fake samples
-            self.optimizer.minimize(
-                descrim_loss,
-                self.network.descriminator.trainable_variables,
-                tape=disc_tape,
-            )
-
-        # Train the generator to fool the descriminator
-        # self.optimizer.minimize(
-        #    loss,
-        #   self.network.generatornet.trainable_variables,
-        #    tape=gen_tape,
-        # )
-
-        # instead of doing this maybe train only encoder on GAN generator and
-        # train ae decoder on this step.
+        # 1. Reconstruction Phase: Train the reconstruction network
         with tf.GradientTape() as recon_tape:
             y_pred = self.network(inputs, y, training=True)
             gen_losses, descrim_losses, recon_losses = self.lossnet(
@@ -132,16 +108,60 @@ class AdversarialAutoencoder(Model, AutoencoderModelBaseMixin, ClusteringMixin):
                 ),
                 training=True,
             )
-            descrim_loss = tf.reduce_mean(descrim_losses)
-            gen_loss = tf.reduce_mean(gen_losses)
             recon_loss = tf.reduce_mean(recon_losses)
-            loss = tf.reduce_mean(gen_loss) + tf.reduce_mean(recon_loss)
-
-        # Train the reconstruction network
+            recon_reg = tf.reduce_sum(self.network.reconstruction_reg_losses)
+            loss = recon_loss + recon_reg
         self.optimizer.minimize(
             loss,
-            self.network.generatornet.trainable_variables,
+            self.network.reconstruction_trainable_variables,
             tape=recon_tape,
+        )
+
+        # 2. Regularisation
+        # 2a. adversarial network first updates its discriminative network to tell apart true samples
+        # Train the descriminator to identify real from fake samples
+        for i in range(self.config.training_ratio):
+            with tf.GradientTape() as disc_tape:
+                y_pred = self.network(inputs, y, training=True)
+                gen_losses, descrim_losses, recon_losses = self.lossnet(
+                    self.lossnet.Input.from_output(
+                        self.network,
+                        self.lossnet.generator_lossnet,
+                        y,
+                        y_pred,
+                        weights,
+                    ),
+                    training=True,
+                )
+                descrim_loss = tf.reduce_mean(descrim_losses)
+                descrim_reg_loss = tf.reduce_sum(self.network.descriminator_reg_losses)
+                loss = tf.reduce_mean(descrim_loss) + tf.reduce_mean(descrim_reg_loss)
+            self.optimizer.minimize(
+                loss,
+                self.network.descriminator_trainable_variables,
+                tape=disc_tape,
+            )
+
+        # 2b. The adversarial network then updates its generator to confuse the discriminative network.
+        with tf.GradientTape() as gen_tape:
+            y_pred = self.network(inputs, y, training=True)
+            gen_losses, descrim_losses, recon_losses = self.lossnet(
+                self.lossnet.Input.from_output(
+                    self.network,
+                    self.lossnet.generator_lossnet,
+                    y,
+                    y_pred,
+                    weights,
+                ),
+                training=True,
+            )
+            gen_loss = tf.reduce_mean(gen_losses)
+            gen_reg_loss = tf.reduce_mean(self.network.generator_reg_losses)
+            loss = tf.reduce_mean(gen_loss) + tf.reduce_mean(gen_reg_loss)
+        self.optimizer.minimize(
+            loss,
+            self.network.generator_trainable_variables,
+            tape=gen_tape,
         )
 
         return {
