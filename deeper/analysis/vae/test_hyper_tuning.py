@@ -88,13 +88,13 @@ def build_model(hp):
             ordinal=(0,),
             categorical=(0,),
         ),
-        encoder_embedding_dimensions=[512, 512, 256],
-        decoder_embedding_dimensions=[512, 512, 256][::-1],
-        latent_dim=64,
+        # encoder_embedding_dimensions=[512, 512, 256],
+        # decoder_embedding_dimensions=[512, 512, 256][::-1],
+        # latent_dim=64,
         embedding_activation=TunableActivation("elu"),
-        kld_z_schedule=tfa.optimizers.CyclicalLearningRate(
-            1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
-        ),
+        # kld_z_schedule=tfa.optimizers.CyclicalLearningRate(
+        #     1.0, 1.0, step_size=30000.0, scale_fn=lambda x: 1.0, scale_mode="cycle"
+        # ),
         # bn_before=True
     )
 

@@ -1,4 +1,4 @@
-from .base import MultipleObjectiveDimensions
+from deeper.models.generalised_autoencoder.base import MultipleObjectiveDimensions
 from .encoder import VaeEncoderNet
 from .encoder_loss import VaeLossNetLatent
 from .decoder import VaeReconstructionNet

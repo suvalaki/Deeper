@@ -144,3 +144,19 @@ class GanNet(tf.keras.layers.Layer):
             x, y, y_pred, training=training
         )
         return GanNet.Output(descriminative, generative)
+
+    @property
+    def generator_trainable_variables(self):
+        return self.generatornet.trainable_variables
+
+    @property
+    def generator_reg_losses(self):
+        return self.generatornet.losses
+
+    @property
+    def descriminator_trainable_variables(self):
+        return self.descriminator.trainable_variables
+
+    @property
+    def descriminator_reg_losses(self):
+        return self.descriminator.losses

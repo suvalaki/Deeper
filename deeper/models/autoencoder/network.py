@@ -9,7 +9,9 @@ from deeper.models.generalised_autoencoder.base import AutoencoderBase
 from tensorflow.keras.initializers import Initializer
 from tensorflow.keras.layers import Activation, Layer
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
-from deeper.models.vae.base import MultipleObjectiveDimensions
+from deeper.models.generalised_autoencoder.base import MultipleObjectiveDimensions
+
+from deeper.optimizers.automl.tunable_types import TunableModelMixin
 
 from deeper.optimizers.automl.tunable_types import TunableModelMixin
 
@@ -38,6 +40,14 @@ class AutoencoderNet(AutoencoderBase):
                 if k not in self._ignored_decoder_fields and k not in self.decoder_kwargs.keys()
             }
             return super().parse_tunable(hp, prefix)
+
+        @property
+        def _ignored_encoder_fields(self):
+            return []
+
+        @property
+        def _ignored_decoder_fields(self):
+            return []
 
     class EncoderOutputWrapper(tf.experimental.ExtensionType):
         sample: tf.Tensor

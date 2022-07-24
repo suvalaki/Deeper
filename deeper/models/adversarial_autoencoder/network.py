@@ -36,7 +36,27 @@ class AdversarialAutoencoderNet(GanNet, AutoencoderBase):
         return self.generatornet(x, training=training)
 
     def call(self, x, y, training=False):
-        y_pred = self.call_ae_generator(x, training=False)
+        # Should this be true?
+        y_pred = self.call_ae_generator(x, training=training)
         generative = self.call_generative_post_generation(x, y_pred, training=training)
         descriminative = self.call_descriminative_post_generation(x, y, y_pred, training=training)
         return AdversarialAutoencoderNet.Output(descriminative, generative, y_pred)
+
+    @property
+    def generator_trainable_variables(self):
+        return self.generatornet.encoder.trainable_variables
+
+    @property
+    def generator_reg_losses(self):
+        return self.generatornet.encoder.losses
+
+    @property
+    def reconstruction_trainable_variables(self):
+        # From the paper:
+        # In the reconstructionphase, the autoencoder updates the encoder
+        # and the decoder to minimize the reconstruction error of the inputs
+        return self.generatornet.trainable_variables
+
+    @property
+    def reconstruction_reg_losses(self):
+        return self.generatornet.losses

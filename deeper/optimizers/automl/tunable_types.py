@@ -18,6 +18,10 @@ class TunableType(ABC):
     def tune_method(cls):
         ...
 
+    @abstractmethod
+    def get_config(self):
+        ...
+
     def __repr__(self):
         return "Tunable(" + super().__repr__() + ")"
 
@@ -36,6 +40,9 @@ class TunableBoolean(int, TunableType):
     def __repr__(self):
         return "Tunable(" + str(bool(self)) + ")"
 
+    def get_config(self):
+        return dict(type="TunableBoolean")
+
 
 class TunableOptional(TunableType):
 
@@ -48,6 +55,9 @@ class TunableOptional(TunableType):
             param = super().tune_method(hp, nm)
 
         return param
+
+    def get_config(self):
+        return dict(type="TunableOptional")
 
 
 class TunableDropout(float, TunableType):
@@ -76,9 +86,29 @@ class TunableDropout(float, TunableType):
                 step=cls._step,
             )
 
+    def get_config(self):
+        return dict(
+            type="TunableDropout",
+            min=self._min,
+            max=self._max,
+            step=self._step,
+            default=self._default,
+            sampling=self._sampling,
+        )
+
 
 class OptionalTunableDropout(TunableOptional, TunableDropout):
     ...
+
+    def get_config(self):
+        return dict(
+            type="OptionalTunableDropout",
+            min=self._min,
+            max=self._max,
+            step=self._step,
+            default=self._default,
+            sampling=self._sampling,
+        )
 
 
 class TunableRegularisationParam(TunableType):
@@ -100,9 +130,27 @@ class TunableRegularisationParam(TunableType):
             sampling=cls._sampling,
         )
 
+    def get_config(self):
+        return dict(
+            type="TunableRegularisationParam",
+            min=self._min,
+            max=self._max,
+            default=self._default,
+            sampling=self._sampling,
+        )
+
 
 class OptionalTunableRegularisationParam(TunableOptional, TunableRegularisationParam):
     ...
+
+    def get_config(self):
+        return dict(
+            type="OptionalTunableRegularisationParam",
+            min=self._min,
+            max=self._max,
+            default=self._default,
+            sampling=self._sampling,
+        )
 
 
 class TunableL1L2Regulariser(tf.keras.regularizers.L1L2, TunableType):
@@ -115,9 +163,25 @@ class TunableL1L2Regulariser(tf.keras.regularizers.L1L2, TunableType):
         l2 = cls._l2.tune_method(hp, nm + "_l2")
         return tf.keras.regularizers.L1L2(l1, l2)
 
+    def get_config(self):
+        return dict(
+            type="TunableL1L2Regulariser",
+            l1=self._l1.get_config(),
+            l2=self._l2.get_config(),
+            value=super().get_config(),
+        )
+
 
 class OptionalTunableL1L2Regulariser(TunableOptional, TunableL1L2Regulariser):
     ...
+
+    def get_config(self):
+        return dict(
+            type="OptionalTunableL1L2Regulariser",
+            l1=self._l1.get_config(),
+            l2=self._l2.get_config(),
+            value=super().get_config(),
+        )
 
 
 class TunableActivation(tf.keras.layers.Activation, TunableType):
@@ -127,6 +191,20 @@ class TunableActivation(tf.keras.layers.Activation, TunableType):
 
     def tune_method(cls, hp, nm):
         return tf.keras.layers.Activation(hp.Choice(nm, cls._activations, default=cls._default))
+
+    def get_config(self):
+        return dict(
+            type="TunableActivation",
+            activations=self._activations,
+            default=self._default,
+            value=super().get_config(),
+        )
+
+
+def convert_scalefn(v):
+    vd = v.get_config()
+    vd["scale_fn"] = "non-serialisable"
+    return vd
 
 
 class TunableModelMixin(BaseModel):
@@ -140,6 +218,20 @@ class TunableModelMixin(BaseModel):
             else:
                 kv.update({nm: field})
         return type(self)(**kv)
+
+    class Config:
+        arbitrary_types_allowed = True
+        smart_union = True
+        json_encoders = {
+            tf.keras.layers.Layer: lambda v: v.get_config(),
+            tf.keras.optimizers.Optimizer: lambda v: v.get_config(),
+            tf.keras.optimizers.schedules.LearningRateSchedule: lambda v: convert_scalefn(v),
+            tf.keras.regularizers.Regularizer: lambda v: v.get_config(),
+            tf.keras.initializers.Initializer: lambda v: v.get_config(),
+            TunableType: lambda v: v.get_config(),
+            TunableActivation: lambda v: v.get_config(),
+            typing.Callable: lambda v: None,
+        }
 
 
 if __name__ == "__main__":

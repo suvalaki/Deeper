@@ -79,7 +79,7 @@ if False:
 #%% Instantiate the model
 BATCH_SIZE = 12
 desciminatorConfig = DescriminatorNet.Config(
-    embedding_dimensions=[512, 512, 128],
+    embedding_dimensions=[32, 12],
     activation=tf.keras.layers.Activation("relu"),
     embedding_dropout=0.25,
     # bn_before=True,
@@ -106,7 +106,7 @@ vaeConfig = Vae.Config(
 
 
 config = AdversarialAutoencoder.Config(
-    descriminator=desciminatorConfig, generator=vaeConfig, training_ratio=5
+    descriminator=desciminatorConfig, generator=vaeConfig, training_ratio=1
 )
 
 model = AdversarialAutoencoder(config)

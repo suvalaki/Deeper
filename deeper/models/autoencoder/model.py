@@ -17,6 +17,7 @@ from tensorflow.python.eager import backprop
 from tensorflow.python.keras.engine import data_adapter
 from tensorflow.python.keras.metrics import categorical_accuracy
 from pydantic import BaseModel
+from deeper.optimizers.automl.tunable_types import TunableModelMixin
 
 
 class Autoencoder(tf.keras.Model, AutoencoderModelBaseMixin, AutoencoderTypeGetter):

@@ -22,18 +22,25 @@ class ExtensionTypeIterableMixin:
 
     @classmethod
     def extract_unpacked(cls, x, i, n, axis=0):
-        if type(x) == tf.Tensor:
+        if isinstance(x, tf.Tensor):
             return tf.unstack(x, n, axis=0)[i]
-        return type(x)(
-            **{
-                k: cls.extract_unpacked(v, i, n, axis)
-                if isinstance(v, tf.experimental.ExtensionType)
-                else tuple(cls.extract_unpacked(z, i, n, axis) for z in v)
-                if type(v) == tuple
-                else cls.extract_unpacked(v, i, n, axis)
-                for k, v in x._asdict().items()
-            }
-        )
+
+        try:
+            return type(x)(
+                **{
+                    k: cls.extract_unpacked(v, i, n, axis)
+                    if isinstance(v, tf.experimental.ExtensionType)
+                    else tuple(cls.extract_unpacked(z, i, n, axis) for z in v)
+                    if type(v) == tuple
+                    else cls.extract_unpacked(v, i, n, axis)
+                    for k, v in x._asdict().items()
+                }
+            )
+
+        except:
+            import pdb
+
+            pdb.set_trace()
 
 
 def factory_from_named_tuple(x):

@@ -8,6 +8,7 @@ from deeper.layers.data_splitter import SplitCovariates
 from deeper.models.identity.utils import IdentityTypeGetter
 from deeper.models.generalised_autoencoder.base import LatentParser
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
+from deeper.optimizers.automl.tunable_types import TunableModelMixin
 
 
 class IdentityNet(tf.keras.layers.Layer, IdentityTypeGetter):

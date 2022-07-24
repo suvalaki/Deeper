@@ -17,7 +17,7 @@ from deeper.models.vae.decoder import VaeReconstructionNet
 from deeper.models.vae.utils import VaeTypeGetter
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
-from deeper.models.vae.base import MultipleObjectiveDimensions
+from deeper.models.generalised_autoencoder.base import MultipleObjectiveDimensions
 
 from deeper.probability_layers.normal import (
     lognormal_kl,

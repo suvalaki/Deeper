@@ -13,7 +13,7 @@ from deeper.layers.encoder import Encoder
 from deeper.layers.data_splitter import split_inputs, unpack_dimensions
 from deeper.layers.data_splitter import DataSplitter, reduce_groups
 
-from deeper.models.vae.base import MultipleObjectiveDimensions
+from deeper.models.generalised_autoencoder.base import MultipleObjectiveDimensions
 from deeper.models.vae.encoder import VaeEncoderNet
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
