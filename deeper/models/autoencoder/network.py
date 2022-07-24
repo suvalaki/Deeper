@@ -43,11 +43,16 @@ class AutoencoderNet(AutoencoderBase):
 
         @property
         def _ignored_encoder_fields(self):
-            return []
+            return ["latent_dim", "activation", "embedding_activations", "embedding_dimensions"]
 
         @property
         def _ignored_decoder_fields(self):
-            return []
+            return [
+                "output_dimensions",
+                "decoder_embedding_dimensions",
+                "embedding_activations",
+                "embedding_dimensions",
+            ]
 
     class EncoderOutputWrapper(tf.experimental.ExtensionType):
         sample: tf.Tensor
@@ -83,7 +88,11 @@ class AutoencoderNet(AutoencoderBase):
                 activation=config.embedding_activations,
                 embedding_activations=config.embedding_activations,
                 embedding_dimensions=config.encoder_embedding_dimensions,
-                **config.encoder_kwargs,
+                **{
+                    k: v
+                    for k, v in config.encoder_kwargs.items()
+                    if k not in self.config._ignored_encoder_fields
+                },
             )
         )
 
@@ -93,7 +102,11 @@ class AutoencoderNet(AutoencoderBase):
                 decoder_embedding_dimensions=config.decoder_embedding_dimensions,
                 embedding_activations=config.embedding_activations,
                 embedding_dimensions=config.decoder_embedding_dimensions,
-                **config.decoder_kwargs,
+                **{
+                    k: v
+                    for k, v in config.decoder_kwargs.items()
+                    if k not in self.config._ignored_decoder_fields
+                },
             ),
             **kwargs,
         )
