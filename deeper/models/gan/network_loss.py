@@ -12,12 +12,19 @@ from deeper.models.gan.network import (
 )
 
 
+def coalsece_nm(x, y):
+    if x is not None:
+        return x + "/" + y
+    return y
+
+
 class GanGeneratorLossNet(tf.keras.layers.Layer):
 
     # Reconstruction + get gan to fool descrim
     # Measures the ability for the generator to fool the descriminator. Samples should fool the desciminator
-    def __init__(self, **kwargs):
+    def __init__(self, prefix=None, **kwargs):
         super().__init__(**kwargs)
+        self.prefix = prefix
 
     def call(
         self,
@@ -38,7 +45,9 @@ class GanGeneratorLossNet(tf.keras.layers.Layer):
         y_bin_true_real = tf.cast(descrim_t > 0.5, dtype=tf.float32)
         acc = tf.reduce_mean(tf.cast(y_bin_pred_real == y_bin_true_real, dtype=tf.float32))
 
-        self.add_metric(acc, aggregation="mean", name="generator_accuracy")
+        self.add_metric(
+            acc, aggregation="mean", name=coalsece_nm(self.prefix, "generator_accuracy")
+        )
 
         return descrim_tuning_loss
 
@@ -48,8 +57,9 @@ class GanDescriminationLossNet(tf.keras.layers.Layer):
     # make gan wise to being fooled
     # Reconstruction + get gan to fool descrim
     # Measure the descriminators ability to distinguish between real and fake
-    def __init__(self, **kwargs):
+    def __init__(self, prefix=None, **kwargs):
         super().__init__(**kwargs)
+        self.prefix = prefix
 
     def call(
         self,
@@ -87,26 +97,37 @@ class GanDescriminationLossNet(tf.keras.layers.Layer):
         self.add_metric(
             descrim_fake_loss,
             aggregation="mean",
-            name="descriminator_fake_loss",
+            name=coalsece_nm(self.prefix, "descriminator_fake_loss"),
         )
         self.add_metric(
             descrim_real_loss,
             aggregation="mean",
-            name="descriminator_real_loss",
+            name=coalsece_nm(self.prefix, "descriminator_real_loss"),
         )
 
-        self.add_metric(acc_fake, aggregation="mean", name="descriminator_fake_accuracy")
-        self.add_metric(acc_real, aggregation="mean", name="descriminator_real_accuracy")
-        self.add_metric(acc, aggregation="mean", name="descriminator_accuracy")
+        self.add_metric(
+            acc_fake,
+            aggregation="mean",
+            name=coalsece_nm(self.prefix, "descriminator_fake_accuracy"),
+        )
+        self.add_metric(
+            acc_real,
+            aggregation="mean",
+            name=coalsece_nm(self.prefix, "descriminator_real_accuracy"),
+        )
+        self.add_metric(
+            acc, aggregation="mean", name=coalsece_nm(self.prefix, "descriminator_accuracy")
+        )
 
         return descrim_real_loss + descrim_fake_loss
 
 
 class GanLossNet(tf.keras.layers.Layer):
-    def __init__(self, **kwargs):
+    def __init__(self, prefix=None, **kwargs):
         super().__init__(**kwargs)
-        self.gen_lossnet = GanGeneratorLossNet()
-        self.descrim_lossnet = GanDescriminationLossNet()
+        self.gen_lossnet = GanGeneratorLossNet(prefix=prefix)
+        self.descrim_lossnet = GanDescriminationLossNet(prefix=prefix)
+        self.prefix = prefix
         # assign the input to be the input of the parent model
 
     def call_fool_descriminator(
