@@ -24,6 +24,14 @@ class GumbleGmvaeNet(GmvaeNetBase):
         qy_gumble_one_hot_sample: tf.Tensor
         marginal: MarginalGmVaeNet.Output
 
+        @property
+        def encoder(self):
+            return self.marginal.qz_g_xy
+
+        @property
+        def decoder(self):
+            return self.marginal.px_g_zy
+
     def __init__(self, config: GmvaeNet.Config, **kwargs):
         super(GumbleGmvaeNet, self).__init__(**kwargs)
         self.components = config.components

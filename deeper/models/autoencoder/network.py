@@ -65,6 +65,14 @@ class AutoencoderNet(AutoencoderBase):
         def px_g_z(self):
             return self.reconstruction
 
+        @property
+        def encoder(self):
+            return self.latent
+
+        @property
+        def decoder(self):
+            return self.reconstruction
+
     def __init__(
         self,
         config: AutoencoderNet.Config,

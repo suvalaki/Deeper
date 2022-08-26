@@ -82,6 +82,14 @@ class VaeNet(AutoencoderBase):
         # DecoderVariables
         px_g_z: VaeReconstructionNet.Output
 
+        @property
+        def encoder(self):
+            return self.qz_g_x
+
+        @property
+        def decoder(self):
+            return self.px_g_z
+
     def __init__(
         self,
         config: VaeNet.Config,
