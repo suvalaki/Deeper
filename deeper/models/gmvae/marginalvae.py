@@ -70,40 +70,13 @@ class MarginalGmVaeNet(VaeNet):
         **kwargs,
     ):
 
-        super().__init__(
-            VaeNet.Config(
-                input_dimensions=config.input_dimensions,
-                output_dimensions=config.output_dimensions,
-                encoder_embedding_dimensions=config.encoder_embedding_dimensions,
-                decoder_embedding_dimensions=config.decoder_embedding_dimensions,
-                latent_dim=config.latent_dim,
-                embedding_activations=config.embedding_activations,
-                enc_mu_embedding_kernel_initializer=config.enc_mu_embedding_kernel_initializer,
-                enc_mu_embedding_bias_initializer=config.enc_mu_embedding_bias_initializer,
-                enc_mu_latent_kernel_initialiazer=config.enc_mu_latent_kernel_initialiazer,
-                enc_mu_latent_bias_initializer=config.enc_mu_latent_bias_initializer,
-                enc_var_embedding_kernel_initializer=config.enc_var_embedding_kernel_initializer,
-                enc_var_embedding_bias_initializer=config.enc_var_embedding_bias_initializer,
-                enc_var_latent_kernel_initialiazer=config.enc_var_latent_kernel_initialiazer,
-                enc_var_latent_bias_initializer=config.enc_var_latent_bias_initializer,
-                recon_embedding_kernel_initializer=config.recon_embedding_kernel_initializer,
-                recon_embedding_bias_initializer=config.recon_embedding_bias_initializer,
-                recon_latent_kernel_initialiazer=config.recon_latent_kernel_initialiazer,
-                recon_latent_bias_initializer=config.recon_latent_bias_initializer,
-                connected_weights=config.connected_weights,
-                latent_mu_embedding_dropout=config.latent_mu_embedding_dropout,
-                latent_var_embedding_dropout=config.latent_var_embedding_dropout,
-                recon_dropout=config.recon_dropout,
-                latent_fixed_var=config.latent_fixed_var,
-            ),
-            **kwargs,
-        )
+        super().__init__(config, **kwargs)
         self.graph_pz_g_y = VaeEncoderNet(
             VaeEncoderNet.Config(
-                latent_dim=config.latent_dim,
+                latent_dim=self.config.latent_dim,
                 embedding_dimensions=[],
-                bn_before=config.bn_before,
-                bn_after=config.bn_after,
+                bn_before=self.config.bn_before,
+                bn_after=self.config.bn_after,
                 epsilon=0.0,
                 embedding_mu_kernel_initializer=config.posterior_mu_embedding_kernel_initializer,
                 embedding_mu_bias_initializer=config.posterior_mu_embedding_bias_initializer,
@@ -113,10 +86,10 @@ class MarginalGmVaeNet(VaeNet):
                 embedding_var_bias_initializer=config.posterior_var_embedding_bias_initializer,
                 latent_var_kernel_initialiazer=config.posterior_var_latent_kernel_initialiazer,
                 latent_var_bias_initializer=config.posterior_var_latent_bias_initializer,
-                connected_weights=config.connected_weights,
+                connected_weights=self.graph_qz_g_x.connected_weights,
                 embedding_mu_dropout=config.posterior_mu_dropout,
                 embedding_var_dropout=config.posterior_var_dropout,
-                fixed_var=config.latent_fixed_var,
+                fixed_var=self.graph_qz_g_x.fixed_var,
             ),
             **kwargs,
         )
