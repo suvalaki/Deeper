@@ -34,7 +34,7 @@ class SqlAlchemySessionGetter:
         """
 
         if engine == None and session == None:
-            logger.error("No engine or session provided. )
+            logger.error("No engine or session provided. ")
 
         self._engine = engine
         self._session = engine
