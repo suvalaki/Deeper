@@ -15,7 +15,7 @@ from sqlalchemy.sql.sqltypes import Boolean
 import tensorflow as tf
 import json
 
-from brownlow.etl.cache.getter_base import OutputData
+from deeper.etl.getter import OutputData
 from dataclasses import dataclass
 
 from sklearn.model_selection import train_test_split
