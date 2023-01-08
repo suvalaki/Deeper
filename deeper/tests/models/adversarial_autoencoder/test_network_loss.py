@@ -169,7 +169,7 @@ class TestGanLossNet(unittest.TestCase):
 
             self.assertEqual(loss_out.generative.shape, (N_ROWS, 1))
             self.assertEqual(loss_out.descriminative.shape, (N_ROWS, 1))
-            # Output probability is zero dim
+            # Loss outs are flat onto the batch size
             self.assertEqual(loss_out.reconstruciton.shape, (N_ROWS,))
 
 

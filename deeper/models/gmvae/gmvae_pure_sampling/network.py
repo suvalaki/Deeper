@@ -1,9 +1,10 @@
 from __future__ import annotations
 import tensorflow as tf
 
-from typing import Union, Tuple, Sequence, Optional, NamedTuple
+from typing import Tuple, Sequence, Optional, NamedTuple
 from pydantic.dataclasses import dataclass
 
+from deeper.layers.data_splitter import SplitCovariates
 from deeper.layers.categorical import CategoricalEncoder
 from deeper.probability_layers.gumble_softmax import GumbleSoftmaxLayer
 from deeper.models.gmvae.marginalvae import MarginalGmVaeNet
@@ -12,6 +13,24 @@ from deeper.models.gmvae.gmvae_pure_sampling.utils import GumbleGmvaeTypeGetter
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
 
 from pydantic import BaseModel
+
+
+# Extra class to collect encoder vars
+class GumbleGmvaeNetEncoder(tf.keras.layers.Layer):
+    def __init__(self, graph_qy_g_x_ohe, ae_encoder, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.graph_qy_g_x_ohe = graph_qy_g_x_ohe
+        self.ae_encoder = ae_encoder
+
+    @tf.function
+    def call(self, inputs, training=False):
+
+        x, temperature = inputs
+        x = tf.cast(x, self.dtype)
+        temperature = tf.cast(temperature, self.dtype)
+        qy_g_x = self.graph_qy_g_x(x, training=training)
+        qy_g_x_ohe = self.graph_qy_g_x_ohe(qy_g_x.logits, temperature)
+        return self.ae_encoder([x, qy_g_x_ohe], training)
 
 
 class GumbleGmvaeNet(GmvaeNetBase):
@@ -32,7 +51,7 @@ class GumbleGmvaeNet(GmvaeNetBase):
         def decoder(self):
             return self.marginal.px_g_zy
 
-    def __init__(self, config: GmvaeNet.Config, **kwargs):
+    def __init__(self, config: GumbleGmvaeNet.Config, **kwargs):
         super(GumbleGmvaeNet, self).__init__(**kwargs)
         self.components = config.components
         self.graph_qy_g_x = CategoricalEncoder(
@@ -51,10 +70,15 @@ class GumbleGmvaeNet(GmvaeNetBase):
         self.graph_qy_g_x_ohe = GumbleSoftmaxLayer()
         self.graph_marginal_autoencoder = MarginalGmVaeNet(config, **kwargs)
 
+        # shorthand
+        self._encoder = GumbleGmvaeNetEncoder(
+            self.graph_qy_g_x_ohe, self.graph_marginal_autoencoder.encoder
+        )
+
     @property
     def encoder(self):
         # return self.graph_marginal_autoencoder
-        raise NotImplementedError()
+        return self._encoder
 
     @property
     def decoder(self):

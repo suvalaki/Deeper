@@ -6,9 +6,10 @@ WORKDIR /root/Deeper
 
 RUN ls -all
 
-RUN pip install poetry #&& \
-    #poetry install
-    #python -m unittest && \
+RUN pip install poetry && \
+    poetry install && \
+    poetry shell && \
+    python -m unittest #&& \
     #poetry build
 
-
+CMD poetry shell

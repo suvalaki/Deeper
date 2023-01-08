@@ -2,7 +2,7 @@ from __future__ import annotations
 import tensorflow as tf
 import unittest
 import numpy as np
-from deeper.models.vae.base import MultipleObjectiveDimensions
+from deeper.models.generalised_autoencoder.base import MultipleObjectiveDimensions
 from deeper.models.vae.encoder import VaeEncoderNet
 from deeper.models.vae.decoder import VaeReconstructionNet
 from deeper.models.vae.decoder_loss import VaeReconLossNet

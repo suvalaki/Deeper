@@ -32,7 +32,7 @@ class VaeReconstructionNet(Layer):
         output_dimensions: MultipleObjectiveDimensions
         decoder_embedding_dimensions: Sequence[int]
         embedding_activations: tf.keras.layers.Layer = TunableActivation("relu")
-        bn_before: bool = TunableBoolean(False)
+        bn_before: bool = False
         bn_after: bool = False
         embedding_kernel_initializer: Union[
             str, tf.keras.initializers.Initializer

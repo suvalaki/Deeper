@@ -10,7 +10,7 @@ from typing import Tuple, Union, Optional, Sequence, NamedTuple
 from deeper.layers.encoder import Encoder
 from deeper.probability_layers.normal import RandomNormalEncoder
 from deeper.probability_layers.ops.normal import std_normal_kl_divergence
-from deeper.layers.data_splitter import split_inputs, unpack_dimensions
+from deeper.layers.data_splitter import split_inputs, unpack_dimensions, SplitCovariates
 from deeper.utils.function_helpers.decorators import inits_args
 from deeper.models.vae.encoder import VaeEncoderNet
 from deeper.models.vae.decoder import VaeReconstructionNet

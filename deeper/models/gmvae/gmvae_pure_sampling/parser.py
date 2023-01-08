@@ -37,22 +37,30 @@ class InputParser(BaseGanRealOutputGetter):
 
 
 class OutputParser(BaseGanFakeOutputGetter):
-    def __init__(self, **kwargs):
+    def __init__(self, flat=True, **kwargs):
         super().__init__(**kwargs)
+        self._flat = flat
 
     def call(
         self,
         y_pred: GumbleGmvaeNet.Output,
         training: bool = False,
     ) -> tf.Tensor:
-        return tf.concat(
-            [
-                y_pred.marginal.px_g_zy.regression,
-                y_pred.marginal.px_g_zy.binary,
-                y_pred.marginal.px_g_zy.ord_groups_concat,
-                y_pred.marginal.px_g_zy.categorical_groups_concat,
-            ],
-            axis=-1,
+        if self._flat:
+            return tf.concat(
+                [
+                    y_pred.marginal.px_g_zy.regression,
+                    y_pred.marginal.px_g_zy.binary,
+                    y_pred.marginal.px_g_zy.ord_groups_concat,
+                    y_pred.marginal.px_g_zy.categorical_groups_concat,
+                ],
+                axis=-1,
+            )
+        return (
+            y_pred.marginal.regression,
+            y_pred.marginal.binary,
+            y_pred.marginal.ord_groups_concat,
+            y_pred.marginal.categorical_groups_concat,
         )
 
 

@@ -39,33 +39,36 @@ class InputParser(BaseGanRealOutputGetter):
 
 
 class OutputParser(BaseGanFakeOutputGetter):
-    def __init__(self, **kwargs):
+    def __init__(self, flat=True, **kwargs):
         super().__init__(**kwargs)
+        self._flat = flat
 
     def call(
         self,
         y_pred: StackedGmvaeNet.Output,
         training: bool = False,
     ) -> tf.Tensor:
-        return tf.reduce_sum(
-            tf.stack(
-                [
-                    y_pred.qy_g_x.probs[:, i, None]
-                    * tf.concat(
-                        [
-                            marginal.px_g_zy.regression,
-                            marginal.px_g_zy.binary,
-                            marginal.px_g_zy.ord_groups_concat,
-                            marginal.px_g_zy.categorical_groups_concat,
-                        ],
-                        axis=-1,
-                    )
-                    for i, marginal in enumerate(y_pred.marginals)
-                ],
+        if self._flat:
+            return tf.reduce_sum(
+                tf.stack(
+                    [
+                        y_pred.qy_g_x.probs[:, i, None]
+                        * tf.concat(
+                            [
+                                marginal.px_g_zy.regression,
+                                marginal.px_g_zy.binary,
+                                marginal.px_g_zy.ord_groups_concat,
+                                marginal.px_g_zy.categorical_groups_concat,
+                            ],
+                            axis=-1,
+                        )
+                        for i, marginal in enumerate(y_pred.marginals)
+                    ],
+                    axis=0,
+                ),
                 axis=0,
-            ),
-            axis=0,
-        )
+            )
+        raise NotImplementedError("FIX ME")
 
 
 class LatentPriorParser(BaseGanRealOutputGetter):

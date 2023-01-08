@@ -73,7 +73,7 @@ class VaeReconLossNet(tf.keras.layers.Layer):
     def __init__(
         self,
         decoder_name="xgz",
-        prefix="",  # Must be non null for freestanding scope. Cannot start with "/"
+        prefix="l",  # Must be non null for freestanding scope. Cannot start with "/"
         binary_label_smoothing=0.0,
         **kwargs,
     ):
@@ -111,12 +111,12 @@ class VaeReconLossNet(tf.keras.layers.Layer):
         if y_bin_logits_true.shape[-1] > 0:
             xent = tf.reduce_sum(
                 tf.nn.sigmoid_cross_entropy_with_logits(
-                    # labels=tf.clip_by_value(
-                    #     tf.cast(y_bin_logits_true, dtype=self.dtype),
-                    #     self.binary_label_smoothing,
-                    #     1 - self.binary_label_smoothing,
-                    # ),
-                    labels=tf.cast(y_bin_logits_true, dtype=self.dtype),
+                    labels=tf.clip_by_value(
+                        tf.cast(y_bin_logits_true, dtype=self.dtype),
+                        self.binary_label_smoothing,
+                        1 - self.binary_label_smoothing,
+                    ),
+                    # labels=tf.cast(y_bin_logits_true, dtype=self.dtype),
                     logits=tf.cast(y_bin_logits_pred, dtype=self.dtype),
                     name=f"{self.prefix}/xent/{self.decoder_name}_binary_xent",
                 ),
@@ -209,7 +209,7 @@ class VaeReconLossNet(tf.keras.layers.Layer):
             )
         else:
             xent = tf.zeros(
-                (tf.shape(y_ord_logits_true[0])[0], 1),
+                (tf.shape(y_ord_logits_true[0])[0], 1)[:-1],
                 dtype=self.dtype,
             )
 

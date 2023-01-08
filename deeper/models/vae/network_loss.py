@@ -113,6 +113,7 @@ class VaeLossNet(tf.keras.layers.Layer):
     ):
         scaled_kl_z = lambda_z * kl_z
         self.add_metric(scaled_kl_z, name="scaled_latent_kl")
+        self.add_metric(scaled_kl_z, name=f"{self.prefix}/scaled/latent_kl")
         scaled_log_pxgz_reg = tf.cast(lambda_reg, self.dtype) * log_pxgz_reg
         self.add_metric(
             scaled_log_pxgz_reg,
