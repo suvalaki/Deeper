@@ -130,7 +130,9 @@ class TestGanModel(unittest.TestCase):
         self.data = ((X, X), (X, X), (X, X), ([X, temps], X))
         self.models = [Gan(c) for c in CONFIGS]
         for m in self.models:
-            m.compile()
+            m.compile(
+                optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.001)
+            )  ## using old optimiser becasuise new one requires build to specify which variables exactly
 
     def test_outputShapes(self):
         for model, config, exp_type, (x, y) in zip(self.models, CONFIGS, EXPECTED_TYPES, self.data):

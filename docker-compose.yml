@@ -2,12 +2,12 @@ version: "3"
 
 services:
   deeper:
-    volumes:
-      - ./.:/root/Deeper:cached # <--- This will map ./py1 to /root/py1 inside the container.
+    #volumes:
+    #  - ./.:/root/Deeper:cached # <--- This will map ./py1 to /root/py1 inside the container.
     #image: tensorflow/tensorflow
     build: .
     #command: sh -c "pip install poetry && poetry install &&  poetry build"
-    tty: true # Keep running
+    # tty: true # Keep running
     # environment:
     #   - PORT=9000
     #   - FLASK_ENV=development

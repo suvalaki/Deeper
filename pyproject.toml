@@ -6,12 +6,12 @@ authors = ["DDiaz"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = ">=3.8.10, <3.11"
-tqdm = "^4.49.0"
-scikit-learn = "^0.23.2"
-tensorflow = ">=2.8.0, <2.9.0"
-pydantic = "^1.9.0"
-tensorflow-addons = "^0.15.0"
+python = ">=3.10, <3.11"
+tensorflow = "^2.11.0"
+scikit-learn = "^1.2.0"
+tqdm = "^4.64.1"
+pydantic = "^1.10.4"
+tensorflow-addons = "^0.19.0"
 
 [tool.poetry.dev-dependencies]
 ipython = "^7.18.1"
