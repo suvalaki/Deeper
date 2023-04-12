@@ -34,6 +34,7 @@ COPY . .
 
 RUN python3.10 -m pip install --upgrade pip \
     && python3.10 -m pip install --upgrade requests  \
-    && python3.10 -m pip install poetry &&  python3.10 -m poetry install
+    && python3.10 -m pip install poetry &&  python3.10 -m poetry install \
+    && python3.10 -m pip install .
 
 CMD poetry shell
