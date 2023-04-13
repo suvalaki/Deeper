@@ -28,14 +28,14 @@ RUN  python3.10 -m ensurepip
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
 
-
 WORKDIR /root/Deeper
 
 COPY . .
 
 RUN python3.10 -m pip install --upgrade pip \
     && python3.10 -m pip install --upgrade requests  \
-    && python3.10 -m pip install poetry &&  python3.10 -m poetry install \
+    && python3.10 -m pip install poetry \
+    &&  python3.10 -m poetry build \
     && python3.10 -m pip install ./dist/deeper-0.1.3-py3-none-any.whl
 
 CMD poetry shell
