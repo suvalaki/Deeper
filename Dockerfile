@@ -26,6 +26,7 @@ RUN  python3.10 -m ensurepip
 
 # Update default python version
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
 
 
 WORKDIR /root/Deeper
