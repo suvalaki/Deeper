@@ -122,7 +122,7 @@ class VaeReconstructionNet(Layer):
             latent_activity_regularizer=config.recon_activity_regularizer,
         )
 
-    @tf.function
+    
     def logits_to_actuals(
         self, output_logits_concat: tf.Tensor, training=False
     ) -> self.ReconstructionOutput:
@@ -151,6 +151,6 @@ class VaeReconstructionNet(Layer):
             x_recon_cat_groups,
         )
 
-    @tf.function
+    
     def call(self, x: VaeEncoderNet.Output, training=False) -> VaeReconstructionNet.Output:
         return self.logits_to_actuals(self.graph_px_g_z.call(x.sample, training), training)

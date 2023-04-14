@@ -57,7 +57,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         self.latent_lossnet = VaeLossNetLatent(latent_eps, name="latent_kl", **kwargs)
         self.recon_lossnet = VaeReconLossNet(decoder_name, prefix, **kwargs)
 
-    @tf.function
+    
     def log_pxgz(
         self,
         log_pxgz_reg,
@@ -72,7 +72,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         log_p = log_pxgz_reg + log_pxgz_bin + log_pxgz_ord + log_pxgz_cat
         self.add_metric(log_p, name=f"{self.prefix}/log_p/{self.decoder_name}")
 
-    @tf.function
+    
     def elbo(
         self,
         kl_z,
@@ -97,7 +97,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         lambda_ord: tf.Tensor
         lambda_cat: tf.Tensor
 
-    @tf.function
+    
     def loss(
         self,
         kl_z,
@@ -183,7 +183,7 @@ class VaeLossNet(tf.keras.layers.Layer):
         weight: VaeLossNet.InputWeight
 
         @staticmethod
-        @tf.function
+        
         def from_nested_sequence(inputs) -> VaeLossNet.Input:
             return VaeLossNet.Input(
                 VaeLossNetLatent.Input(*inputs[0]),
@@ -193,7 +193,7 @@ class VaeLossNet(tf.keras.layers.Layer):
             )
 
         @staticmethod
-        @tf.function
+        
         def from_output(
             y_true: SplitCovariates,
             model_output: VaeNet.VaeNetOutput,
@@ -234,7 +234,7 @@ class VaeLossNet(tf.keras.layers.Layer):
             name=f"{self.prefix}/scaled/stat_{self.decoder_name}_{name}_stdMax",
         )
 
-    @tf.function
+    
     def call(self, inputs: Input, training=False) -> Output:
 
         if not isinstance(inputs, VaeLossNet.Input):

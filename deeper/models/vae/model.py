@@ -153,7 +153,7 @@ class Vae(tf.keras.Model, AutoencoderModelBaseMixin):
         network = VaeNet(config, **kwargs)
         self.__init__(network, config, **kwargs)
 
-    @tf.function
+    
     def loss_fn(
         self,
         y_true,
@@ -175,11 +175,11 @@ class Vae(tf.keras.Model, AutoencoderModelBaseMixin):
         )
         return loss
 
-    @tf.function
+    
     def call(self, x, training=False):
         return self.network(x, training)
 
-    @tf.function
+    
     def latent_sample(self, inputs, y, training=False, samples=1):
         output = self.monte_carlo_estimate(samples, inputs, y, training=training)
         latent = outputs["px_g_z__sample"]

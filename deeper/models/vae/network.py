@@ -171,7 +171,7 @@ class VaeNet(AutoencoderBase):
     def output_dim(self):
         return self.graph_px_g_z.output_dim
 
-    @tf.function
+    
     def split_inputs(self, x) -> SplitCovariates:
         return split_inputs(
             x,
@@ -181,11 +181,11 @@ class VaeNet(AutoencoderBase):
             self.input_categorical_dimension,
         )
 
-    @tf.function
+    
     def split_outputs(self, y) -> SplitCovariates:
         return self.graph_px_g_z.splitter(y)
 
-    @tf.function
+    
     def call(self, x, training=False) -> VaeNet.VaeNetOutput:
 
         x = tf.cast(x, dtype=self.dtype)
@@ -200,7 +200,7 @@ class VaeNet(AutoencoderBase):
     def call_to_dict(self, result):
         return result._asdict()
 
-    @tf.function
+    
     def call_dict(self, x, training=False):
         return self.call_to_dict(self.call(x, training))
 

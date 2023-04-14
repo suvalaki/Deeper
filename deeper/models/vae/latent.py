@@ -9,6 +9,6 @@ class VaeLatentParser(LatentParser):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @tf.function
+    
     def call(self, x: VaeNet.Output, training=False):
         return x.qz_g_x.sample

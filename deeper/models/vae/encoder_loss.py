@@ -28,12 +28,10 @@ class VaeLossNetLatent(tf.keras.layers.Layer):
         super(VaeLossNetLatent, self).__init__(name=name, **kwargs)
         self.latent_eps = latent_eps
 
-    @tf.function
     def latent_kl(self, mu, logvar, training=False):
         kl = std_normal_kl_divergence(mu, logvar, epsilon=self.latent_eps)
         self.add_metric(kl, name=self.name)
         return kl
 
-    @tf.function
     def call(self, x: VaeLossNetLatent.Input, training=False) -> tf.Tensor:
         return self.latent_kl(x.mu, x.logvar, training)

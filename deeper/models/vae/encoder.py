@@ -24,6 +24,6 @@ class VaeEncoderNet(RandomNormalEncoder):
     def __init__(self, config: VaeEncoderNet.Config, **kwargs):
         super().__init__(config, **kwargs)
 
-    @tf.function
+    
     def call(self, x, training=False) -> VaeNet.VaeNetOutput:
         return self.Output(*super().call(x, training))
