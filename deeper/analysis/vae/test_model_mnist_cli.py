@@ -81,6 +81,7 @@ def main():
         # callbacks=[tbc, pc],
         batch_size=args.batch_size,
         validation_data=(X_test, X_test),
+        verbose=2, # One line per epoch
     )
 
 
