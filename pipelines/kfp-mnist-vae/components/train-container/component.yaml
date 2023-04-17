@@ -1,0 +1,37 @@
+# This is the mecahnism for specifying container components in the v1 api.
+# It can be replaced by a pythonic mechanism in v2
+name: Train Model
+description: Trains the VAE model
+
+inputs:
+  - { name: data_locn, type: Dataset, description: "Location to savwe data" }
+  - {
+      name: latent_dim,
+      type: Integer,
+      default: "10",
+      description: "Size of the latent dimension",
+    }
+  - {
+      name: batch_size,
+      type: Integer,
+      default: "10",
+      description: "Train and Eval Batch Size",
+    }
+
+implementation:
+  container:
+    image: suvalaki/deeper:latest
+    command:
+    - sh
+    - -cx
+    - |2
+      python ./deeper/analysis/vae/test_model_mnist_cli.py "$0" "$@"
+
+    args:
+    - --data-locn
+    # This parses the Dataset and takes the inputPath attribute
+    - { inputPath: data_locn }
+    - --latent-dim
+    - { inputValue: latent_dim }
+    - --batch-size
+    - { inputValue: batch_size }
