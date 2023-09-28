@@ -225,6 +225,7 @@ class TunableModelMixin(BaseModel):
         json_encoders = {
             tf.keras.layers.Layer: lambda v: v.get_config(),
             tf.keras.optimizers.Optimizer: lambda v: v.get_config(),
+            tf.keras.optimizers.legacy.Optimizer: lambda v: v.get_config(),
             tf.keras.optimizers.schedules.LearningRateSchedule: lambda v: convert_scalefn(v),
             tf.keras.regularizers.Regularizer: lambda v: v.get_config(),
             tf.keras.initializers.Initializer: lambda v: v.get_config(),
