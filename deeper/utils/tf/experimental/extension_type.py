@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Tuple
 import tensorflow as tf
 
 
@@ -33,6 +35,28 @@ class ExtensionTypeIterableMixin:
                 if type(v) == tuple
                 else cls.extract_unpacked(v, i, n, axis)
                 for k, v in x._asdict().items()
+            }
+        )
+
+    @classmethod 
+    def reduce(cls, x:Tuple[ExtensionTypeIterableMixin], reducer=tf.reduce_mean):
+
+        if isinstance(x[0], tf.Tensor):
+            return reducer(tf.stack(x, axis=0), axis=0)
+
+        if isinstance(x[0], tuple):
+            return tuple(
+                cls.reduce([v[i] for v in x], reducer) 
+                for i in range(len(x[0]))
+            )
+                                   
+        return type(x[0])(
+            **{
+                k: cls.reduce([
+                   getattr(v, k) for v in x], 
+                   reducer
+               )
+               for k in x[0]._asdict().keys()
             }
         )
 
