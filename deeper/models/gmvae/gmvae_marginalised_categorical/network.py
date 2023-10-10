@@ -12,6 +12,10 @@ from deeper.models.gmvae.base import GmvaeNetBase
 from deeper.models.gmvae.gmvae_marginalised_categorical.utils import (
     StackedGmvaeTypeGetter,
 )
+from deeper.models.vae import (
+    VaeEncoderNet,
+    VaeReconstructionNet,
+)
 
 from pydantic import BaseModel
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
