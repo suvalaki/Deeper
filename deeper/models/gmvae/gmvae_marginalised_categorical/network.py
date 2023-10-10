@@ -16,6 +16,7 @@ from deeper.models.vae import (
     VaeEncoderNet,
     VaeReconstructionNet,
 )
+from deeper.ops.reduce import weighted_average
 
 from pydantic import BaseModel
 from deeper.utils.tf.experimental.extension_type import ExtensionTypeIterableMixin
@@ -94,6 +95,7 @@ class StackedGmvaeNet(GmvaeNetBase):
                 )
                 marginals[i] = self.graph_marginal_autoencoder([x, y_ohe], training)
 
-        averaged = MarginalGmVaeNet.Output.reduce(marginals)
+        probs = qy_g_x.probs
+        averaged = MarginalGmVaeNet.Output.reduce(marginals, lambda x: weighted_average(x, probs))
 
         return StackedGmvaeNet.Output(py, qy_g_x, marginals, averaged.encoder, averaged.decoder)
