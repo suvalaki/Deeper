@@ -60,6 +60,17 @@ class MarginalGmVaeNet(VaeNet):
         px_g_zy: VaeReconstructionNet.Output
         pz_g_y: VaeEncoderNet.Output
 
+        # TODO: make the encoder a concat of qzgxy and pzgy instead of just
+        # allowing the encoder to flow?
+
+        @property 
+        def encoder(self):
+            return self.pz_g_y
+
+        @property 
+        def decoder(self):
+            return self.px_g_zy
+
     @classmethod
     def from_config(cls, config: MarginalGmVaeNet.Config, **kwargs):
         return cls(**config, **kwargs)
