@@ -26,6 +26,11 @@ class StackedGmvaeNet(GmvaeNetBase):
         qy_g_x: CategoricalEncoder.Output
         marginals: Tuple[MarginalGmVaeNet.Output, ...]
 
+        # an addotional average model to mock a decoder in helper methods. 
+        # maybe this should be a dynamic prop instead?
+        decoder: MarginalGmVaeNet.Output
+
+
     def __init__(self, config: GmvaeNet.Config, **kwargs):
         super(StackedGmvaeNet, self).__init__(**kwargs)
         self.components = config.components
@@ -84,4 +89,6 @@ class StackedGmvaeNet(GmvaeNetBase):
                 )
                 marginals[i] = self.graph_marginal_autoencoder([x, y_ohe], training)
 
-        return StackedGmvaeNet.Output(py, qy_g_x, marginals)
+        averaged = MarginalGmVaeNet.Output.reduce(marginals)
+
+        return StackedGmvaeNet.Output(py, qy_g_x, marginals, averaged)
