@@ -39,10 +39,14 @@ class ExtensionTypeIterableMixin:
         )
 
     @classmethod 
-    def reduce(cls, x:Tuple[ExtensionTypeIterableMixin], reducer=tf.reduce_mean):
+    def reduce(
+        cls, 
+        x:Tuple[ExtensionTypeIterableMixin], 
+        reducer=lambda x: tf.reduce_mean(tf.stack(x, axis=0), axis=0)
+    ):
 
         if isinstance(x[0], tf.Tensor):
-            return reducer(tf.stack(x, axis=0), axis=0)
+            return reducer(x)
 
         if isinstance(x[0], tuple):
             return tuple(
